@@ -13,6 +13,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Dns
 import java.net.InetAddress
 import okio.Path.Companion.toPath
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 import timber.log.Timber
 import com.google.firebase.crashlytics.FirebaseCrashlytics
@@ -57,6 +61,8 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
     lateinit var container: AppContainer
         private set
 
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     override fun onCreate() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
@@ -67,6 +73,16 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
             Timber.e(e, "Failed to set TMPDIR environment variable")
         }
         container = AppContainer(this)
+
+        // Keep the local streaming server tied to the application process rather
+        // than to a particular screen/ViewModel. This makes the status reliable
+        // on phone and Android TV and prevents compatible local streams from
+        // losing the server when the UI is recreated.
+        applicationScope.launch {
+            runCatching { container.serverController.start() }
+                .onFailure { Timber.e(it, "Failed to start streaming server at application startup") }
+        }
+
         val analyticsEnabled = container.authRepository.isAnalyticsEnabled()
         FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsEnabled)
 
@@ -84,7 +100,6 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
             }
             PostHogAndroid.setup(this, posthogConfig)
         }
-
     }
 
     override fun newImageLoader(context: Context): ImageLoader {
