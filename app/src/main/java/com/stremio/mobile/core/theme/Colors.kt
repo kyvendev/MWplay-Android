@@ -10,17 +10,19 @@ val ScreenGutter = 16.dp
 /** Space reserved at the bottom of scrollable content so the last row clears the floating bottom bar. */
 val BottomBarSpace = 96.dp
 
-val StremioBackground = Color(0xFF050515)
-val SearchBackground = Color(0xFF292932)
-val CardFallback = Color(0xFF171724)
-val AccentPurple = Color(0xFF7457F2)
-val MutedText = Color(0xFFB9B5C6)
-val GlassSurface = Color(0xB72A2935)
+// MW Play visual foundation: cinema black with purple/electric-blue accents.
+val StremioBackground = Color(0xFF070812)
+val SearchBackground = Color(0xFF171925)
+val CardFallback = Color(0xFF11131F)
+val AccentPurple = Color(0xFF825CFF)
+val MutedText = Color(0xFFB9B9C8)
+val GlassSurface = Color(0xCC171925)
+val AccentGreen = Color(0xFF4E8CFF)
 
-/** Secondary accent used by the web client for primary "play" affordances. */
-val AccentGreen = Color(0xFF22B365)
-
-/** stremio-web's root background: a 41° dark navy-to-purple diagonal gradient. */
 val StremioBackgroundBrush = Brush.linearGradient(
-    colors = listOf(Color(0xFF0C0B11), Color(0xFF1A173E)),
+    colors = listOf(
+        Color(0xFF05060C),
+        Color(0xFF111329),
+        Color(0xFF21134A),
+    ),
 )
