@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.CardFallback
 import com.stremio.mobile.core.theme.MutedText
@@ -80,12 +79,12 @@ fun PosterShelf(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .tvFocusTarget(cornerRadius = 10.dp, focusedScale = 1.08f)
+                        .tvFocusTarget(cornerRadius = 10.dp, focusedScale = 1.06f)
                         .clickable(onClick = onSeeAllClick)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                 ) {
-                    Text("VER TUDO", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-                    Icon(Icons.Outlined.ChevronRight, null, tint = MutedText, modifier = Modifier.padding(start = 5.dp).size(20.dp))
+                    Text("MOSTRAR TUDO", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                    Icon(Icons.Outlined.ChevronRight, "Mostrar tudo", tint = Color.White, modifier = Modifier.padding(start = 5.dp).size(20.dp))
                 }
             }
         }
@@ -113,14 +112,19 @@ fun PosterTile(item: CatalogItem, mode: ShelfMode, onClick: () -> Unit) {
         modifier = Modifier
             .width(TvPosterWidth)
             .aspectRatio(0.66f)
-            .tvFocusTarget(cornerRadius = TvPosterRadius, focusedScale = 1.12f)
+            .tvFocusTarget(cornerRadius = TvPosterRadius, focusedScale = 1.08f)
             .clip(RoundedCornerShape(TvPosterRadius))
             .background(CardFallback)
             .clickable(onClick = onClick),
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current).data(item.poster).size(284, 430)
-                .memoryCachePolicy(CachePolicy.ENABLED).crossfade(true).build(),
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(item.poster)
+                .size(256, 388)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .networkCachePolicy(CachePolicy.ENABLED)
+                .build(),
             contentDescription = item.name,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
