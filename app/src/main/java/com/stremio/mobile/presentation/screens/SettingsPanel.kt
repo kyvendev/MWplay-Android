@@ -1,35 +1,18 @@
 package com.stremio.mobile.presentation.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.Android
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -37,292 +20,97 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.MutedText
-import com.stremio.mobile.presentation.components.SectionTitle
-import com.stremio.mobile.presentation.components.ThemedButton
-import com.stremio.mobile.presentation.components.ThemedCard
-import com.stremio.mobile.presentation.components.ThemedDropdownMenu
-import com.stremio.mobile.presentation.components.ThemedSlider
-import com.stremio.mobile.presentation.components.ThemedToggle
-import com.stremio.mobile.presentation.components.rememberGlobalHapticFeedback
-import com.stremio.mobile.presentation.components.tvFocusTarget
+import com.stremio.mobile.presentation.components.*
 
-enum class SettingsSubScreen {
-    Main,
-    Addons,
-    General,
-    Interface,
-    Player,
-    Streaming,
-    Android,
-    LiquidGlassLab,
-    Info,
-}
+enum class SettingsSubScreen { Main, Addons, General, Interface, Player, Streaming, Android, LiquidGlassLab, Info }
 
 @Composable
-fun SettingsPanel(
-    email: String?,
-    onLogout: () -> Unit,
-    onNavigateTo: (SettingsSubScreen) -> Unit,
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+fun SettingsPanel(email: String?, onLogout: () -> Unit, onNavigateTo: (SettingsSubScreen) -> Unit) {
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SectionTitle("Configurações")
-
-        ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.AccountCircle,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp),
-                    )
+        ThemedCard(Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.Outlined.AccountCircle, null, tint = Color.White, modifier = Modifier.size(36.dp))
                     Column {
-                        Text(
-                            text = email ?: "Conta MW Play",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = if (email != null) "Conectado" else "Modo visitante",
-                            color = MutedText,
-                            fontSize = 13.sp,
-                        )
+                        Text(email ?: "Conta MW Play", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(if (email != null) "Conectado" else "Modo visitante", color = MutedText, fontSize = 13.sp)
                     }
                 }
-                AuthButton(
-                    text = "Sair da conta",
-                    containerColor = Color(0x15FFFFFF),
-                    onClick = onLogout,
-                )
+                AuthButton("Sair da conta", Color(0x15FFFFFF), onLogout)
             }
         }
-
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SettingsMenuRow(
-                icon = Icons.Outlined.AccountCircle,
-                title = "Geral",
-                description = "Conta, integrações e preferências gerais",
-                onClick = { onNavigateTo(SettingsSubScreen.General) },
-            )
-            SettingsMenuRow(
-                icon = Icons.Outlined.Language,
-                title = "Interface",
-                description = "Idioma e aparência do aplicativo",
-                onClick = { onNavigateTo(SettingsSubScreen.Interface) },
-            )
-            SettingsMenuRow(
-                icon = Icons.Outlined.PlayCircle,
-                title = "Player",
-                description = "Legendas, decodificação e reprodução",
-                onClick = { onNavigateTo(SettingsSubScreen.Player) },
-            )
-            SettingsMenuRow(
-                icon = Icons.Outlined.Cloud,
-                title = "Streaming",
-                description = "Conexão, cache e desempenho",
-                onClick = { onNavigateTo(SettingsSubScreen.Streaming) },
-            )
-            SettingsMenuRow(
-                icon = Icons.Outlined.Android,
-                title = "Android",
-                description = "Inicialização e comportamento em segundo plano",
-                onClick = { onNavigateTo(SettingsSubScreen.Android) },
-            )
-            SettingsMenuRow(
-                icon = Icons.Outlined.Info,
-                title = "Sobre o MW Play",
-                description = "Versão, diagnósticos e informações do aplicativo",
-                onClick = { onNavigateTo(SettingsSubScreen.Info) },
-            )
+            SettingsMenuRow(Icons.Outlined.AccountCircle, "Geral", "Conta, integrações e preferências gerais") { onNavigateTo(SettingsSubScreen.General) }
+            SettingsMenuRow(Icons.Outlined.Language, "Interface", "Idioma e aparência do aplicativo") { onNavigateTo(SettingsSubScreen.Interface) }
+            SettingsMenuRow(Icons.Outlined.PlayCircle, "Player", "Legendas, decodificação e reprodução") { onNavigateTo(SettingsSubScreen.Player) }
+            SettingsMenuRow(Icons.Outlined.Cloud, "Streaming", "Conexão, cache e desempenho") { onNavigateTo(SettingsSubScreen.Streaming) }
+            SettingsMenuRow(Icons.Outlined.Android, "Android", "Inicialização e comportamento em segundo plano") { onNavigateTo(SettingsSubScreen.Android) }
+            SettingsMenuRow(Icons.Outlined.Info, "Sobre o MW Play", "Versão, diagnósticos e informações do aplicativo") { onNavigateTo(SettingsSubScreen.Info) }
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(Modifier.height(24.dp))
     }
 }
 
-@Composable
-private fun AuthButton(text: String, containerColor: Color, onClick: () -> Unit) {
-    ThemedButton(
-        text = text,
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.03f),
-        containerColor = containerColor,
-    )
-}
+@Composable private fun AuthButton(text:String, containerColor:Color, onClick:()->Unit) = ThemedButton(text,onClick,Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=999.dp,focusedScale=1.03f),containerColor=containerColor)
 
 @Composable
-private fun SettingsMenuRow(icon: ImageVector, title: String, description: String, onClick: () -> Unit) {
-    val triggerHaptic = rememberGlobalHapticFeedback()
-    ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.025f)
-                .clickable { triggerHaptic(); onClick() }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.weight(1f),
-            ) {
-                Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    Text(text = description, color = MutedText, fontSize = 12.sp)
-                }
+private fun SettingsMenuRow(icon:ImageVector,title:String,description:String,onClick:()->Unit) {
+    val haptic=rememberGlobalHapticFeedback()
+    ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
+        Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.025f).clickable{haptic();onClick()}.padding(horizontal=16.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp),modifier=Modifier.weight(1f)) {
+                Icon(icon,null,tint=Color.White,modifier=Modifier.size(24.dp)); Column(verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);Text(description,color=MutedText,fontSize=12.sp)}
             }
-            Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+            Icon(Icons.Outlined.ChevronRight,null,tint=Color.White,modifier=Modifier.size(24.dp))
         }
     }
 }
 
 @Composable
-fun SettingsHeader(title: String, onBack: () -> Unit) {
-    val triggerHaptic = rememberGlobalHapticFeedback()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.10f)
-                .clickable { triggerHaptic(); onBack() }
-                .padding(8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Voltar",
-                tint = Color.White,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-        Text(text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+fun SettingsHeader(title:String,onBack:()->Unit) {
+    val haptic=rememberGlobalHapticFeedback()
+    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp),modifier=Modifier.fillMaxWidth().padding(vertical=8.dp)) {
+        Box(Modifier.tvFocusTarget(cornerRadius=999.dp,focusedScale=1.10f).clickable{haptic();onBack()}.padding(8.dp),contentAlignment=Alignment.Center){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Voltar",tint=Color.White,modifier=Modifier.size(24.dp))}
+        Text(title,color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
     }
 }
 
 @Composable
-fun SettingsToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, description: String? = null) {
-    val triggerHaptic = rememberGlobalHapticFeedback()
-    ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.02f)
-                .clickable { triggerHaptic(); onCheckedChange(!checked) }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
-            }
-            ThemedToggle(checked = checked, onCheckedChange = onCheckedChange)
+fun SettingsToggleRow(title:String,checked:Boolean,onCheckedChange:(Boolean)->Unit,description:String?=null) {
+    val haptic=rememberGlobalHapticFeedback()
+    ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
+        Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();onCheckedChange(!checked)}.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}}
+            // The whole row is the TV action. Prevent the visual switch from becoming a second D-pad stop.
+            ThemedToggle(checked,onCheckedChange,modifier=Modifier.focusProperties{canFocus=false})
         }
     }
 }
 
 @Composable
-fun <T> SettingsDropdownRow(
-    title: String,
-    selectedValue: T,
-    options: List<Pair<T, String>>,
-    onSelect: (T) -> Unit,
-    description: String? = null,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = options.find { it.first == selectedValue }?.second ?: selectedValue.toString()
-    val triggerHaptic = rememberGlobalHapticFeedback()
-    ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.02f)
-                .clickable { triggerHaptic(); expanded = true }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
-            }
-            Box {
-                Text(text = selectedLabel, color = AccentPurple, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-                ThemedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    options.forEach { (value, label) ->
-                        DropdownMenuItem(
-                            text = { Text(text = label, color = Color.White) },
-                            onClick = { triggerHaptic(); onSelect(value); expanded = false },
-                        )
-                    }
-                }
-            }
+fun <T> SettingsDropdownRow(title:String,selectedValue:T,options:List<Pair<T,String>>,onSelect:(T)->Unit,description:String?=null) {
+    var expanded by remember{mutableStateOf(false)}; val selectedLabel=options.find{it.first==selectedValue}?.second?:selectedValue.toString(); val haptic=rememberGlobalHapticFeedback()
+    ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
+        Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();expanded=true}.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}}
+            Box { Text(selectedLabel,color=AccentPurple,fontSize=15.sp,fontWeight=FontWeight.Medium,modifier=Modifier.padding(horizontal=8.dp,vertical=4.dp)); ThemedDropdownMenu(expanded,{expanded=false}) { options.forEach{(value,label)->DropdownMenuItem(text={Text(label,color=Color.White)},onClick={haptic();onSelect(value);expanded=false},modifier=Modifier.tvFocusTarget(cornerRadius=10.dp,focusedScale=1.02f))} } }
         }
     }
 }
 
 @Composable
-fun SettingsSliderRow(
-    title: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-    displayValue: String = "${(value * 100).toInt()}%",
-    description: String? = null,
-) {
-    ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.015f)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
-                }
-                Text(text = displayValue, color = AccentPurple, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
-            ThemedSlider(value = value, onValueChange = onValueChange, valueRange = valueRange, modifier = Modifier.fillMaxWidth())
+fun SettingsSliderRow(title:String,value:Float,onValueChange:(Float)->Unit,valueRange:ClosedFloatingPointRange<Float> = 0f..1f,displayValue:String="${(value*100).toInt()}%",description:String?=null) {
+    ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
+        Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) { Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}};Text(displayValue,color=AccentPurple,fontSize=15.sp,fontWeight=FontWeight.Bold) }
+            ThemedSlider(value,onValueChange,modifier=Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=12.dp,focusedScale=1.01f),valueRange=valueRange)
         }
     }
 }
 
 @Composable
-fun SettingsClickRow(title: String, onClick: () -> Unit, description: String? = null) {
-    val triggerHaptic = rememberGlobalHapticFeedback()
-    ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.02f)
-                .clickable { triggerHaptic(); onClick() }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
-            }
-            Icon(imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-        }
-    }
+fun SettingsClickRow(title:String,onClick:()->Unit,description:String?=null) {
+    val haptic=rememberGlobalHapticFeedback()
+    ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) { Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();onClick()}.padding(horizontal=16.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) { Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}};Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight,null,tint=Color.White,modifier=Modifier.size(20.dp)) } }
 }
