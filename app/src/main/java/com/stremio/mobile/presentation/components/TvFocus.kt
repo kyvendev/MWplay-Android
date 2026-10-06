@@ -3,7 +3,6 @@ package com.stremio.mobile.presentation.components
 import android.app.UiModeManager
 import android.content.Context
 import android.content.res.Configuration
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,12 +32,9 @@ fun rememberIsTelevision(): Boolean {
 }
 
 /**
- * Strong visual treatment for an existing focusable/clickable target on Android TV.
- *
- * IMPORTANT: this modifier intentionally does not add its own focusable() node.
- * Compose clickable/Button components already participate in focus traversal. Adding
- * another focusable node here creates duplicate D-pad stops and was one of the causes
- * of apparently stuck/invisible remote navigation.
+ * Strong, lightweight visual treatment for an existing focusable/clickable TV target.
+ * No extra focus node is created and no per-card animation is run: this keeps D-pad
+ * navigation predictable and avoids doing animation work across large catalog rows.
  */
 @Composable
 fun Modifier.tvFocusTarget(
@@ -49,15 +45,11 @@ fun Modifier.tvFocusTarget(
     if (!rememberIsTelevision() || !enabled) return this
 
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (focused) focusedScale else 1f,
-        label = "mwTvFocusScale",
-    )
     val shape = RoundedCornerShape(cornerRadius)
 
     return this
         .onFocusChanged { focused = it.hasFocus }
-        .scale(scale)
+        .scale(if (focused) focusedScale else 1f)
         .clip(shape)
         .background(if (focused) AccentPurple.copy(alpha = 0.82f) else Color.Transparent)
         .border(
