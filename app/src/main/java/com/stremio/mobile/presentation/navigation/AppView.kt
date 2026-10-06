@@ -9,10 +9,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.stremio.mobile.presentation.state.MainSection
 
 enum class AppView(val label: String, val icon: ImageVector) {
-    Home("Home", Icons.Outlined.Home),
-    Discover("Discover", Icons.Outlined.Explore),
-    Library("Library", Icons.Outlined.VideoLibrary),
-    Settings("Settings", Icons.Outlined.Settings),
+    Home("Início", Icons.Outlined.Home),
+    Discover("Descobrir", Icons.Outlined.Explore),
+    Library("Biblioteca", Icons.Outlined.VideoLibrary),
+    Settings("Configurações", Icons.Outlined.Settings),
 }
 
 fun AppView.toSection(): MainSection = when (this) {
