@@ -38,165 +38,58 @@ import java.io.File
 import kotlin.math.roundToInt
 
 @Composable
-fun InfoSettingsScreen(
-    serverVersion: String,
-    serverConfigPath: String,
-    serverCachePath: String,
-    updateState: UpdateState,
-    isAutoUpdateEnabled: Boolean,
-    onSetAutoUpdateEnabled: (Boolean) -> Unit,
-    onCheckForUpdates: () -> Unit,
-    onDownloadAndInstallUpdate: (UpdateInfo) -> Unit,
-    onInstallDownloadedUpdate: (File) -> Unit,
-    onIgnoreUpdate: (String) -> Unit,
-    onBack: () -> Unit,
-) {
+fun InfoSettingsScreen(serverVersion: String, serverConfigPath: String, serverCachePath: String, updateState: UpdateState, isAutoUpdateEnabled: Boolean, onSetAutoUpdateEnabled: (Boolean) -> Unit, onCheckForUpdates: () -> Unit, onDownloadAndInstallUpdate: (UpdateInfo) -> Unit, onInstallDownloadedUpdate: (File) -> Unit, onIgnoreUpdate: (String) -> Unit, onBack: () -> Unit) {
     var dismissedDialogTag by rememberSaveable { mutableStateOf<String?>(null) }
     val available = updateState as? UpdateState.Available
     if (available != null && dismissedDialogTag != available.info.tagName) {
-        UpdateAvailableDialog(
-            info = available.info,
-            onUpdate = {
-                dismissedDialogTag = available.info.tagName
-                onDownloadAndInstallUpdate(available.info)
-            },
-            onLater = { dismissedDialogTag = available.info.tagName },
-            onSkip = {
-                dismissedDialogTag = available.info.tagName
-                onIgnoreUpdate(available.info.tagName)
-            },
-        )
+        UpdateAvailableDialog(info = available.info, onUpdate = { dismissedDialogTag = available.info.tagName; onDownloadAndInstallUpdate(available.info) }, onLater = { dismissedDialogTag = available.info.tagName }, onSkip = { dismissedDialogTag = available.info.tagName; onIgnoreUpdate(available.info.tagName) })
     }
-
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        SettingsHeader(title = "Info & About", onBack = onBack)
-
-        SectionLabel("APPLICATION DIAGNOSTICS")
-
-        ThemedCard(
-            modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 20.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                ServerDetailRow(label = "Stremio Mobile Client", value = BuildConfig.VERSION_NAME)
-                ServerDetailRow(label = "Streaming Server Version", value = serverVersion)
-                ServerDetailRow(label = "Database Config Path", value = serverConfigPath)
-                ServerDetailRow(label = "Server Cache Directory", value = serverCachePath)
+    Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SettingsHeader(title = "Sobre o MW Play", onBack = onBack)
+        SectionLabel("DIAGNÓSTICOS DO APLICATIVO")
+        ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                ServerDetailRow(label = "Versão do MW Play", value = BuildConfig.VERSION_NAME)
+                ServerDetailRow(label = "Versão do servidor de streaming", value = serverVersion)
+                ServerDetailRow(label = "Caminho da configuração", value = serverConfigPath)
+                ServerDetailRow(label = "Diretório de cache", value = serverCachePath)
             }
         }
-
-        SectionLabel("APP UPDATES")
-
-        ThemedCard(
-            modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 20.dp,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+        SectionLabel("ATUALIZAÇÕES")
+        ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Automatic update checks",
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = "Checks GitHub Releases at launch, at most once per day.",
-                            color = MutedText,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                        )
+                        Text(text = "Verificar atualizações automaticamente", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Verifica novas versões no GitHub ao iniciar, no máximo uma vez por dia.", color = MutedText, fontSize = 12.sp, lineHeight = 16.sp)
                     }
-                    ThemedToggle(
-                        checked = isAutoUpdateEnabled,
-                        onCheckedChange = onSetAutoUpdateEnabled,
-                    )
+                    ThemedToggle(checked = isAutoUpdateEnabled, onCheckedChange = onSetAutoUpdateEnabled)
                 }
-
-                UpdateStatusContent(
-                    updateState = updateState,
-                    onCheckForUpdates = onCheckForUpdates,
-                    onInstallDownloadedUpdate = onInstallDownloadedUpdate,
-                )
+                UpdateStatusContent(updateState, onCheckForUpdates, onInstallDownloadedUpdate)
             }
         }
     }
 }
 
 @Composable
-private fun UpdateStatusContent(
-    updateState: UpdateState,
-    onCheckForUpdates: () -> Unit,
-    onInstallDownloadedUpdate: (File) -> Unit,
-) {
+private fun UpdateStatusContent(updateState: UpdateState, onCheckForUpdates: () -> Unit, onInstallDownloadedUpdate: (File) -> Unit) {
     val checking = updateState is UpdateState.Checking
     val downloading = updateState is UpdateState.Downloading
     val status = when (updateState) {
-        UpdateState.Idle -> "No update check has run yet."
-        UpdateState.Checking -> "Checking GitHub Releases..."
-        UpdateState.UpToDate -> "You are on the latest version."
-        is UpdateState.Available -> "Version ${updateState.info.versionName} is available."
-        is UpdateState.Downloading -> "Downloading update..."
-        is UpdateState.ReadyToInstall -> if (updateState.needsUnknownSourcesPermission) {
-            "Allow installs from this source, then return and tap Install."
-        } else {
-            "Update downloaded. If the installer did not open, tap Install."
-        }
+        UpdateState.Idle -> "Nenhuma verificação foi feita ainda."
+        UpdateState.Checking -> "Verificando atualizações..."
+        UpdateState.UpToDate -> "Você está usando a versão mais recente."
+        is UpdateState.Available -> "A versão ${updateState.info.versionName} está disponível."
+        is UpdateState.Downloading -> "Baixando atualização..."
+        is UpdateState.ReadyToInstall -> if (updateState.needsUnknownSourcesPermission) "Permita instalações desta fonte, volte ao app e toque em Instalar." else "Atualização baixada. Se o instalador não abriu, toque em Instalar."
         is UpdateState.Error -> updateState.message
     }
-    val color = when (updateState) {
-        is UpdateState.Error -> Color(0xFFFF8A80)
-        is UpdateState.Available, is UpdateState.ReadyToInstall -> AccentPurple
-        else -> MutedText
-    }
-
-    Text(
-        text = status,
-        color = color,
-        fontSize = 13.sp,
-        lineHeight = 17.sp,
-    )
-
-    if (updateState is UpdateState.Downloading) {
-        DownloadProgress(updateState)
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        ThemedButton(
-            text = "Check for updates",
-            onClick = onCheckForUpdates,
-            enabled = !checking && !downloading,
-            modifier = Modifier.weight(1f),
-        )
-        if (updateState is UpdateState.ReadyToInstall) {
-            ThemedButton(
-                text = "Install",
-                onClick = { onInstallDownloadedUpdate(updateState.file) },
-                enabled = !downloading,
-                modifier = Modifier.weight(1f),
-                containerColor = Color(0xFF2E7D32),
-            )
-        }
+    val color = when (updateState) { is UpdateState.Error -> Color(0xFFFF8A80); is UpdateState.Available, is UpdateState.ReadyToInstall -> AccentPurple; else -> MutedText }
+    Text(text = status, color = color, fontSize = 13.sp, lineHeight = 17.sp)
+    if (updateState is UpdateState.Downloading) DownloadProgress(updateState)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        ThemedButton(text = "Verificar atualizações", onClick = onCheckForUpdates, enabled = !checking && !downloading, modifier = Modifier.weight(1f))
+        if (updateState is UpdateState.ReadyToInstall) ThemedButton(text = "Instalar", onClick = { onInstallDownloadedUpdate(updateState.file) }, enabled = !downloading, modifier = Modifier.weight(1f), containerColor = Color(0xFF2E7D32))
     }
 }
 
@@ -204,113 +97,22 @@ private fun UpdateStatusContent(
 private fun DownloadProgress(state: UpdateState.Downloading) {
     val progress = state.progress?.coerceIn(0f, 1f)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(GlassSurface),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress ?: 0f)
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(AccentPurple),
-            )
+        Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(999.dp)).background(GlassSurface)) {
+            Box(modifier = Modifier.fillMaxWidth(progress ?: 0f).height(8.dp).clip(RoundedCornerShape(999.dp)).background(AccentPurple))
         }
-        Text(
-            text = if (progress != null) {
-                "${(progress * 100f).roundToInt()}%"
-            } else {
-                "${state.bytesRead / (1024L * 1024L)} MB downloaded"
-            },
-            color = MutedText,
-            fontSize = 12.sp,
-        )
+        Text(text = if (progress != null) "${(progress * 100f).roundToInt()}%" else "${state.bytesRead / (1024L * 1024L)} MB baixados", color = MutedText, fontSize = 12.sp)
     }
 }
 
 @Composable
-private fun UpdateAvailableDialog(
-    info: UpdateInfo,
-    onUpdate: () -> Unit,
-    onLater: () -> Unit,
-    onSkip: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onLater,
-        title = {
-            Text(
-                text = "Update ${info.versionName} available",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = info.apkName,
-                    color = MutedText,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = info.releaseNotes.ifBlank { "A new APK release is ready to install." },
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    maxLines = 8,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        },
-        confirmButton = {
-            ThemedButton(
-                text = "Update",
-                onClick = onUpdate,
-            )
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ThemedTextButton(text = "Skip this version", onClick = onSkip)
-                ThemedTextButton(text = "Later", onClick = onLater)
-            }
-        },
-        containerColor = GlassSurface,
-        shape = RoundedCornerShape(20.dp),
-    )
+private fun UpdateAvailableDialog(info: UpdateInfo, onUpdate: () -> Unit, onLater: () -> Unit, onSkip: () -> Unit) {
+    AlertDialog(onDismissRequest = onLater, title = { Text(text = "Atualização ${info.versionName} disponível", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp) }, text = {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(text = info.apkName, color = MutedText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = info.releaseNotes.ifBlank { "Uma nova versão do MW Play está pronta para instalar." }, color = Color.White, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 8, overflow = TextOverflow.Ellipsis)
+        }
+    }, confirmButton = { ThemedButton(text = "Atualizar", onClick = onUpdate) }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ThemedTextButton(text = "Ignorar versão", onClick = onSkip); ThemedTextButton(text = "Depois", onClick = onLater) } }, containerColor = GlassSurface, shape = RoundedCornerShape(20.dp))
 }
 
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        color = MutedText,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp),
-    )
-}
-
-@Composable
-private fun ServerDetailRow(label: String, value: String) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Text(
-            text = label,
-            color = MutedText,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-        )
-        Text(
-            text = value,
-            color = Color.White,
-            fontSize = 13.sp,
-            lineHeight = 16.sp,
-        )
-    }
-}
+@Composable private fun SectionLabel(text: String) { Text(text = text, color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) }
+@Composable private fun ServerDetailRow(label: String, value: String) { Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { Text(text = label, color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Medium); Text(text = value, color = Color.White, fontSize = 13.sp, lineHeight = 16.sp) } }
