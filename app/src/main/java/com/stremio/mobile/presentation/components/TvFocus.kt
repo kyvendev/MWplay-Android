@@ -6,7 +6,6 @@ import android.content.res.Configuration
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,10 +33,12 @@ fun rememberIsTelevision(): Boolean {
 }
 
 /**
- * Strong, predictable focus treatment for remote/D-pad navigation.
+ * Strong visual treatment for an existing focusable/clickable target on Android TV.
  *
- * Mobile keeps its existing visuals. On TV the focused target grows and receives
- * an opaque purple focus plate plus a white outline so focus can never be invisible.
+ * IMPORTANT: this modifier intentionally does not add its own focusable() node.
+ * Compose clickable/Button components already participate in focus traversal. Adding
+ * another focusable node here creates duplicate D-pad stops and was one of the causes
+ * of apparently stuck/invisible remote navigation.
  */
 @Composable
 fun Modifier.tvFocusTarget(
@@ -55,14 +56,13 @@ fun Modifier.tvFocusTarget(
     val shape = RoundedCornerShape(cornerRadius)
 
     return this
+        .onFocusChanged { focused = it.hasFocus }
         .scale(scale)
         .clip(shape)
-        .background(if (focused) AccentPurple.copy(alpha = 0.72f) else Color.Transparent)
+        .background(if (focused) AccentPurple.copy(alpha = 0.82f) else Color.Transparent)
         .border(
             width = if (focused) 3.dp else 0.dp,
             color = if (focused) Color.White else Color.Transparent,
             shape = shape,
         )
-        .onFocusChanged { focused = it.isFocused }
-        .focusable(enabled)
 }
