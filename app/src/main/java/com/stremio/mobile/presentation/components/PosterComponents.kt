@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Movie
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,15 +45,14 @@ import coil3.request.crossfade
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.CardFallback
 import com.stremio.mobile.core.theme.MutedText
-import com.stremio.mobile.core.theme.ScreenGutter
 import com.stremio.mobile.data.model.CatalogItem
 import com.stremio.mobile.data.model.CatalogShelf
 
-enum class ShelfMode {
-    Continue,
-    Movie,
-    Series,
-}
+enum class ShelfMode { Continue, Movie, Series }
+
+private val TvGutter = 30.dp
+private val TvPosterWidth = 142.dp
+private val TvPosterRadius = 16.dp
 
 @Composable
 fun PosterShelf(
@@ -63,19 +61,17 @@ fun PosterShelf(
     onItemClick: (CatalogItem) -> Unit,
     onSeeAllClick: (() -> Unit)? = null,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = ScreenGutter, end = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = TvGutter, end = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = shelf.title,
                 modifier = Modifier.weight(1f),
                 color = Color.White,
-                fontSize = 18.sp,
-                lineHeight = 22.sp,
+                fontSize = 22.sp,
+                lineHeight = 26.sp,
                 fontWeight = FontWeight.ExtraBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -84,38 +80,24 @@ fun PosterShelf(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .tvFocusTarget(cornerRadius = 10.dp, focusedScale = 1.06f)
+                        .tvFocusTarget(cornerRadius = 10.dp, focusedScale = 1.08f)
                         .clickable(onClick = onSeeAllClick)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
-                    Text(
-                        text = "VER TUDO",
-                        color = MutedText,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                    )
-                    Icon(
-                        imageVector = Icons.Outlined.ChevronRight,
-                        contentDescription = null,
-                        tint = MutedText,
-                        modifier = Modifier.padding(start = 5.dp).size(18.dp),
-                    )
+                    Text("VER TUDO", color = MutedText, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                    Icon(Icons.Outlined.ChevronRight, null, tint = MutedText, modifier = Modifier.padding(start = 5.dp).size(20.dp))
                 }
             }
         }
 
         LazyRow(
-            contentPadding = PaddingValues(start = ScreenGutter, end = ScreenGutter),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = TvGutter, end = TvGutter),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             when {
-                shelf.isLoading -> items(5, contentType = { "skeleton" }) { PosterSkeleton() }
+                shelf.isLoading -> items(6, contentType = { "skeleton" }) { PosterSkeleton() }
                 shelf.items.isEmpty() -> item(contentType = "empty") {
-                    Text(
-                        text = shelf.error ?: "Nenhum item disponível",
-                        color = MutedText,
-                        modifier = Modifier.padding(start = 18.dp),
-                    )
+                    Text(shelf.error ?: "Nenhum item disponível", color = MutedText, modifier = Modifier.padding(start = 18.dp))
                 }
                 else -> items(shelf.items, key = { "${it.type}-${it.id}" }, contentType = { "poster" }) { item ->
                     PosterTile(item = item, mode = mode, onClick = { onItemClick(item) })
@@ -126,127 +108,57 @@ fun PosterShelf(
 }
 
 @Composable
-fun PosterTile(
-    item: CatalogItem,
-    mode: ShelfMode,
-    onClick: () -> Unit,
-) {
+fun PosterTile(item: CatalogItem, mode: ShelfMode, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .width(112.dp)
+            .width(TvPosterWidth)
             .aspectRatio(0.66f)
-            .tvFocusTarget(cornerRadius = 18.dp, focusedScale = 1.10f)
-            .clip(RoundedCornerShape(18.dp))
+            .tvFocusTarget(cornerRadius = TvPosterRadius, focusedScale = 1.12f)
+            .clip(RoundedCornerShape(TvPosterRadius))
             .background(CardFallback)
             .clickable(onClick = onClick),
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(item.poster)
-                .size(224, 340)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .crossfade(true)
-                .build(),
+            model = ImageRequest.Builder(LocalContext.current).data(item.poster).size(284, 430)
+                .memoryCachePolicy(CachePolicy.ENABLED).crossfade(true).build(),
             contentDescription = item.name,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
         )
-        Box(
-            modifier = Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.0f to Color.Transparent,
-                        0.72f to Color.Transparent,
-                        1.0f to Color(0xAA000000),
-                    ),
-                ),
-            ),
-        )
-
+        Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(colorStops = arrayOf(0f to Color.Transparent, .70f to Color.Transparent, 1f to Color(0xB8000000)))))
         when (mode) {
             ShelfMode.Continue -> {
                 val progress = item.progress ?: progressFor(item.id)
-                val isCompleted = item.watched
-                if (isCompleted) {
-                    CircleBadge(
-                        imageVector = Icons.Outlined.Check,
-                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
-                    )
-                }
-                ProgressBar(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 3.dp, vertical = 4.dp),
-                    progress = progress,
-                )
+                if (item.watched) CircleBadge(Icons.Outlined.Check, Modifier.align(Alignment.TopStart).padding(9.dp))
+                ProgressBar(Modifier.align(Alignment.BottomCenter).padding(horizontal = 4.dp, vertical = 5.dp), progress)
             }
-            ShelfMode.Movie -> if (item.inCinema) {
-                CinemaBadge(modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
-            }
+            ShelfMode.Movie -> if (item.inCinema) CinemaBadge(Modifier.align(Alignment.TopCenter).padding(top = 9.dp))
             ShelfMode.Series -> Unit
         }
-
-        if (mode == ShelfMode.Continue && item.type == "series" && item.remainingEpisodes != null && item.remainingEpisodes > 0) {
-            AddBadge(
-                text = "+${item.remainingEpisodes}",
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 10.dp),
-            )
+        if (mode == ShelfMode.Continue && item.type == "series" && (item.remainingEpisodes ?: 0) > 0) {
+            AddBadge("+${item.remainingEpisodes}", Modifier.align(Alignment.TopEnd).padding(top = 9.dp, end = 10.dp))
         }
     }
 }
 
-@Composable
-private fun PosterSkeleton() {
-    Box(
-        modifier = Modifier.width(112.dp).aspectRatio(0.66f).clip(RoundedCornerShape(18.dp)).background(
-            Brush.verticalGradient(colors = listOf(Color(0xFF222231), Color(0xFF11111C))),
-        ),
-    )
+@Composable private fun PosterSkeleton() {
+    Box(Modifier.width(TvPosterWidth).aspectRatio(0.66f).clip(RoundedCornerShape(TvPosterRadius)).background(Brush.verticalGradient(listOf(Color(0xFF222231), Color(0xFF11111C)))))
 }
-
-@Composable
-private fun CircleBadge(imageVector: ImageVector, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.size(17.dp).clip(CircleShape).background(AccentPurple), contentAlignment = Alignment.Center) {
-        Icon(imageVector = imageVector, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+@Composable private fun CircleBadge(imageVector: ImageVector, modifier: Modifier = Modifier) {
+    Box(modifier.size(19.dp).clip(CircleShape).background(AccentPurple), contentAlignment = Alignment.Center) { Icon(imageVector, null, tint = Color.White, modifier = Modifier.size(13.dp)) }
+}
+@Composable private fun AddBadge(text: String, modifier: Modifier = Modifier) {
+    Box(modifier) {
+        Box(Modifier.offset(x = (-2).dp, y = 2.dp).height(19.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFC0B5FA)).padding(horizontal = 6.dp)) { Text(text, color = Color.Transparent, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+        Row(Modifier.height(19.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xDDEFEAFF)).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) { Text(text, color = AccentPurple, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
     }
 }
-
-@Composable
-private fun AddBadge(text: String, modifier: Modifier = Modifier) {
-    Box(modifier = modifier) {
-        Box(
-            modifier = Modifier.offset(x = (-2).dp, y = 2.dp).height(17.dp).clip(RoundedCornerShape(3.dp))
-                .background(Color(0xFFC0B5FA)).padding(horizontal = 5.dp),
-        ) {
-            Text(text = text, color = Color.Transparent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        }
-        Row(
-            modifier = Modifier.height(17.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xDDEFEAFF)).padding(horizontal = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = text, color = AccentPurple, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        }
+@Composable private fun CinemaBadge(modifier: Modifier = Modifier) {
+    Row(modifier.clip(RoundedCornerShape(4.dp)).background(Color(0xCC202631)).padding(horizontal = 7.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Icon(Icons.Outlined.Movie, null, tint = Color(0xFFC9C8D8), modifier = Modifier.size(11.dp)); Text("NO CINEMA", color = Color(0xFFE8E6F0), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
-
-@Composable
-private fun CinemaBadge(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.clip(RoundedCornerShape(4.dp)).background(Color(0xCC202631)).padding(horizontal = 6.dp, vertical = 3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Icon(imageVector = Icons.Outlined.Movie, contentDescription = null, tint = Color(0xFFC9C8D8), modifier = Modifier.size(10.dp))
-        Text(text = "NO CINEMA", color = Color(0xFFE8E6F0), fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
-    }
+@Composable private fun ProgressBar(modifier: Modifier = Modifier, progress: Float) {
+    Box(modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFE8E8EE))) { Box(Modifier.fillMaxWidth(progress).height(4.dp).background(AccentPurple)) }
 }
-
-@Composable
-private fun ProgressBar(progress: Float, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFE8E8EE))) {
-        Box(modifier = Modifier.fillMaxWidth(progress).height(3.dp).background(AccentPurple))
-    }
-}
-
-private fun progressFor(id: String): Float {
-    val bucket = kotlin.math.abs(id.hashCode() % 46)
-    return (bucket + 28) / 100f
-}
+private fun progressFor(id: String): Float { val bucket = kotlin.math.abs(id.hashCode() % 46); return (bucket + 28) / 100f }
