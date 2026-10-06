@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: Versão do MW Play para publicar (ex.: 1.0.0)
+        description: "Versão do MW Play para publicar (ex.: 1.0.0)"
         required: true
+        type: string
 
 permissions:
   contents: write
