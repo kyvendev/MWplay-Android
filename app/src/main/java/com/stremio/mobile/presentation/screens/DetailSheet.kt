@@ -2,6 +2,7 @@ package com.stremio.mobile.presentation.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,11 +33,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlendMode
@@ -63,6 +68,7 @@ import com.stremio.mobile.data.model.MetaDetails
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.drawBackdropSafe
 import com.stremio.mobile.presentation.components.rememberGlobalHapticFeedback
+import com.stremio.mobile.presentation.components.rememberIsTelevision
 import com.stremio.mobile.presentation.components.tvFocusTarget
 
 @Composable
@@ -76,6 +82,17 @@ fun DetailSheet(
 ) {
     val configuration = LocalConfiguration.current
     val maxSheetHeight = (configuration.screenHeightDp.dp * 0.82f).coerceAtMost(720.dp)
+    val isTv = rememberIsTelevision()
+    val listRequester = remember { FocusRequester() }
+    val watchRequester = remember { FocusRequester() }
+
+    // Detail is a modal surface on TV. Move focus into it immediately instead of leaving
+    // the previously selected poster focused behind the sheet.
+    LaunchedEffect(isTv, details.item.id) {
+        if (isTv) {
+            runCatching { watchRequester.requestFocus() }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -157,17 +174,25 @@ fun DetailSheet(
                     label = if (inLibrary) "Na minha lista" else "Minha lista",
                     imageVector = if (inLibrary) Icons.Outlined.Check else Icons.Outlined.Add,
                     onClick = onToggleLibrary,
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .then(if (isTv) Modifier.focusRequester(listRequester).focusProperties { right = watchRequester } else Modifier),
                     tint = AccentPurple,
                     surface = true,
+                    forceTvFocusable = isTv,
                 )
                 DetailLiquidActionButton(
                     label = "Assistir",
                     imageVector = Icons.Outlined.PlayArrow,
                     onClick = onOpenStreams,
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .then(if (isTv) Modifier.focusRequester(watchRequester).focusProperties { left = listRequester } else Modifier),
                     enabled = !details.isLoading,
                     tint = AccentGreen,
+                    forceTvFocusable = isTv,
                 )
             }
         }
@@ -184,6 +209,7 @@ private fun DetailLiquidActionButton(
     enabled: Boolean = true,
     backdrop: LayerBackdrop? = null,
     surface: Boolean = false,
+    forceTvFocusable: Boolean = false,
 ) {
     val triggerHaptic = rememberGlobalHapticFeedback()
     val theme = LocalGlobalUiTheme.current
@@ -226,7 +252,8 @@ private fun DetailLiquidActionButton(
             .clip(shape)
             .clickable(interactionSource = interactionSource, indication = null, enabled = enabled) {
                 triggerHaptic(); onClick()
-            },
+            }
+            .then(if (forceTvFocusable) Modifier.focusable(enabled = enabled) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Box(
