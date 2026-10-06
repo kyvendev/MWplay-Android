@@ -13,88 +13,23 @@ import com.stremio.mobile.core.theme.MutedText
 
 @Composable
 fun AndroidSettingsScreen(
-    isAutoStartOnBoot: Boolean,
-    onSetAutoStartOnBoot: (Boolean) -> Unit,
-    isServerInForeground: Boolean,
-    onSetServerInForeground: (Boolean) -> Unit,
-    isMobileDataWarning: Boolean,
-    onSetMobileDataWarning: (Boolean) -> Unit,
-    isKeepScreenOn: Boolean,
-    onSetKeepScreenOn: (Boolean) -> Unit,
-    isAnalyticsEnabled: Boolean,
-    onSetAnalyticsEnabled: (Boolean) -> Unit,
-    onShowAnalyticsDisclosure: () -> Unit,
-    onBack: () -> Unit
+    isAutoStartOnBoot: Boolean, onSetAutoStartOnBoot: (Boolean) -> Unit,
+    isServerInForeground: Boolean, onSetServerInForeground: (Boolean) -> Unit,
+    isMobileDataWarning: Boolean, onSetMobileDataWarning: (Boolean) -> Unit,
+    isKeepScreenOn: Boolean, onSetKeepScreenOn: (Boolean) -> Unit,
+    isAnalyticsEnabled: Boolean, onSetAnalyticsEnabled: (Boolean) -> Unit,
+    onShowAnalyticsDisclosure: () -> Unit, onBack: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        SettingsHeader(title = "Android Settings", onBack = onBack)
-
-        Text(
-            text = "SYSTEM & INTEGRATION",
-            color = MutedText,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-        )
-
-        SettingsToggleRow(
-            title = "Auto-Start Server on Boot",
-            checked = isAutoStartOnBoot,
-            onCheckedChange = onSetAutoStartOnBoot,
-            description = "Start the local torrent streaming server when your phone boots"
-        )
-
-        SettingsToggleRow(
-            title = "Server Foreground Service",
-            checked = isServerInForeground,
-            onCheckedChange = onSetServerInForeground,
-            description = "Run server as a foreground service with notification (prevents Android from killing it)"
-        )
-
-        SettingsToggleRow(
-            title = "Keep Screen On",
-            checked = isKeepScreenOn,
-            onCheckedChange = onSetKeepScreenOn,
-            description = "Prevent the screen from turning off during video playback"
-        )
-
-        Text(
-            text = "NETWORK & DATA USAGE",
-            color = MutedText,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-        )
-
-        SettingsToggleRow(
-            title = "Mobile Data warning",
-            checked = isMobileDataWarning,
-            onCheckedChange = onSetMobileDataWarning,
-            description = "Warn before streaming movies or TV shows over cellular connections"
-        )
-
-        Text(
-            text = "PRIVACY & DIAGNOSTICS",
-            color = MutedText,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-        )
-
-        SettingsToggleRow(
-            title = "Share Diagnostics & Analytics",
-            checked = isAnalyticsEnabled,
-            onCheckedChange = onSetAnalyticsEnabled,
-            description = "Help improve the app by sharing anonymous crash reports and usage statistics"
-        )
-
-        SettingsClickRow(
-            title = "Privacy & Analytics Disclosure",
-            onClick = onShowAnalyticsDisclosure,
-            description = "Read disclosure about how anonymous crash reports and usage statistics are processed"
-        )
+    Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SettingsHeader(title = "Configurações do Android", onBack = onBack)
+        Text(text = "SISTEMA E INTEGRAÇÃO", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+        SettingsToggleRow(title = "Iniciar servidor com o aparelho", checked = isAutoStartOnBoot, onCheckedChange = onSetAutoStartOnBoot, description = "Inicia o servidor local automaticamente quando o aparelho ligar")
+        SettingsToggleRow(title = "Serviço do servidor em primeiro plano", checked = isServerInForeground, onCheckedChange = onSetServerInForeground, description = "Mantém o servidor ativo com uma notificação para evitar que o Android o encerre")
+        SettingsToggleRow(title = "Manter tela ligada", checked = isKeepScreenOn, onCheckedChange = onSetKeepScreenOn, description = "Impede que a tela desligue durante a reprodução")
+        Text(text = "REDE E USO DE DADOS", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+        SettingsToggleRow(title = "Aviso de dados móveis", checked = isMobileDataWarning, onCheckedChange = onSetMobileDataWarning, description = "Avisa antes de reproduzir usando a conexão de dados móveis")
+        Text(text = "PRIVACIDADE E DIAGNÓSTICOS", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+        SettingsToggleRow(title = "Compartilhar diagnósticos e análises", checked = isAnalyticsEnabled, onCheckedChange = onSetAnalyticsEnabled, description = "Ajuda a melhorar o aplicativo compartilhando relatórios anônimos de falhas e uso")
+        SettingsClickRow(title = "Privacidade e análises", onClick = onShowAnalyticsDisclosure, description = "Veja como relatórios anônimos de falhas e estatísticas de uso são processados")
     }
 }
