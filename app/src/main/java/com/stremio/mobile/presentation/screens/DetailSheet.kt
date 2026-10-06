@@ -38,9 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlendMode
@@ -62,7 +59,6 @@ import com.kyant.backdrop.shadow.Shadow
 import com.stremio.mobile.core.theme.AccentGreen
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.CardFallback
-import com.stremio.mobile.core.theme.GlassSurface
 import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.data.model.MetaDetails
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
@@ -86,7 +82,7 @@ fun DetailSheet(
             .fillMaxWidth()
             .heightIn(min = 420.dp, max = maxSheetHeight)
             .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-            .background(Color(0xF2141422))
+            .background(Color(0xF20B0C16))
             .pointerInput(Unit) {
                 var dragAccumulator = 0f
                 var hasTriggered = false
@@ -95,7 +91,7 @@ fun DetailSheet(
                         dragAccumulator = 0f
                         hasTriggered = false
                     },
-                    onVerticalDrag = { change, dragAmount ->
+                    onVerticalDrag = { _, dragAmount ->
                         if (!hasTriggered) {
                             dragAccumulator += dragAmount
                             if (dragAccumulator < -40f) {
@@ -125,13 +121,13 @@ fun DetailSheet(
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color(0x66000000), Color(0xFF10101D)),
+                            colors = listOf(Color(0x55000000), Color(0xFF0B0C16)),
                         ),
                     ),
             )
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = "Voltar",
                 tint = Color.White,
                 modifier = Modifier
                     .padding(14.dp)
@@ -160,7 +156,7 @@ fun DetailSheet(
             )
             Text(
                 text = listOfNotNull(details.year, details.runtime, details.item.imdbRating?.let { "IMDb $it" })
-                    .joinToString("  "),
+                    .joinToString("  •  "),
                 color = MutedText,
                 fontSize = 13.sp,
             )
@@ -170,7 +166,7 @@ fun DetailSheet(
                 Text(text = details.error, color = Color(0xFFFFC66D), fontSize = 13.sp)
             } else {
                 Text(
-                    text = details.description ?: "No summary available.",
+                    text = details.description ?: "Sinopse indisponível.",
                     color = Color(0xFFE4E0EE),
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -178,7 +174,7 @@ fun DetailSheet(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = (details.genres + details.cast.take(3)).joinToString("  "),
+                    text = (details.genres + details.cast.take(3)).joinToString("  •  "),
                     color = MutedText,
                     fontSize = 12.sp,
                     maxLines = 2,
@@ -192,7 +188,7 @@ fun DetailSheet(
                     .padding(top = 6.dp),
             ) {
                 DetailLiquidActionButton(
-                    label = if (inLibrary) "In Library" else "Add",
+                    label = if (inLibrary) "Na minha lista" else "Minha lista",
                     imageVector = if (inLibrary) Icons.Outlined.Check else Icons.Outlined.Add,
                     onClick = onToggleLibrary,
                     modifier = Modifier
@@ -202,7 +198,7 @@ fun DetailSheet(
                     surface = true,
                 )
                 DetailLiquidActionButton(
-                    label = "Play",
+                    label = "Assistir",
                     imageVector = Icons.Outlined.PlayArrow,
                     onClick = onOpenStreams,
                     modifier = Modifier
