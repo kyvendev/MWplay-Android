@@ -36,34 +36,30 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.semantics.contentType
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.autofill.ContentType
-import androidx.compose.ui.platform.LocalAutofillManager
 import com.facebook.FacebookCallback
 import com.facebook.FacebookException
 import com.facebook.login.LoginManager
 import com.facebook.login.LoginResult
+import com.stremio.mobile.auth.FacebookLoginBridge
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.core.theme.StremioBackground
-import com.stremio.mobile.auth.FacebookLoginBridge
 import com.stremio.mobile.presentation.components.StremioMark
 import com.stremio.mobile.presentation.components.ThemedButton
 import com.stremio.mobile.presentation.components.ThemedTextButton
 
-enum class AuthScreen {
-    Intro,
-    Login,
-    Signup,
-}
+enum class AuthScreen { Intro, Login, Signup }
 
 @Composable
 fun AuthFlow(
@@ -76,51 +72,10 @@ fun AuthFlow(
     onClearError: () -> Unit,
 ) {
     var screen by rememberSaveable { mutableStateOf(AuthScreen.Intro) }
-
     when (screen) {
-        AuthScreen.Intro -> IntroScreen(
-            isLoading = isLoading,
-            error = error,
-            onLoginClicked = {
-                onClearError()
-                screen = AuthScreen.Login
-            },
-            onFacebookLogin = onFacebookLogin,
-            onFacebookLoginError = onFacebookLoginError,
-            onClearError = onClearError,
-            onSignupClicked = {
-                onClearError()
-                screen = AuthScreen.Signup
-            },
-        )
-
-        AuthScreen.Login -> LoginScreen(
-            isLoading = isLoading,
-            error = error,
-            onBack = {
-                onClearError()
-                screen = AuthScreen.Intro
-            },
-            onSubmit = onLogin,
-            onSignup = {
-                onClearError()
-                screen = AuthScreen.Signup
-            },
-        )
-
-        AuthScreen.Signup -> SignupScreen(
-            isLoading = isLoading,
-            error = error,
-            onBack = {
-                onClearError()
-                screen = AuthScreen.Intro
-            },
-            onSubmit = onSignup,
-            onLogin = {
-                onClearError()
-                screen = AuthScreen.Login
-            },
-        )
+        AuthScreen.Intro -> IntroScreen(isLoading, error, { onClearError(); screen = AuthScreen.Login }, onFacebookLogin, onFacebookLoginError, onClearError) { onClearError(); screen = AuthScreen.Signup }
+        AuthScreen.Login -> LoginScreen(isLoading, error, { onClearError(); screen = AuthScreen.Intro }, onLogin) { onClearError(); screen = AuthScreen.Signup }
+        AuthScreen.Signup -> SignupScreen(isLoading, error, { onClearError(); screen = AuthScreen.Intro }, onSignup) { onClearError(); screen = AuthScreen.Login }
     }
 }
 
@@ -138,120 +93,56 @@ private fun IntroScreen(
     DisposableEffect(onFacebookLogin, onFacebookLoginError) {
         val callback = object : FacebookCallback<LoginResult> {
             override fun onSuccess(result: LoginResult) {
-                val token = result.accessToken.token
-                if (token.isBlank()) {
-                    onFacebookLoginError("Facebook did not return an access token.")
-                } else {
-                    onFacebookLogin(token)
-                }
+                result.accessToken.token.takeIf { it.isNotBlank() }?.let(onFacebookLogin)
+                    ?: onFacebookLoginError("O Facebook não retornou um token de acesso.")
             }
-
-            override fun onCancel() {
-                onFacebookLoginError("Facebook login was cancelled.")
-            }
-
-            override fun onError(error: FacebookException) {
-                onFacebookLoginError(error.localizedMessage ?: "Facebook login failed")
-            }
+            override fun onCancel() = onFacebookLoginError("Login com Facebook cancelado.")
+            override fun onError(error: FacebookException) = onFacebookLoginError(error.localizedMessage ?: "Não foi possível entrar com Facebook.")
         }
         LoginManager.getInstance().registerCallback(FacebookLoginBridge.callbackManager, callback)
-        onDispose {
-            LoginManager.getInstance().unregisterCallback(FacebookLoginBridge.callbackManager)
-        }
+        onDispose { LoginManager.getInstance().unregisterCallback(FacebookLoginBridge.callbackManager) }
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.0f to Color(0xFF7D58F4),
-                        0.18f to Color(0xFF403075),
-                        0.42f to StremioBackground,
-                        1.0f to StremioBackground,
-                    ),
+        modifier = Modifier.fillMaxSize().background(
+            Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0.0f to Color(0xFF4E2D9C),
+                    0.20f to Color(0xFF151735),
+                    0.48f to StremioBackground,
+                    1.0f to StremioBackground,
                 ),
-            )
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = 31.dp),
+            ),
+        ).windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 31.dp),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.Center),
+            modifier = Modifier.fillMaxWidth().align(Alignment.Center),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(22.dp),
-            ) {
-                StremioMark(modifier = Modifier.size(58.dp))
-                Text(
-                    text = "stremio",
-                    color = Color.White,
-                    fontSize = 38.sp,
-                    fontWeight = FontWeight.Normal,
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                StremioMark(modifier = Modifier.size(64.dp))
+                Text("MW Play", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold)
             }
-            Spacer(modifier = Modifier.height(68.dp))
-            Text(
-                text = "Freedom to Stream",
-                color = Color.White,
-                fontSize = 35.sp,
-                lineHeight = 40.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "All the video content you enjoy in one place",
-                color = Color(0xFFD7D0F0),
-                fontSize = 18.sp,
-                lineHeight = 24.sp,
-            )
-            Spacer(modifier = Modifier.height(34.dp))
-            AuthButton(text = "Sign up", enabled = !isLoading, onClick = onSignupClicked)
+            Spacer(modifier = Modifier.height(56.dp))
+            Text("Seu mundo em streaming.", color = Color.White, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold)
+            Text("Filmes, séries e muito mais em um só lugar.", color = Color(0xFFD7D7EA), fontSize = 18.sp, lineHeight = 24.sp)
+            Spacer(modifier = Modifier.height(28.dp))
+            AuthButton("Criar conta", enabled = !isLoading, onClick = onSignupClicked)
             AuthButton(
-                text = if (isLoading) "Connecting..." else "Continue with Facebook",
+                text = if (isLoading) "Conectando..." else "Continuar com Facebook",
                 containerColor = Color(0xFF126FFF),
                 enabled = !isLoading,
-                onClick = {
-                    onClearError()
-                    val activity = context.findActivity()
-                    if (activity == null) {
-                        onFacebookLoginError("Facebook login requires an active app screen.")
-                    } else {
-                        LoginManager.getInstance().logInWithReadPermissions(activity, listOf("email"))
-                    }
-                },
-            )
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(28.dp),
-                    color = Color.White,
-                )
+            ) {
+                onClearError()
+                val activity = context.findActivity()
+                if (activity == null) onFacebookLoginError("O login com Facebook precisa de uma tela ativa.")
+                else LoginManager.getInstance().logInWithReadPermissions(activity, listOf("email"))
             }
-            if (error != null) {
-                Text(
-                    text = error,
-                    color = Color(0xFFFFC66D),
-                    fontSize = 14.sp,
-                    lineHeight = 19.sp,
-                )
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Already have an account?",
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                color = Color(0xFF8E869F),
-                fontSize = 18.sp,
-            )
-            ThemedTextButton(
-                text = "Log in",
-                onClick = onLoginClicked,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
+            if (isLoading) CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally).size(28.dp), color = Color.White)
+            error?.let { Text(it, color = Color(0xFFFFC66D), fontSize = 14.sp, lineHeight = 19.sp) }
+            Spacer(modifier = Modifier.height(18.dp))
+            Text("Já tem uma conta?", modifier = Modifier.align(Alignment.CenterHorizontally), color = MutedText, fontSize = 17.sp)
+            ThemedTextButton("Entrar", onLoginClicked, Modifier.align(Alignment.CenterHorizontally))
         }
     }
 }
@@ -263,60 +154,20 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 }
 
 @Composable
-private fun LoginScreen(
-    isLoading: Boolean,
-    error: String?,
-    onBack: () -> Unit,
-    onSubmit: (String, String) -> Unit,
-    onSignup: () -> Unit,
-) {
+private fun LoginScreen(isLoading: Boolean, error: String?, onBack: () -> Unit, onSubmit: (String, String) -> Unit, onSignup: () -> Unit) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     val autofillManager = LocalAutofillManager.current
-
-    AuthFormScaffold(
-        title = "Log in",
-        subtitle = "Use your Stremio account to sync your library, addons, and continue watching.",
-        isLoading = isLoading,
-        error = error,
-        onBack = onBack,
-    ) {
-        AuthTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = "Email",
-            modifier = Modifier.semantics { contentType = ContentType.EmailAddress }
-        )
-        AuthTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = "Password",
-            isPassword = true,
-            modifier = Modifier.semantics { contentType = ContentType.Password }
-        )
-        AuthButton(
-            text = if (isLoading) "Logging in..." else "Log in",
-            enabled = !isLoading,
-            onClick = {
-                autofillManager?.commit()
-                onSubmit(email, password)
-            },
-        )
-        TextLink(
-            text = "Don't have an account? Sign up",
-            onClick = onSignup,
-        )
+    AuthFormScaffold("Entrar", "Use sua conta para sincronizar biblioteca, preferências e continuar assistindo.", isLoading, error, onBack) {
+        AuthTextField(email, { email = it }, "E-mail", modifier = Modifier.semantics { contentType = ContentType.EmailAddress })
+        AuthTextField(password, { password = it }, "Senha", true, Modifier.semantics { contentType = ContentType.Password })
+        AuthButton(if (isLoading) "Entrando..." else "Entrar", enabled = !isLoading) { autofillManager?.commit(); onSubmit(email, password) }
+        TextLink("Não tem uma conta? Criar conta", onSignup)
     }
 }
 
 @Composable
-private fun SignupScreen(
-    isLoading: Boolean,
-    error: String?,
-    onBack: () -> Unit,
-    onSubmit: (String, String, Boolean) -> Unit,
-    onLogin: () -> Unit,
-) {
+private fun SignupScreen(isLoading: Boolean, error: String?, onBack: () -> Unit, onSubmit: (String, String, Boolean) -> Unit, onLogin: () -> Unit) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordConfirm by rememberSaveable { mutableStateOf("") }
@@ -324,143 +175,58 @@ private fun SignupScreen(
     var acceptedPrivacy by rememberSaveable { mutableStateOf(false) }
     var marketing by rememberSaveable { mutableStateOf(false) }
     var localError by rememberSaveable { mutableStateOf<String?>(null) }
-
     val autofillManager = LocalAutofillManager.current
-
-    AuthFormScaffold(
-        title = "Sign up",
-        subtitle = "Create a Stremio account to keep your library and addon setup available on every device.",
-        isLoading = isLoading,
-        error = localError ?: error,
-        onBack = onBack,
-    ) {
-        AuthTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = "Email",
-            modifier = Modifier.semantics { contentType = ContentType.EmailAddress }
-        )
-        AuthTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = "Password",
-            isPassword = true,
-            modifier = Modifier.semantics { contentType = ContentType.NewPassword }
-        )
-        AuthTextField(
-            value = passwordConfirm,
-            onValueChange = { passwordConfirm = it },
-            label = "Confirm password",
-            isPassword = true,
-            modifier = Modifier.semantics { contentType = ContentType.NewPassword }
-        )
-        AuthCheckRow(
-            checked = acceptedTerms,
-            text = "I accept the Terms of Service",
-            onCheckedChange = { acceptedTerms = it },
-        )
-        AuthCheckRow(
-            checked = acceptedPrivacy,
-            text = "I accept the Privacy Policy",
-            onCheckedChange = { acceptedPrivacy = it },
-        )
-        AuthCheckRow(
-            checked = marketing,
-            text = "Receive product updates by email",
-            onCheckedChange = { marketing = it },
-        )
-        AuthButton(
-            text = if (isLoading) "Creating account..." else "Sign up",
-            enabled = !isLoading,
-            onClick = {
-                localError = when {
-                    password != passwordConfirm -> "Passwords do not match"
-                    !acceptedTerms -> "You must accept the Terms of Service"
-                    !acceptedPrivacy -> "You must accept the Privacy Policy"
-                    else -> null
-                }
-                if (localError == null) {
-                    autofillManager?.commit()
-                    onSubmit(email, password, marketing)
-                }
-            },
-        )
-        TextLink(
-            text = "Already have an account? Log in",
-            onClick = onLogin,
-        )
+    AuthFormScaffold("Criar conta", "Crie sua conta para manter biblioteca e preferências sincronizadas entre seus dispositivos.", isLoading, localError ?: error, onBack) {
+        AuthTextField(email, { email = it }, "E-mail", modifier = Modifier.semantics { contentType = ContentType.EmailAddress })
+        AuthTextField(password, { password = it }, "Senha", true, Modifier.semantics { contentType = ContentType.NewPassword })
+        AuthTextField(passwordConfirm, { passwordConfirm = it }, "Confirmar senha", true, Modifier.semantics { contentType = ContentType.NewPassword })
+        AuthCheckRow(acceptedTerms, "Aceito os Termos de Serviço") { acceptedTerms = it }
+        AuthCheckRow(acceptedPrivacy, "Aceito a Política de Privacidade") { acceptedPrivacy = it }
+        AuthCheckRow(marketing, "Receber novidades do produto por e-mail") { marketing = it }
+        AuthButton(if (isLoading) "Criando conta..." else "Criar conta", enabled = !isLoading) {
+            localError = when {
+                password != passwordConfirm -> "As senhas não coincidem"
+                !acceptedTerms -> "Você precisa aceitar os Termos de Serviço"
+                !acceptedPrivacy -> "Você precisa aceitar a Política de Privacidade"
+                else -> null
+            }
+            if (localError == null) { autofillManager?.commit(); onSubmit(email, password, marketing) }
+        }
+        TextLink("Já tem uma conta? Entrar", onLogin)
     }
 }
 
 @Composable
-private fun AuthFormScaffold(
-    title: String,
-    subtitle: String,
-    isLoading: Boolean,
-    error: String?,
-    onBack: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
-) {
+private fun AuthFormScaffold(title: String, subtitle: String, isLoading: Boolean, error: String?, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = 26.dp),
+        modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 26.dp),
         contentPadding = PaddingValues(top = 30.dp, bottom = 30.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            TextLink(text = "Back", onClick = onBack)
+            TextLink("Voltar", onBack)
             Spacer(modifier = Modifier.height(42.dp))
-            StremioMark(modifier = Modifier.size(46.dp))
-            Spacer(modifier = Modifier.height(34.dp))
-            Text(
-                text = title,
-                color = Color.White,
-                fontSize = 34.sp,
-                lineHeight = 40.sp,
-                fontWeight = FontWeight.ExtraBold,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StremioMark(modifier = Modifier.size(46.dp))
+                Text("MW Play", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            Spacer(modifier = Modifier.height(30.dp))
+            Text(title, color = Color.White, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.ExtraBold)
             Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = subtitle,
-                color = MutedText,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-            )
+            Text(subtitle, color = MutedText, fontSize = 16.sp, lineHeight = 22.sp)
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 content()
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .size(28.dp),
-                        color = AccentPurple,
-                    )
-                }
-                if (error != null) {
-                    Text(
-                        text = error,
-                        color = Color(0xFFFFC66D),
-                        fontSize = 14.sp,
-                        lineHeight = 19.sp,
-                    )
-                }
+                if (isLoading) CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally).size(28.dp), color = AccentPurple)
+                error?.let { Text(it, color = Color(0xFFFFC66D), fontSize = 14.sp, lineHeight = 19.sp) }
             }
         }
     }
 }
 
 @Composable
-private fun AuthTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    isPassword: Boolean = false,
-    modifier: Modifier = Modifier,
-) {
+private fun AuthTextField(value: String, onValueChange: (String) -> Unit, label: String, isPassword: Boolean = false, modifier: Modifier = Modifier) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -470,74 +236,27 @@ private fun AuthTextField(
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            focusedBorderColor = AccentPurple,
-            unfocusedBorderColor = Color(0xFF555160),
-            focusedLabelColor = MutedText,
-            unfocusedLabelColor = MutedText,
-            cursorColor = AccentPurple,
+            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+            focusedBorderColor = AccentPurple, unfocusedBorderColor = Color(0xFF555160),
+            focusedLabelColor = MutedText, unfocusedLabelColor = MutedText, cursorColor = AccentPurple,
         ),
     )
 }
 
 @Composable
-private fun AuthCheckRow(
-    checked: Boolean,
-    text: String,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = CheckboxDefaults.colors(
-                checkedColor = AccentPurple,
-                uncheckedColor = MutedText,
-                checkmarkColor = Color.White,
-            ),
-        )
-        Text(
-            text = text,
-            color = Color.White,
-            fontSize = 14.sp,
-        )
+private fun AuthCheckRow(checked: Boolean, text: String, onCheckedChange: (Boolean) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked, onCheckedChange, colors = CheckboxDefaults.colors(checkedColor = AccentPurple, uncheckedColor = MutedText, checkmarkColor = Color.White))
+        Text(text, color = Color.White, fontSize = 14.sp)
     }
 }
 
 @Composable
-fun AuthButton(
-    text: String,
-    containerColor: Color = AccentPurple,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    ThemedButton(
-        text = text,
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(58.dp),
-        containerColor = containerColor,
-    )
+fun AuthButton(text: String, containerColor: Color = AccentPurple, enabled: Boolean = true, onClick: () -> Unit) {
+    ThemedButton(text = text, onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth(), containerColor = containerColor)
 }
 
 @Composable
-private fun TextLink(
-    text: String,
-    onClick: () -> Unit,
-) {
-    Text(
-        text = text,
-        modifier = Modifier.clickable(onClick = onClick),
-        color = Color.White,
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Bold,
-    )
+private fun TextLink(text: String, onClick: () -> Unit) {
+    ThemedTextButton(text = text, onClick = onClick)
 }
