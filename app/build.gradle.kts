@@ -29,7 +29,7 @@ val posthogApiKey = (localProperties.getProperty("posthog.apiKey") ?: System.get
 val posthogHost = (localProperties.getProperty("posthog.host") ?: System.getenv("POSTHOG_HOST") ?: "https://us.i.posthog.com").trim()
 
 android {
-    // Keep the Kotlin namespace stable for now; the public Android app identity is MW Play.
+    // Keep the Kotlin namespace stable; the public Android app identity is MW Play.
     namespace = "com.stremio.mobile"
     compileSdk = 37
     ndkVersion = "29.0.13846066"
@@ -132,4 +132,67 @@ dependencies {
     implementation("com.google.firebase:firebase-perf")
     implementation("com.posthog:posthog-android:3.51.0")
     testImplementation("junit:junit:4.13.2")
+}
+
+// Stream-server native build support. These tasks are intentionally not wired into preBuild;
+// CI/release packages the already-built JNI libraries from src/main/jniLibs, while developers
+// can explicitly rebuild the native server when its Rust sources change.
+data class StreamServerTarget(
+    val taskSuffix: String,
+    val abi: String,
+    val rustTarget: String,
+    val vcpkgTriplet: String,
+    val vcpkgInstallRootName: String,
+    val vcpkgInstalledEnvSuffix: String,
+)
+
+val streamServerTargets = listOf(
+    StreamServerTarget("Armv7", "armeabi-v7a", "armv7-linux-androideabi", "arm-android", "arm", "ARMV7"),
+    StreamServerTarget("Arm64", "arm64-v8a", "aarch64-linux-android", "arm64-android", "arm64", "ARM64"),
+    StreamServerTarget("X86", "x86", "i686-linux-android", "x86-android", "x86", "X86"),
+    StreamServerTarget("X86_64", "x86_64", "x86_64-linux-android", "x64-android", "x64", "X86_64"),
+)
+
+val externalStreamServerRoot = projectDir.resolve("../../stream-server").normalize()
+val submoduleStreamServerRoot = rootProject.file("stream-server")
+val streamServerRoot = when {
+    externalStreamServerRoot.resolve("server/Cargo.toml").isFile -> externalStreamServerRoot
+    submoduleStreamServerRoot.resolve("server/Cargo.toml").isFile -> submoduleStreamServerRoot
+    else -> externalStreamServerRoot
+}
+val vcpkgRoot = stringPropertyOrEnv("VCPKG_ROOT") ?: "C:\\vcpkg"
+
+streamServerTargets.forEach { target ->
+    tasks.register<Exec>("buildStreamServer${target.taskSuffix}") {
+        workingDir = streamServerRoot.resolve("server")
+        val cargoArgs = listOf(
+            "cargo", "ndk", "--target", target.rustTarget, "--platform", "24",
+            "build", "--release", "--features", "libtorrent", "--no-default-features",
+        )
+        if (org.apache.tools.ant.taskdefs.condition.Os.isFamily(org.apache.tools.ant.taskdefs.condition.Os.FAMILY_WINDOWS)) {
+            commandLine("cmd", "/c", cargoArgs.joinToString(" "))
+        } else {
+            commandLine(cargoArgs)
+        }
+
+        val targetVcpkgInstalledDir = stringPropertyOrEnv("VCPKG_INSTALLED_DIR_${target.vcpkgInstalledEnvSuffix}")
+            ?: stringPropertyOrEnv("VCPKG_INSTALLED_DIR")
+            ?: file("$vcpkgRoot/installed-${target.vcpkgInstallRootName}").absolutePath
+        val tripletRoot = file(targetVcpkgInstalledDir).resolve(target.vcpkgTriplet)
+        environment("VCPKG_ROOT", vcpkgRoot)
+        environment("VCPKG_INSTALLED_DIR", targetVcpkgInstalledDir)
+        environment("VCPKGRS_TRIPLET", target.vcpkgTriplet)
+        environment("OPENSSL_DIR", tripletRoot.absolutePath)
+        environment("PKG_CONFIG_ALLOW_CROSS", "1")
+        environment("PKG_CONFIG_PATH", tripletRoot.resolve("lib/pkgconfig").absolutePath)
+        environment("PKG_CONFIG_SYSROOT_DIR", tripletRoot.absolutePath)
+    }
+}
+
+tasks.register<Copy>("copyStreamServerJniLibs") {
+    dependsOn(streamServerTargets.map { "buildStreamServer${it.taskSuffix}" })
+    streamServerTargets.forEach { target ->
+        from(streamServerRoot.resolve("target/${target.rustTarget}/release/libstream_server.so")) { into(target.abi) }
+    }
+    into("src/main/jniLibs")
 }
