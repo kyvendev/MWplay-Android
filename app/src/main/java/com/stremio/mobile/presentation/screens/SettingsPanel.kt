@@ -44,6 +44,7 @@ import com.stremio.mobile.presentation.components.ThemedDropdownMenu
 import com.stremio.mobile.presentation.components.ThemedSlider
 import com.stremio.mobile.presentation.components.ThemedToggle
 import com.stremio.mobile.presentation.components.rememberGlobalHapticFeedback
+import com.stremio.mobile.presentation.components.tvFocusTarget
 
 enum class SettingsSubScreen {
     Main,
@@ -107,8 +108,6 @@ fun SettingsPanel(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Addon management is intentionally not exposed in the MW Play customer UI.
-            // The underlying addon/core synchronization remains untouched.
             SettingsMenuRow(
                 icon = Icons.Outlined.AccountCircle,
                 title = "Geral",
@@ -152,7 +151,12 @@ fun SettingsPanel(
 
 @Composable
 private fun AuthButton(text: String, containerColor: Color, onClick: () -> Unit) {
-    ThemedButton(text = text, onClick = onClick, modifier = Modifier.fillMaxWidth(), containerColor = containerColor)
+    ThemedButton(
+        text = text,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.03f),
+        containerColor = containerColor,
+    )
 }
 
 @Composable
@@ -160,7 +164,11 @@ private fun SettingsMenuRow(icon: ImageVector, title: String, description: Strin
     val triggerHaptic = rememberGlobalHapticFeedback()
     ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { triggerHaptic(); onClick() }.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.025f)
+                .clickable { triggerHaptic(); onClick() }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -175,7 +183,7 @@ private fun SettingsMenuRow(icon: ImageVector, title: String, description: Strin
                     Text(text = description, color = MutedText, fontSize = 12.sp)
                 }
             }
-            Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText, modifier = Modifier.size(24.dp))
+            Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -188,21 +196,34 @@ fun SettingsHeader(title: String, onBack: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
     ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-            contentDescription = "Voltar",
-            tint = Color.White,
-            modifier = Modifier.size(24.dp).clickable { triggerHaptic(); onBack() },
-        )
+        Box(
+            modifier = Modifier
+                .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.10f)
+                .clickable { triggerHaptic(); onBack() }
+                .padding(8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = "Voltar",
+                tint = Color.White,
+                modifier = Modifier.size(24.dp),
+            )
+        }
         Text(text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 fun SettingsToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit, description: String? = null) {
+    val triggerHaptic = rememberGlobalHapticFeedback()
     ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.02f)
+                .clickable { triggerHaptic(); onCheckedChange(!checked) }
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -228,7 +249,11 @@ fun <T> SettingsDropdownRow(
     val triggerHaptic = rememberGlobalHapticFeedback()
     ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { triggerHaptic(); expanded = true }.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.02f)
+                .clickable { triggerHaptic(); expanded = true }
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -261,7 +286,13 @@ fun SettingsSliderRow(
     description: String? = null,
 ) {
     ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.015f)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
@@ -279,7 +310,11 @@ fun SettingsClickRow(title: String, onClick: () -> Unit, description: String? = 
     val triggerHaptic = rememberGlobalHapticFeedback()
     ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { triggerHaptic(); onClick() }.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.02f)
+                .clickable { triggerHaptic(); onClick() }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -287,7 +322,7 @@ fun SettingsClickRow(title: String, onClick: () -> Unit, description: String? = 
                 Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
             }
-            Icon(imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = MutedText, modifier = Modifier.size(20.dp))
+            Icon(imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
         }
     }
 }
