@@ -25,9 +25,11 @@ import com.stremio.mobile.core.theme.ScreenGutter
 
 @Composable
 fun StremioMark(modifier: Modifier = Modifier) {
+    // Keep the historical function name internally to avoid touching unrelated call sites,
+    // while the customer-facing asset is the original MW Play mark.
     Image(
-        painter = painterResource(id = com.stremio.mobile.R.drawable.ic_stremio_splash_logo),
-        contentDescription = null,
+        painter = painterResource(id = com.stremio.mobile.R.drawable.mw_play_mark),
+        contentDescription = "MW Play",
         modifier = modifier,
     )
 }
