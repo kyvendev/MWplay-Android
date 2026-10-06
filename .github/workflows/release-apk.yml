@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: Versão do MW Play para publicar
-        required: false
+        description: Versão do MW Play para publicar (ex.: 1.0.0)
+        required: true
 
 permissions:
   contents: write
@@ -48,10 +48,11 @@ jobs:
             release_tag="${GITHUB_REF_NAME}"
           else
             version_name="${{ inputs.version_name }}"
-            if [[ -z "${version_name}" ]]; then
-              version_name="1.0.${GITHUB_RUN_NUMBER}"
+            if [[ ! "${version_name}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Informe uma versão válida no formato X.Y.Z (ex.: 1.0.0)."
+              exit 1
             fi
-            release_tag="manual-${GITHUB_RUN_NUMBER}"
+            release_tag="v${version_name}"
           fi
           echo "VERSION_NAME=${version_name}" >> "${GITHUB_ENV}"
           echo "VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "${GITHUB_ENV}"
