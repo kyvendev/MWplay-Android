@@ -46,8 +46,7 @@ fun BoardHeader(
         Spacer(modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.12f)
+                .size(44.dp)
                 .clickable(onClick = onOpenSearch),
             contentAlignment = Alignment.Center,
         ) {
