@@ -38,7 +38,7 @@ fun BoardHeader(
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(
-            text = "STREMIO",
+            text = "PLAY",
             color = Color.White,
             fontSize = 20.sp,
             fontWeight = FontWeight.Normal,
@@ -52,7 +52,7 @@ fun BoardHeader(
         ) {
             Icon(
                 imageVector = Icons.Default.Search,
-                contentDescription = "Search",
+                contentDescription = "Pesquisar",
                 tint = Color.White,
                 modifier = Modifier.size(28.dp),
             )
