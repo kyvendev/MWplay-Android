@@ -3,6 +3,7 @@ package com.stremio.mobile.presentation.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -89,6 +90,7 @@ fun FeaturedHeroCard(
     modifier: Modifier = Modifier,
 ) {
     if (item == null) return
+    val isTv = rememberIsTelevision()
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -97,7 +99,11 @@ fun FeaturedHeroCard(
             .tvFocusTarget(cornerRadius = 26.dp, focusedScale = 1.025f)
             .clip(RoundedCornerShape(26.dp))
             .background(CardFallback)
-            .clickable { onClick(item) },
+            .clickable { onClick(item) }
+            // HorizontalPager can keep its child out of spatial focus search on some TV
+            // devices. Give the hero a concrete focus node so RIGHT from the navigation rail
+            // always has a valid destination in the content area.
+            .then(if (isTv) Modifier.focusable() else Modifier),
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current).data(item.background ?: item.poster).size(800, 460).memoryCachePolicy(CachePolicy.ENABLED).crossfade(true).build(),
