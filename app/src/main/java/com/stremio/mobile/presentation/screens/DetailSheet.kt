@@ -3,6 +3,7 @@ package com.stremio.mobile.presentation.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -33,11 +34,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlendMode
@@ -87,29 +91,18 @@ fun DetailSheet(
                 var dragAccumulator = 0f
                 var hasTriggered = false
                 detectVerticalDragGestures(
-                    onDragStart = {
-                        dragAccumulator = 0f
-                        hasTriggered = false
-                    },
+                    onDragStart = { dragAccumulator = 0f; hasTriggered = false },
                     onVerticalDrag = { _, dragAmount ->
                         if (!hasTriggered) {
                             dragAccumulator += dragAmount
-                            if (dragAccumulator < -40f) {
-                                hasTriggered = true
-                                onOpenStreams()
-                            }
+                            if (dragAccumulator < -40f) { hasTriggered = true; onOpenStreams() }
                         }
                     }
                 )
             }
             .navigationBarsPadding(),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(152.dp)
-                .background(CardFallback),
-        ) {
+        Box(modifier = Modifier.fillMaxWidth().height(152.dp).background(CardFallback)) {
             AsyncImage(
                 model = details.item.background ?: details.item.poster,
                 contentDescription = details.item.name,
@@ -117,83 +110,48 @@ fun DetailSheet(
                 contentScale = ContentScale.Crop,
             )
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color(0x55000000), Color(0xFF0B0C16)),
-                        ),
-                    ),
+                modifier = Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(colors = listOf(Color(0x55000000), Color(0xFF0B0C16)))
+                )
             )
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = "Voltar",
                 tint = Color.White,
-                modifier = Modifier
-                    .padding(14.dp)
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x66000000))
-                    .clickable(onClick = onBack)
-                    .padding(10.dp),
+                modifier = Modifier.padding(14.dp).size(44.dp).clip(CircleShape)
+                    .background(Color(0x66000000)).clickable(onClick = onBack).focusable().padding(10.dp),
             )
         }
 
         Column(
-            modifier = Modifier
-                .padding(horizontal = 18.dp, vertical = 14.dp)
-                .verticalScroll(rememberScrollState()),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Text(text = details.item.name, color = Color.White, fontSize = 22.sp, lineHeight = 27.sp,
+                fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                text = details.item.name,
-                color = Color.White,
-                fontSize = 22.sp,
-                lineHeight = 27.sp,
-                fontWeight = FontWeight.ExtraBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = listOfNotNull(details.year, details.runtime, details.item.imdbRating?.let { "IMDb $it" })
-                    .joinToString("  •  "),
-                color = MutedText,
-                fontSize = 13.sp,
+                text = listOfNotNull(details.year, details.runtime, details.item.imdbRating?.let { "IMDb $it" }).joinToString("  •  "),
+                color = MutedText, fontSize = 13.sp,
             )
             if (details.isLoading) {
                 CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(24.dp))
             } else if (details.error != null) {
                 Text(text = details.error, color = Color(0xFFFFC66D), fontSize = 13.sp)
             } else {
-                Text(
-                    text = details.description ?: "Sinopse indisponível.",
-                    color = Color(0xFFE4E0EE),
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    maxLines = 5,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = (details.genres + details.cast.take(3)).joinToString("  •  "),
-                    color = MutedText,
-                    fontSize = 12.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Text(text = details.description ?: "Sinopse indisponível.", color = Color(0xFFE4E0EE), fontSize = 13.sp,
+                    lineHeight = 18.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
+                Text(text = (details.genres + details.cast.take(3)).joinToString("  •  "), color = MutedText,
+                    fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
             ) {
                 DetailLiquidActionButton(
                     label = if (inLibrary) "Na minha lista" else "Minha lista",
                     imageVector = if (inLibrary) Icons.Outlined.Check else Icons.Outlined.Add,
                     onClick = onToggleLibrary,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
+                    modifier = Modifier.weight(1f).height(52.dp),
                     tint = AccentPurple,
                     surface = true,
                 )
@@ -201,9 +159,7 @@ fun DetailSheet(
                     label = "Assistir",
                     imageVector = Icons.Outlined.PlayArrow,
                     onClick = onOpenStreams,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
+                    modifier = Modifier.weight(1f).height(52.dp),
                     enabled = !details.isLoading,
                     tint = AccentGreen,
                 )
@@ -228,17 +184,15 @@ private fun DetailLiquidActionButton(
     val tuning = theme.liquidGlassTuning.clamped()
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    var focused by remember { mutableStateOf(false) }
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (pressed) 0.965f else 1f,
+        targetValue = when { pressed -> 0.965f; focused -> 1.06f; else -> 1f },
         animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 430f),
         label = "detailLiquidButtonScale",
     )
     val shape = RoundedCornerShape(999.dp)
-    val contentColor = if (surface) {
-        Color(0xFF101018).copy(alpha = if (enabled) 0.92f else 0.42f)
-    } else {
-        Color.White.copy(alpha = if (enabled) 0.96f else 0.42f)
-    }
+    val contentColor = if (surface) Color(0xFF101018).copy(alpha = if (enabled) 0.92f else 0.42f)
+        else Color.White.copy(alpha = if (enabled) 0.96f else 0.42f)
     val realGlass = enabled && backdrop != null && theme.style == "modern" && theme.glassEffectsMode != "static"
 
     Box(
@@ -249,114 +203,47 @@ private fun DetailLiquidActionButton(
                     Modifier.drawBackdropSafe(
                         backdrop = backdrop,
                         shape = { shape },
-                        effects = {
-                            vibrancy()
-                            blur(4f.dp.toPx())
-                            lens(
-                                refractionHeight = 16f.dp.toPx(),
-                                refractionAmount = 32f.dp.toPx(),
-                                depthEffect = true,
-                                chromaticAberration = tuning.chromaticAberration,
-                            )
-                        },
-                        highlight = {
-                            Highlight.Ambient.copy(
-                                width = Highlight.Ambient.width / 1.4f,
-                                blurRadius = Highlight.Ambient.blurRadius / 1.4f,
-                                alpha = 0.72f,
-                            )
-                        },
-                        shadow = {
-                            Shadow(
-                                radius = 18.dp,
-                                offset = androidx.compose.ui.unit.DpOffset(0.dp, 4.dp),
-                                color = Color.Black.copy(alpha = 0.18f),
-                            )
-                        },
-                        onDrawSurface = {
-                            if (surface) {
-                                drawRoundRect(Color.White.copy(alpha = 0.62f))
-                            } else {
-                                drawRoundRect(tint, blendMode = BlendMode.Hue)
-                                drawRoundRect(tint.copy(alpha = 0.72f))
-                            }
-                        },
+                        effects = { vibrancy(); blur(4f.dp.toPx()); lens(refractionHeight = 16f.dp.toPx(), refractionAmount = 32f.dp.toPx(), depthEffect = true, chromaticAberration = tuning.chromaticAberration) },
+                        highlight = { Highlight.Ambient.copy(width = Highlight.Ambient.width / 1.4f, blurRadius = Highlight.Ambient.blurRadius / 1.4f, alpha = 0.72f) },
+                        shadow = { Shadow(radius = 18.dp, offset = androidx.compose.ui.unit.DpOffset(0.dp, 4.dp), color = Color.Black.copy(alpha = 0.18f)) },
+                        onDrawSurface = { if (surface) drawRoundRect(Color.White.copy(alpha = 0.62f)) else { drawRoundRect(tint, blendMode = BlendMode.Hue); drawRoundRect(tint.copy(alpha = 0.72f)) } },
                     )
                 } else {
-                    Modifier
-                        .clip(shape)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = if (surface) {
-                                    listOf(
-                                        Color.White.copy(alpha = if (enabled) 0.78f else 0.14f),
-                                        Color.White.copy(alpha = if (enabled) 0.46f else 0.10f),
-                                    )
-                                } else {
-                                    listOf(
-                                        tint.copy(alpha = if (enabled) 0.78f else 0.12f),
-                                        tint.copy(alpha = if (enabled) 0.48f else 0.10f),
-                                    )
-                                },
-                            ),
+                    Modifier.clip(shape).background(
+                        Brush.verticalGradient(
+                            colors = if (surface) listOf(Color.White.copy(alpha = if (enabled) 0.78f else 0.14f), Color.White.copy(alpha = if (enabled) 0.46f else 0.10f))
+                            else listOf(tint.copy(alpha = if (enabled) 0.78f else 0.12f), tint.copy(alpha = if (enabled) 0.48f else 0.10f))
                         )
+                    )
                 }
             )
             .border(
-                width = 0.8.dp,
+                width = if (focused) 3.dp else 0.8.dp,
                 brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = if (enabled) 0.58f else 0.16f),
-                        Color.White.copy(alpha = if (enabled) 0.22f else 0.08f),
-                    ),
+                    colors = if (focused) listOf(Color.White, tint.copy(alpha = 0.95f))
+                    else listOf(Color.White.copy(alpha = if (enabled) 0.58f else 0.16f), Color.White.copy(alpha = if (enabled) 0.22f else 0.08f))
                 ),
                 shape = shape,
             )
             .clip(shape)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                enabled = enabled,
-            ) {
-                triggerHaptic()
-                onClick()
-            },
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(interactionSource = interactionSource, indication = null, enabled = enabled) {
+                triggerHaptic(); onClick()
+            }
+            .focusable(enabled),
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(shape)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = if (enabled) 0.28f else 0.04f),
-                            Color.Transparent,
-                            Color.White.copy(alpha = if (surface) 0.08f else 0.04f),
-                        ),
-                    ),
-                ),
+            modifier = Modifier.fillMaxSize().clip(shape).background(
+                Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = if (focused) 0.42f else if (enabled) 0.28f else 0.04f), Color.Transparent, Color.White.copy(alpha = if (surface) 0.08f else 0.04f)))
+            )
         )
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 18.dp),
-        ) {
-            Icon(
-                imageVector = imageVector,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(20.dp),
-            )
+        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 18.dp)) {
+            Icon(imageVector = imageVector, contentDescription = null, tint = contentColor, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = label,
-                color = contentColor,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.ExtraBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(text = label, color = contentColor, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
