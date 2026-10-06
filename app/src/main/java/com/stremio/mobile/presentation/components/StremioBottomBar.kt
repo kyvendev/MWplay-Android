@@ -38,8 +38,10 @@ fun StremioBottomBar(
     onSelect: (AppView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Do not inherit the mobile call site's BottomCenter parent-data modifier. In the TV branch
+    // this component is deliberately anchored to the Box's default TopStart as a navigation rail.
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxHeight()
             .width(116.dp)
             .background(Color(0xF20B0C16))
