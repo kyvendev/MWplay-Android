@@ -12,6 +12,7 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -117,25 +118,11 @@ class ExoStreamPlayer(
     private var currentSubtitleStyle = PlayerSubtitleStyle()
 
     private val listener = object : androidx.media3.common.Player.Listener {
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            publishState()
-        }
-
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            publishState(ended = playbackState == androidx.media3.common.Player.STATE_ENDED)
-        }
-
-        override fun onPlayerError(error: PlaybackException) {
-            publishState(error = describePlaybackError(error))
-        }
-
-        override fun onTracksChanged(tracks: Tracks) {
-            publishState()
-        }
-
-        override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) {
-            publishState()
-        }
+        override fun onIsPlayingChanged(isPlaying: Boolean) { publishState() }
+        override fun onPlaybackStateChanged(playbackState: Int) { publishState(ended = playbackState == androidx.media3.common.Player.STATE_ENDED) }
+        override fun onPlayerError(error: PlaybackException) { publishState(error = describePlaybackError(error)) }
+        override fun onTracksChanged(tracks: Tracks) { publishState() }
+        override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) { publishState() }
     }
 
     init {
@@ -148,32 +135,22 @@ class ExoStreamPlayer(
         }
     }
 
-    override fun createView(context: Context): View {
-        return PlayerView(context).apply {
-            useController = false
-            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
-            keepScreenOn = true
-            resizeMode = playerView?.resizeMode ?: AspectRatioFrameLayout.RESIZE_MODE_FIT
-            player = exoPlayer
-            playerView = this
-            applySubtitleStyleToView()
-        }
+    override fun createView(context: Context): View = PlayerView(context).apply {
+        useController = false
+        setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+        keepScreenOn = true
+        resizeMode = playerView?.resizeMode ?: AspectRatioFrameLayout.RESIZE_MODE_FIT
+        player = exoPlayer
+        playerView = this
+        applySubtitleStyleToView()
     }
 
-    override fun load(
-        uri: Uri,
-        startPositionMs: Long,
-        subtitles: List<ExternalSubtitle>,
-        preferredSubtitleLang: String?,
-        settings: com.stremio.core.types.profile.Profile.Settings?,
-    ) {
+    override fun load(uri: Uri, startPositionMs: Long, subtitles: List<ExternalSubtitle>, preferredSubtitleLang: String?, settings: com.stremio.core.types.profile.Profile.Settings?) {
         currentUri = uri
         currentStartPositionMs = startPositionMs
         currentSubtitles = subtitles
         currentPreferredSubtitleLang = preferredSubtitleLang
-
-        val mediaItem = buildMediaItem(uri, subtitles, preferredSubtitleLang)
-        exoPlayer.setMediaItem(mediaItem, startPositionMs)
+        exoPlayer.setMediaItem(buildMediaItem(uri, subtitles, preferredSubtitleLang), startPositionMs)
         exoPlayer.prepare()
         publishState(error = null, ended = false)
     }
@@ -188,30 +165,11 @@ class ExoStreamPlayer(
         exoPlayer.play()
     }
 
-    fun reportNonFatalError(message: String?) {
-        if (message == null) return
-        publishState(error = message, ended = false)
-    }
-
-    override fun play() {
-        exoPlayer.play()
-        publishState()
-    }
-
-    override fun pause() {
-        exoPlayer.pause()
-        publishState()
-    }
-
-    override fun seekTo(positionMs: Long) {
-        exoPlayer.seekTo(positionMs)
-        publishState()
-    }
-
-    override fun setPlaybackSpeed(speed: Float) {
-        exoPlayer.setPlaybackSpeed(speed)
-        publishState()
-    }
+    fun reportNonFatalError(message: String?) { if (message != null) publishState(error = message, ended = false) }
+    override fun play() { exoPlayer.play(); publishState() }
+    override fun pause() { exoPlayer.pause(); publishState() }
+    override fun seekTo(positionMs: Long) { exoPlayer.seekTo(positionMs); publishState() }
+    override fun setPlaybackSpeed(speed: Float) { exoPlayer.setPlaybackSpeed(speed); publishState() }
 
     override fun setResizeMode(mode: PlayerResizeMode) {
         playerView?.resizeMode = when (mode) {
@@ -223,8 +181,7 @@ class ExoStreamPlayer(
 
     override fun selectAudioTrack(id: String) {
         val parsed = ExoTrackId.parse(id) ?: return
-        if (parsed.type != PlayerTrackType.AUDIO) return
-        selectTrack(parsed, C.TRACK_TYPE_AUDIO)
+        if (parsed.type == PlayerTrackType.AUDIO) selectTrack(parsed, C.TRACK_TYPE_AUDIO)
     }
 
     override fun selectSubtitleTrack(id: String) {
@@ -235,20 +192,13 @@ class ExoStreamPlayer(
     }
 
     override fun disableSubtitles() {
-        val disabledTypes = exoPlayer.trackSelectionParameters.disabledTrackTypes.toMutableSet()
-        disabledTypes.add(C.TRACK_TYPE_TEXT)
-        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-            .buildUpon()
-            .setDisabledTrackTypes(disabledTypes)
-            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
-            .build()
+        val disabledTypes = exoPlayer.trackSelectionParameters.disabledTrackTypes.toMutableSet().apply { add(C.TRACK_TYPE_TEXT) }
+        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon()
+            .setDisabledTrackTypes(disabledTypes).clearOverridesOfType(C.TRACK_TYPE_TEXT).build()
         publishState()
     }
 
-    override fun setSubtitleStyle(style: PlayerSubtitleStyle) {
-        currentSubtitleStyle = style
-        applySubtitleStyleToView()
-    }
+    override fun setSubtitleStyle(style: PlayerSubtitleStyle) { currentSubtitleStyle = style; applySubtitleStyleToView() }
 
     override fun addExternalSubtitleTracks(tracks: List<ExternalSubtitle>) {
         val unique = (currentSubtitles + tracks).distinctBy { it.id }
@@ -259,16 +209,7 @@ class ExoStreamPlayer(
 
     override fun addLocalSubtitle(track: ExternalSubtitle) {
         currentPreferredSubtitleLang = LanguageCatalog.LOCAL_SUBTITLES_LANGUAGE
-        addExternalSubtitleTracks(
-            listOf(
-                track.copy(
-                    lang = track.lang.ifBlank { LanguageCatalog.LOCAL_SUBTITLES_LANGUAGE },
-                    origin = "LOCAL",
-                    embedded = false,
-                    local = true,
-                )
-            )
-        )
+        addExternalSubtitleTracks(listOf(track.copy(lang = track.lang.ifBlank { LanguageCatalog.LOCAL_SUBTITLES_LANGUAGE }, origin = "LOCAL", embedded = false, local = true)))
         enableTextTracks()
     }
 
@@ -287,24 +228,12 @@ class ExoStreamPlayer(
             subView.setApplyEmbeddedFontSizes(false)
             subView.setApplyEmbeddedStyles(false)
             subView.setFractionalTextSize(0.0533f * (style.sizePercent / 100f))
-
             val textColor = parseSubtitleColor(style.textColor, Color.WHITE)
             val backgroundColor = parseSubtitleColor(style.backgroundColor, Color.TRANSPARENT)
             val outlineColor = parseSubtitleColor(style.outlineColor, Color.BLACK)
-            subView.setStyle(
-                CaptionStyleCompat(
-                    textColor,
-                    backgroundColor,
-                    Color.TRANSPARENT,
-                    if (Color.alpha(outlineColor) == 0) CaptionStyleCompat.EDGE_TYPE_NONE else CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-                    outlineColor,
-                    null,
-                )
-            )
-
+            subView.setStyle(CaptionStyleCompat(textColor, backgroundColor, Color.TRANSPARENT, if (Color.alpha(outlineColor) == 0) CaptionStyleCompat.EDGE_TYPE_NONE else CaptionStyleCompat.EDGE_TYPE_OUTLINE, outlineColor, null))
             val maxPaddingPx = with(subView.resources.displayMetrics) { 150 * density }
-            val bottomPadding = ((style.offsetPercent / 100f) * maxPaddingPx).toInt()
-            subView.setPadding(subView.paddingLeft, subView.paddingTop, subView.paddingRight, bottomPadding)
+            subView.setPadding(subView.paddingLeft, subView.paddingTop, subView.paddingRight, ((style.offsetPercent / 100f) * maxPaddingPx).toInt())
         }
     }
 
@@ -320,26 +249,14 @@ class ExoStreamPlayer(
         publishState(error = null, ended = false)
     }
 
-    private fun buildMediaItem(
-        uri: Uri,
-        subtitles: List<ExternalSubtitle>,
-        preferredSubtitleLang: String?,
-    ): MediaItem {
+    private fun buildMediaItem(uri: Uri, subtitles: List<ExternalSubtitle>, preferredSubtitleLang: String?): MediaItem {
         val subtitleConfigs = subtitles.map { sub ->
             val isDefault = preferredSubtitleLang != null && LanguageCatalog.matches(sub.lang, preferredSubtitleLang)
             val baseLabel = sub.label ?: sub.lang
             val label = if (sub.source != null) "$baseLabel (${sub.source})" else baseLabel
-            MediaItem.SubtitleConfiguration.Builder(Uri.parse(sub.url))
-                .setId(sub.id)
-                .setMimeType(inferSubtitleMime(sub.url))
-                .setLanguage(sub.lang)
-                .setLabel(label)
-                .setSelectionFlags(if (isDefault) C.SELECTION_FLAG_DEFAULT else 0)
-                .build()
+            MediaItem.SubtitleConfiguration.Builder(Uri.parse(sub.url)).setId(sub.id).setMimeType(inferSubtitleMime(sub.url)).setLanguage(sub.lang).setLabel(label).setSelectionFlags(if (isDefault) C.SELECTION_FLAG_DEFAULT else 0).build()
         }
-        val builder = MediaItem.Builder()
-            .setUri(uri)
-            .setSubtitleConfigurations(subtitleConfigs)
+        val builder = MediaItem.Builder().setUri(uri).setSubtitleConfigurations(subtitleConfigs)
         inferStreamMime(uri)?.let(builder::setMimeType)
         return builder.build()
     }
@@ -347,26 +264,16 @@ class ExoStreamPlayer(
     private fun selectTrack(parsed: ExoTrackId, media3Type: Int) {
         val group = exoPlayer.currentTracks.groups.getOrNull(parsed.groupIndex) ?: return
         if (group.type != media3Type || parsed.trackIndex !in 0 until group.length) return
-        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-            .buildUpon()
-            .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, parsed.trackIndex))
-            .build()
+        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, parsed.trackIndex)).build()
         publishState()
     }
 
     private fun enableTextTracks() {
-        val disabledTypes = exoPlayer.trackSelectionParameters.disabledTrackTypes.toMutableSet()
-        disabledTypes.remove(C.TRACK_TYPE_TEXT)
-        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
-            .buildUpon()
-            .setDisabledTrackTypes(disabledTypes)
-            .build()
+        val disabledTypes = exoPlayer.trackSelectionParameters.disabledTrackTypes.toMutableSet().apply { remove(C.TRACK_TYPE_TEXT) }
+        exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon().setDisabledTrackTypes(disabledTypes).build()
     }
 
-    private fun publishState(
-        error: String? = mutableRuntimeState.value.error,
-        ended: Boolean = exoPlayer.playbackState == androidx.media3.common.Player.STATE_ENDED,
-    ) {
+    private fun publishState(error: String? = mutableRuntimeState.value.error, ended: Boolean = exoPlayer.playbackState == androidx.media3.common.Player.STATE_ENDED) {
         val videoFormat = exoPlayer.videoFormat
         mutableRuntimeState.value = PlayerRuntimeState(
             isPlaying = exoPlayer.isPlaying,
@@ -394,37 +301,17 @@ class ExoStreamPlayer(
                 val format = group.getTrackFormat(trackIndex)
                 val externalSubtitle = if (trackType == C.TRACK_TYPE_TEXT) findExternalSubtitle(format.id, group.mediaTrackGroup.id, format.label, format.language) else null
                 val lang = LanguageCatalog.toCode(format.language) ?: LanguageCatalog.toCode(externalSubtitle?.lang)
-                val label = externalSubtitle?.let { buildExternalSubtitleLabel(it) }
-                    ?: format.label
-                    ?: lang?.uppercase(Locale.ROOT)
-                    ?: if (trackType == C.TRACK_TYPE_AUDIO) "Track ${options.size + 1}" else "Subtitles ${options.size + 1}"
+                val label = externalSubtitle?.let { buildExternalSubtitleLabel(it) } ?: format.label ?: lang?.uppercase(Locale.ROOT) ?: if (trackType == C.TRACK_TYPE_AUDIO) "Track ${options.size + 1}" else "Subtitles ${options.size + 1}"
                 val optionType = if (trackType == C.TRACK_TYPE_AUDIO) PlayerTrackType.AUDIO else PlayerTrackType.SUBTITLE
-                options.add(
-                    PlayerTrackOption(
-                        id = ExoTrackId(optionType, groupIndex, trackIndex).encode(),
-                        type = optionType,
-                        label = label,
-                        language = format.language ?: externalSubtitle?.lang,
-                        selected = group.isTrackSelected(trackIndex),
-                        languageCode = lang,
-                        origin = externalSubtitle?.origin ?: if (trackType == C.TRACK_TYPE_TEXT) "EMBEDDED" else "AUDIO",
-                        url = externalSubtitle?.url,
-                        fallbackUrl = externalSubtitle?.fallbackUrl,
-                        addonSubtitleId = externalSubtitle?.addonSubtitleId,
-                        embedded = trackType == C.TRACK_TYPE_TEXT && externalSubtitle == null,
-                        local = externalSubtitle?.local == true,
-                        exclusive = externalSubtitle?.exclusive == true,
-                    )
-                )
+                options.add(PlayerTrackOption(id = ExoTrackId(optionType, groupIndex, trackIndex).encode(), type = optionType, label = label, language = format.language ?: externalSubtitle?.lang, selected = group.isTrackSelected(trackIndex), languageCode = lang, origin = externalSubtitle?.origin ?: if (trackType == C.TRACK_TYPE_TEXT) "EMBEDDED" else "AUDIO", url = externalSubtitle?.url, fallbackUrl = externalSubtitle?.fallbackUrl, addonSubtitleId = externalSubtitle?.addonSubtitleId, embedded = trackType == C.TRACK_TYPE_TEXT && externalSubtitle == null, local = externalSubtitle?.local == true, exclusive = externalSubtitle?.exclusive == true))
             }
         }
         return options
     }
 
-    private fun findExternalSubtitle(formatId: String?, groupId: String?, label: String?, language: String?): ExternalSubtitle? {
-        return currentSubtitles.firstOrNull { it.id == formatId || it.id == groupId }
+    private fun findExternalSubtitle(formatId: String?, groupId: String?, label: String?, language: String?): ExternalSubtitle? =
+        currentSubtitles.firstOrNull { it.id == formatId || it.id == groupId }
             ?: currentSubtitles.firstOrNull { it.label != null && it.label == label && LanguageCatalog.matches(it.lang, language) }
-    }
 
     private fun buildExternalSubtitleLabel(subtitle: ExternalSubtitle): String {
         val base = subtitle.label?.takeIf { it.isNotBlank() } ?: subtitle.lang.uppercase(Locale.ROOT)
@@ -434,8 +321,8 @@ class ExoStreamPlayer(
     private fun describePlaybackError(error: PlaybackException): String {
         val cause = generateSequence<Throwable>(error) { it.cause }.drop(1).firstOrNull()
         return when (cause) {
-            is DefaultHttpDataSource.InvalidResponseCodeException -> "HTTP ${cause.responseCode}: o servidor recusou a transmissão"
-            is DefaultHttpDataSource.HttpDataSourceException -> "Erro de rede ao abrir a transmissão: ${cause.message ?: "falha HTTP"}"
+            is HttpDataSource.InvalidResponseCodeException -> "HTTP ${cause.responseCode}: o servidor recusou a transmissão"
+            is HttpDataSource.HttpDataSourceException -> "Erro de rede ao abrir a transmissão: ${cause.message ?: "falha HTTP"}"
             else -> when (error.errorCode) {
                 PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
                 PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> "Formato da transmissão não suportado"
