@@ -31,77 +31,23 @@ fun GeneralSettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        SettingsHeader(title = "General Settings", onBack = onBack)
-
-        Text(
-            text = "INTEGRATIONS",
-            color = MutedText,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-        )
-
-        ThemedCard(
-            modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 16.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Trakt Integration",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+    Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SettingsHeader(title = "Configurações gerais", onBack = onBack)
+        Text(text = "INTEGRAÇÕES", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+        ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(text = "Integração com Trakt", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = if (isTraktAuthenticated) "Authenticated" else "Not Authenticated",
-                        color = if (isTraktAuthenticated) Color(0xFF4CAF50) else MutedText,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Text(text = if (isTraktAuthenticated) "Autenticado" else "Não autenticado", color = if (isTraktAuthenticated) Color(0xFF4CAF50) else MutedText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
-                Text(
-                    text = "Sync what you watch directly to your Trakt profile history and watchlist.",
-                    color = MutedText,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
-                )
+                Text(text = "Sincronize o que você assiste com o histórico e a lista do seu perfil no Trakt.", color = MutedText, fontSize = 12.sp, lineHeight = 16.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (isTraktAuthenticated) {
-                        ThemedButton(
-                            text = "Log Out Trakt",
-                            onClick = onLogoutTrakt,
-                            containerColor = Color(0xFFD32F2F),
-                            modifier = Modifier.weight(1f)
-                        )
-                        ThemedButton(
-                            text = "Install Addon",
-                            onClick = onInstallTraktAddon,
-                            containerColor = AccentPurple,
-                            modifier = Modifier.weight(1f)
-                        )
+                        ThemedButton(text = "Sair do Trakt", onClick = onLogoutTrakt, containerColor = Color(0xFFD32F2F), modifier = Modifier.weight(1f))
+                        ThemedButton(text = "Instalar integração", onClick = onInstallTraktAddon, containerColor = AccentPurple, modifier = Modifier.weight(1f))
                     } else {
-                        ThemedButton(
-                            text = "Authenticate Trakt",
-                            onClick = { onAuthenticateTrakt(context) },
-                            enabled = isAuthenticated,
-                            containerColor = AccentPurple,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        ThemedButton(text = "Autenticar no Trakt", onClick = { onAuthenticateTrakt(context) }, enabled = isAuthenticated, containerColor = AccentPurple, modifier = Modifier.fillMaxWidth())
                     }
                 }
             }
