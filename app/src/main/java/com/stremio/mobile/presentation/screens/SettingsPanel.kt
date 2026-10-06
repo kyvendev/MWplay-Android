@@ -52,7 +52,14 @@ fun SettingsPanel(email: String?, onLogout: () -> Unit, onNavigateTo: (SettingsS
     }
 }
 
-@Composable private fun AuthButton(text:String, containerColor:Color, onClick:()->Unit) = ThemedButton(text,onClick,Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=999.dp,focusedScale=1.03f),containerColor=containerColor)
+@Composable
+private fun AuthButton(text:String, containerColor:Color, onClick:()->Unit) {
+    ThemedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=999.dp,focusedScale=1.03f),
+        containerColor = containerColor,
+    ) { Text(text = text, color = Color.White, fontWeight = FontWeight.Bold) }
+}
 
 @Composable
 private fun SettingsMenuRow(icon:ImageVector,title:String,description:String,onClick:()->Unit) {
@@ -82,7 +89,6 @@ fun SettingsToggleRow(title:String,checked:Boolean,onCheckedChange:(Boolean)->Un
     ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
         Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();onCheckedChange(!checked)}.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}}
-            // The whole row is the TV action. Prevent the visual switch from becoming a second D-pad stop.
             ThemedToggle(checked,onCheckedChange,modifier=Modifier.focusProperties{canFocus=false})
         }
     }
