@@ -18,7 +18,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,11 +88,23 @@ private fun TvNavigationItem(
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(18.dp)
+    val focusManager = LocalFocusManager.current
+
     Row(
         modifier = Modifier
             .width(96.dp)
             .height(58.dp)
             .tvFocusTarget(cornerRadius = 18.dp, focusedScale = 1.06f)
+            .onPreviewKeyEvent { event ->
+                // Material clickable items can retain D-pad focus inside the rail on some TV
+                // devices. Explicitly hand RIGHT to Compose focus search so the remote can
+                // enter the hero/poster/settings content instead of becoming trapped here.
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                    focusManager.moveFocus(FocusDirection.Right)
+                } else {
+                    false
+                }
+            }
             .clip(shape)
             .background(if (selected) AccentPurple.copy(alpha = 0.34f) else Color.Transparent)
             .clickable(onClick = onClick)
