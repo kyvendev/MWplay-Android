@@ -1,7 +1,9 @@
 package com.stremio.mobile.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,11 +34,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlendMode
@@ -63,7 +68,6 @@ import com.stremio.mobile.data.model.MetaDetails
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.drawBackdropSafe
 import com.stremio.mobile.presentation.components.rememberGlobalHapticFeedback
-import com.stremio.mobile.presentation.components.tvFocusTarget
 
 @Composable
 fun DetailSheet(
@@ -110,23 +114,13 @@ fun DetailSheet(
                     Brush.verticalGradient(colors = listOf(Color(0x55000000), Color(0xFF0B0C16)))
                 )
             )
-            Box(
-                modifier = Modifier
-                    .padding(14.dp)
-                    .size(48.dp)
-                    .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.12f)
-                    .clip(CircleShape)
-                    .background(Color(0x88000000))
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Voltar",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = "Voltar",
+                tint = Color.White,
+                modifier = Modifier.padding(14.dp).size(44.dp).clip(CircleShape)
+                    .background(Color(0x66000000)).clickable(onClick = onBack).focusable().padding(10.dp),
+            )
         }
 
         Column(
@@ -190,8 +184,9 @@ private fun DetailLiquidActionButton(
     val tuning = theme.liquidGlassTuning.clamped()
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    var focused by remember { mutableStateOf(false) }
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (pressed) 0.965f else 1f,
+        targetValue = when { pressed -> 0.965f; focused -> 1.06f; else -> 1f },
         animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 430f),
         label = "detailLiquidButtonScale",
     )
@@ -222,16 +217,25 @@ private fun DetailLiquidActionButton(
                     )
                 }
             )
-            .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.07f)
+            .border(
+                width = if (focused) 3.dp else 0.8.dp,
+                brush = Brush.verticalGradient(
+                    colors = if (focused) listOf(Color.White, tint.copy(alpha = 0.95f))
+                    else listOf(Color.White.copy(alpha = if (enabled) 0.58f else 0.16f), Color.White.copy(alpha = if (enabled) 0.22f else 0.08f))
+                ),
+                shape = shape,
+            )
             .clip(shape)
+            .onFocusChanged { focused = it.isFocused }
             .clickable(interactionSource = interactionSource, indication = null, enabled = enabled) {
                 triggerHaptic(); onClick()
-            },
+            }
+            .focusable(enabled),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier.fillMaxSize().clip(shape).background(
-                Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = if (enabled) 0.28f else 0.04f), Color.Transparent, Color.White.copy(alpha = if (surface) 0.08f else 0.04f)))
+                Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = if (focused) 0.42f else if (enabled) 0.28f else 0.04f), Color.Transparent, Color.White.copy(alpha = if (surface) 0.08f else 0.04f)))
             )
         )
         Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,

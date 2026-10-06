@@ -8,7 +8,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -36,15 +35,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -389,63 +384,29 @@ private fun BottomTab(
     unselectedColor: Color,
     selectedIconColor: Color,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(999.dp)
     val color by animateColorAsState(
-        targetValue = if (selected || focused) selectedColor else unselectedColor,
+        targetValue = if (selected) selectedColor else unselectedColor,
         animationSpec = spring(dampingRatio = 0.75f, stiffness = 520f),
         label = "bottomNavTabColor",
     )
     val iconSize by animateDpAsState(
-        targetValue = when {
-            focused -> 27.dp
-            selected -> 25.dp
-            else -> 21.dp
-        },
+        targetValue = if (selected) 25.dp else 21.dp,
         animationSpec = spring(dampingRatio = 0.68f, stiffness = 520f),
         label = "bottomNavIconSize",
-    )
-    val focusScale by animateFloatAsState(
-        targetValue = if (focused) 1.10f else 1f,
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = 500f),
-        label = "bottomNavFocusScale",
-    )
-    val focusBackground by animateColorAsState(
-        targetValue = if (focused) AccentPurple.copy(alpha = 0.32f) else Color.Transparent,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 500f),
-        label = "bottomNavFocusBackground",
     )
 
     Column(
         modifier = Modifier
             .width(70.dp)
-            .scale(focusScale)
-            .clip(shape)
-            .background(focusBackground)
-            .then(
-                if (focused) Modifier.border(2.dp, Color.White.copy(alpha = 0.92f), shape)
-                else Modifier
-            )
-            .onFocusChanged { focused = it.isFocused }
-            .onKeyEvent { event ->
-                if (event.type == KeyEventType.KeyUp &&
-                    (event.key == Key.Enter || event.key == Key.DirectionCenter || event.key == Key.NumPadEnter)
-                ) {
-                    onClick()
-                    true
-                } else {
-                    false
-                }
-            }
-            .clickable(onClick = onClick)
-            .focusable(),
+            .clip(RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Icon(
             imageVector = view.icon,
             contentDescription = view.label,
-            tint = if (selected || focused) selectedIconColor else color,
+            tint = if (selected) selectedIconColor else color,
             modifier = Modifier
                 .padding(top = 7.dp)
                 .size(iconSize),
