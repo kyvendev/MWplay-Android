@@ -83,10 +83,13 @@ fun PosterShelf(
             if (onSeeAllClick != null && shelf.seeAllRequest != null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable(onClick = onSeeAllClick)
+                    modifier = Modifier
+                        .tvFocusTarget(cornerRadius = 10.dp, focusedScale = 1.06f)
+                        .clickable(onClick = onSeeAllClick)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                 ) {
                     Text(
-                        text = "SEE ALL",
+                        text = "VER TUDO",
                         color = MutedText,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -95,9 +98,7 @@ fun PosterShelf(
                         imageVector = Icons.Outlined.ChevronRight,
                         contentDescription = null,
                         tint = MutedText,
-                        modifier = Modifier
-                            .padding(start = 5.dp, end = 0.dp)
-                            .size(18.dp),
+                        modifier = Modifier.padding(start = 5.dp).size(18.dp),
                     )
                 }
             }
@@ -108,30 +109,16 @@ fun PosterShelf(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when {
-                shelf.isLoading -> {
-                    items(5, contentType = { "skeleton" }) {
-                        PosterSkeleton()
-                    }
+                shelf.isLoading -> items(5, contentType = { "skeleton" }) { PosterSkeleton() }
+                shelf.items.isEmpty() -> item(contentType = "empty") {
+                    Text(
+                        text = shelf.error ?: "Nenhum item disponível",
+                        color = MutedText,
+                        modifier = Modifier.padding(start = 18.dp),
+                    )
                 }
-
-                shelf.items.isEmpty() -> {
-                    item(contentType = "empty") {
-                        Text(
-                            text = shelf.error ?: "No items available",
-                            color = MutedText,
-                            modifier = Modifier.padding(start = 18.dp),
-                        )
-                    }
-                }
-
-                else -> {
-                    items(shelf.items, key = { "${it.type}-${it.id}" }, contentType = { "poster" }) { item ->
-                        PosterTile(
-                            item = item,
-                            mode = mode,
-                            onClick = { onItemClick(item) },
-                        )
-                    }
+                else -> items(shelf.items, key = { "${it.type}-${it.id}" }, contentType = { "poster" }) { item ->
+                    PosterTile(item = item, mode = mode, onClick = { onItemClick(item) })
                 }
             }
         }
@@ -148,6 +135,7 @@ fun PosterTile(
         modifier = Modifier
             .width(112.dp)
             .aspectRatio(0.66f)
+            .tvFocusTarget(cornerRadius = 18.dp, focusedScale = 1.10f)
             .clip(RoundedCornerShape(18.dp))
             .background(CardFallback)
             .clickable(onClick = onClick),
@@ -164,60 +152,42 @@ fun PosterTile(
             contentScale = ContentScale.Crop,
         )
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to Color.Transparent,
-                            0.72f to Color.Transparent,
-                            1.0f to Color(0xAA000000),
-                        ),
+            modifier = Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.0f to Color.Transparent,
+                        0.72f to Color.Transparent,
+                        1.0f to Color(0xAA000000),
                     ),
                 ),
+            ),
         )
 
         when (mode) {
             ShelfMode.Continue -> {
                 val progress = item.progress ?: progressFor(item.id)
                 val isCompleted = item.watched
-
                 if (isCompleted) {
                     CircleBadge(
                         imageVector = Icons.Outlined.Check,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(8.dp),
+                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
                     )
                 }
-
                 ProgressBar(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 3.dp, vertical = 4.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 3.dp, vertical = 4.dp),
                     progress = progress,
                 )
             }
-
-            ShelfMode.Movie -> {
-                if (item.inCinema) {
-                    CinemaBadge(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 8.dp),
-                    )
-                }
+            ShelfMode.Movie -> if (item.inCinema) {
+                CinemaBadge(modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
             }
-
             ShelfMode.Series -> Unit
         }
 
         if (mode == ShelfMode.Continue && item.type == "series" && item.remainingEpisodes != null && item.remainingEpisodes > 0) {
             AddBadge(
                 text = "+${item.remainingEpisodes}",
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 8.dp, end = 10.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 10.dp),
             )
         }
     }
@@ -226,100 +196,33 @@ fun PosterTile(
 @Composable
 private fun PosterSkeleton() {
     Box(
-        modifier = Modifier
-            .width(112.dp)
-            .aspectRatio(0.66f)
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF222231), Color(0xFF11111C)),
-                ),
-            ),
+        modifier = Modifier.width(112.dp).aspectRatio(0.66f).clip(RoundedCornerShape(18.dp)).background(
+            Brush.verticalGradient(colors = listOf(Color(0xFF222231), Color(0xFF11111C))),
+        ),
     )
 }
 
 @Composable
-private fun CircleBadge(
-    imageVector: ImageVector,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(17.dp)
-            .clip(CircleShape)
-            .background(AccentPurple),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = imageVector,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(12.dp),
-        )
+private fun CircleBadge(imageVector: ImageVector, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.size(17.dp).clip(CircleShape).background(AccentPurple), contentAlignment = Alignment.Center) {
+        Icon(imageVector = imageVector, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
     }
 }
 
 @Composable
-private fun TextBadge(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(AccentPurple)
-            .padding(horizontal = 5.dp, vertical = 2.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = Color.White,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-}
-
-@Composable
-private fun AddBadge(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-    ) {
-        // Bottom stacked card
+private fun AddBadge(text: String, modifier: Modifier = Modifier) {
+    Box(modifier = modifier) {
         Box(
-            modifier = Modifier
-                .offset(x = (-2).dp, y = 2.dp)
-                .height(17.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color(0xFFC0B5FA)) // slightly darker/saturated lavender card for stack effect
-                .padding(horizontal = 5.dp)
+            modifier = Modifier.offset(x = (-2).dp, y = 2.dp).height(17.dp).clip(RoundedCornerShape(3.dp))
+                .background(Color(0xFFC0B5FA)).padding(horizontal = 5.dp),
         ) {
-            Text(
-                text = text,
-                color = Color.Transparent,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Text(text = text, color = Color.Transparent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
-
-        // Top foreground card
         Row(
-            modifier = Modifier
-                .height(17.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color(0xDDEFEAFF))
-                .padding(horizontal = 5.dp),
+            modifier = Modifier.height(17.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xDDEFEAFF)).padding(horizontal = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = text,
-                color = AccentPurple,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Text(text = text, color = AccentPurple, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -327,46 +230,19 @@ private fun AddBadge(
 @Composable
 private fun CinemaBadge(modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color(0xCC202631))
-            .padding(horizontal = 6.dp, vertical = 3.dp),
+        modifier = modifier.clip(RoundedCornerShape(4.dp)).background(Color(0xCC202631)).padding(horizontal = 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Icon(
-            imageVector = Icons.Outlined.Movie,
-            contentDescription = null,
-            tint = Color(0xFFC9C8D8),
-            modifier = Modifier.size(10.dp),
-        )
-        Text(
-            text = "IN CINEMA",
-            color = Color(0xFFE8E6F0),
-            fontSize = 8.sp,
-            fontWeight = FontWeight.ExtraBold,
-        )
+        Icon(imageVector = Icons.Outlined.Movie, contentDescription = null, tint = Color(0xFFC9C8D8), modifier = Modifier.size(10.dp))
+        Text(text = "NO CINEMA", color = Color(0xFFE8E6F0), fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
 @Composable
-private fun ProgressBar(
-    progress: Float,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(3.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFE8E8EE)),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(progress)
-                .height(3.dp)
-                .background(AccentPurple),
-        )
+private fun ProgressBar(progress: Float, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFE8E8EE))) {
+        Box(modifier = Modifier.fillMaxWidth(progress).height(3.dp).background(AccentPurple))
     }
 }
 
