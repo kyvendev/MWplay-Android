@@ -10,7 +10,7 @@
 
     <style name="Theme.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_stremio_splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/mw_play_mark</item>
         <item name="postSplashScreenTheme">@style/Theme.StremioMobile</item>
     </style>
 </resources>
