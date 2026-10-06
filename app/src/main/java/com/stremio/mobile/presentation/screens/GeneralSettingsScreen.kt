@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,12 +30,14 @@ fun GeneralSettingsScreen(
     onInstallTraktAddon: () -> Unit,
     onBack: () -> Unit
 ) {
-    SettingsHeader(title = "General Settings", onBack = onBack)
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier.padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        SettingsHeader(title = "General Settings", onBack = onBack)
+
         Text(
             text = "INTEGRATIONS",
             color = MutedText,
@@ -94,7 +97,7 @@ fun GeneralSettingsScreen(
                     } else {
                         ThemedButton(
                             text = "Authenticate Trakt",
-                            onClick = { onAuthenticateTrakt(androidx.compose.ui.platform.LocalContext.current) },
+                            onClick = { onAuthenticateTrakt(context) },
                             enabled = isAuthenticated,
                             containerColor = AccentPurple,
                             modifier = Modifier.fillMaxWidth()
