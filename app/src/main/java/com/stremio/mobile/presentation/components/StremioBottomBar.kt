@@ -3,6 +3,7 @@ package com.stremio.mobile.presentation.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,9 +13,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,9 +43,12 @@ import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.presentation.navigation.AppView
 
 /**
- * Dedicated Android TV navigation. The TV build intentionally uses a left rail instead of
- * reusing the touch-first mobile bottom bar: every destination is a single D-pad focus target,
- * focus is visually explicit, and no pointer/drag gestures are required.
+ * Dedicated Android TV navigation rail.
+ *
+ * The rail can be explicitly collapsed. This avoids relying on OEM/Compose spatial focus
+ * heuristics to escape the menu: after collapsing, the menu focus targets are removed from
+ * composition and focus is handed to the content area. A small arrow remains at the left edge
+ * so the menu can always be opened again with the remote.
  */
 @Composable
 fun StremioBottomBar(
@@ -45,8 +57,47 @@ fun StremioBottomBar(
     onSelect: (AppView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Do not inherit the mobile call site's BottomCenter parent-data modifier. In the TV branch
-    // this component is deliberately anchored to the Box's default TopStart as a navigation rail.
+    var expanded by remember { mutableStateOf(true) }
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(expanded) {
+        if (!expanded) {
+            // Wait until the expanded rail focus targets have left composition, then move into
+            // the first available content target (hero/poster/settings control).
+            kotlinx.coroutines.yield()
+            focusManager.moveFocus(FocusDirection.Right)
+        }
+    }
+
+    if (!expanded) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(54.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Row(
+                modifier = Modifier
+                    .width(46.dp)
+                    .height(72.dp)
+                    .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.06f)
+                    .clip(RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp))
+                    .background(Color(0xE60B0C16))
+                    .clickable { expanded = true },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Abrir menu",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+        }
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -64,7 +115,34 @@ fun StremioBottomBar(
             modifier = Modifier.padding(top = 5.dp),
         )
 
-        Spacer(modifier = Modifier.height(34.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier
+                .width(96.dp)
+                .height(42.dp)
+                .tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1.06f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color.White.copy(alpha = 0.08f))
+                .clickable { expanded = false },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "Fechar menu",
+                tint = Color.White,
+                modifier = Modifier.size(26.dp),
+            )
+            Text(
+                text = "Fechar",
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
 
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -75,6 +153,7 @@ fun StremioBottomBar(
                     view = view,
                     selected = view == selectedView,
                     onClick = { onSelect(view) },
+                    onExitToContent = { expanded = false },
                 )
             }
         }
@@ -86,9 +165,9 @@ private fun TvNavigationItem(
     view: AppView,
     selected: Boolean,
     onClick: () -> Unit,
+    onExitToContent: () -> Unit,
 ) {
     val shape = RoundedCornerShape(18.dp)
-    val focusManager = LocalFocusManager.current
 
     Row(
         modifier = Modifier
@@ -96,11 +175,11 @@ private fun TvNavigationItem(
             .height(58.dp)
             .tvFocusTarget(cornerRadius = 18.dp, focusedScale = 1.06f)
             .onPreviewKeyEvent { event ->
-                // Material clickable items can retain D-pad focus inside the rail on some TV
-                // devices. Explicitly hand RIGHT to Compose focus search so the remote can
-                // enter the hero/poster/settings content instead of becoming trapped here.
                 if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
-                    focusManager.moveFocus(FocusDirection.Right)
+                    // RIGHT now deterministically collapses the rail instead of asking Compose
+                    // spatial search to cross from the overlay into the content hierarchy.
+                    onExitToContent()
+                    true
                 } else {
                     false
                 }
