@@ -148,9 +148,33 @@ jobs:
               with zipfile.ZipFile(apk) as z:
                   if not any(n.endswith('/libstream_server.so') for n in z.namelist()): raise SystemExit(f'{apk}: libstream_server.so missing')
           PY
-      - name: Upload MW Play Mobile debug APKs
+      - name: Upload arm64-v8a debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: mw-play-mobile-debug-apks
-          path: app/build/outputs/apk/debug/*.apk
+          name: mw-play-mobile-arm64-v8a-debug
+          path: app/build/outputs/apk/debug/*arm64-v8a*.apk
+          if-no-files-found: error
+      - name: Upload armeabi-v7a debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mw-play-mobile-armeabi-v7a-debug
+          path: app/build/outputs/apk/debug/*armeabi-v7a*.apk
+          if-no-files-found: error
+      - name: Upload x86 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mw-play-mobile-x86-debug
+          path: app/build/outputs/apk/debug/*x86-debug.apk
+          if-no-files-found: error
+      - name: Upload x86_64 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mw-play-mobile-x86_64-debug
+          path: app/build/outputs/apk/debug/*x86_64*.apk
+          if-no-files-found: error
+      - name: Upload universal debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mw-play-mobile-universal-debug
+          path: app/build/outputs/apk/debug/*universal*.apk
           if-no-files-found: error
