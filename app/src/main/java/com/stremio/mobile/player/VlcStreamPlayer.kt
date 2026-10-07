@@ -39,7 +39,8 @@ class VlcStreamPlayer(context:Context, private val settings:com.stremio.core.typ
     }
     override fun load(uri:Uri,startPositionMs:Long,subtitles:List<ExternalSubtitle>,preferredSubtitleLang:String?,settings:com.stremio.core.types.profile.Profile.Settings?){
         currentUri=uri;startMs=startPositionMs
-        Media(libVlc,uri).use { media -> vlc.media=media }
+        val media=Media(libVlc,uri)
+        try { vlc.media=media } finally { media.release() }
         if(startPositionMs>0) vlc.time=startPositionMs
         state.value=PlayerRuntimeState(isBuffering=true,positionMs=startPositionMs)
     }
