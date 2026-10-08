@@ -238,7 +238,7 @@ class CastPlaybackController(
             endingResume = null
         }
         val owns = ownedUrl != null && url == ownedUrl
-        val ids = status?.activeTrackIds.orEmpty().toSet()
+        val ids = (status?.activeTrackIds ?: longArrayOf()).toSet()
         val tracks = info?.mediaTracks.orEmpty().filter { it.type == MediaTrack.TYPE_TEXT }.map {
             CastSubtitle(it.id, it.name ?: it.language ?: "Legenda", it.language, it.id in ids)
         }
@@ -250,7 +250,7 @@ class CastPlaybackController(
             volume = (session?.volume ?: 1.0).toFloat().coerceIn(0f, 1f), muted = session?.isMute ?: false,
         )
         reportProgress()
-        if (owns && remote.isIdle && status?.idleReason == MediaStatus.IDLE_REASON_FINISHED && !endReported) {
+        if (owns && status?.playerState == MediaStatus.PLAYER_STATE_IDLE && status.idleReason == MediaStatus.IDLE_REASON_FINISHED && !endReported) {
             endReported = true
             onEnded()
         }
@@ -274,7 +274,7 @@ class CastPlaybackController(
     fun togglePlayback() {
         val remote = client ?: return
         if (mutableState.value.loading) return
-        if (remote.isIdle && remote.mediaInfo != null) {
+        if (remote.mediaStatus?.playerState == MediaStatus.PLAYER_STATE_IDLE && remote.mediaInfo != null) {
             // PLAY cannot restart an idle receiver; reload the same accepted media from its start.
             val revision = ++loadRevision
             mutableState.value = mutableState.value.copy(loading = true, error = null)
