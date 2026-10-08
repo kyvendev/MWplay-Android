@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.StremioMobile" parent="android:style/Theme.Material.NoActionBar">
+    <style name="Theme.StremioMobile" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/stremio_background</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
@@ -13,4 +13,11 @@
         <item name="windowSplashScreenAnimatedIcon">@drawable/mw_play_mark</item>
         <item name="postSplashScreenTheme">@style/Theme.StremioMobile</item>
     </style>
+
+    <style name="Theme.MwCast" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorAccent">#8B5CF6</item>
+        <item name="android:windowBackground">@color/stremio_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
 </resources>
+

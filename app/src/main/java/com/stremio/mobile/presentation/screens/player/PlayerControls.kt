@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.AspectRatio
+import androidx.compose.material.icons.outlined.Cast
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.FastRewind
@@ -116,6 +117,7 @@ class PlayerControlsActions(
     val onShowSubtitles: () -> Unit,
     val onShowAudio: () -> Unit,
     val onToggleStats: () -> Unit,
+    val onShowCast: () -> Unit,
 )
 
 @Composable
@@ -182,6 +184,9 @@ fun ClassicPlayerControls(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = actions.onShowCast) {
+                    Icon(Icons.Outlined.Cast, "Transmitir com Chromecast", tint = Color.White)
+                }
             }
 
             if (!state.isBuffering) {
@@ -576,6 +581,10 @@ private fun ModernTopPill(
                     .weight(1f)
                     .padding(horizontal = 8.dp),
             )
+
+            IconButton(onClick = actions.onShowCast, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.Cast, "Transmitir com Chromecast", tint = Color.White)
+            }
 
             Box {
                 IconButton(onClick = { moreExpanded = true }, modifier = Modifier.size(40.dp)) {
@@ -1037,3 +1046,4 @@ private fun formatTime(ms: Long): String {
         String.format("%02d:%02d", mins, secs)
     }
 }
+

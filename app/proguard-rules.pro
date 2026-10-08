@@ -16,3 +16,7 @@
 -keep class com.stremio.mobile.MainActivity { *; }
 -keep class com.stremio.mobile.server.ServerService { *; }
 -keep class com.stremio.mobile.server.BootReceiver { *; }
+
+# The Cast framework instantiates the OptionsProvider by its manifest class name.
+-keep class com.stremio.mobile.cast.MwCastOptionsProvider { *; }
+

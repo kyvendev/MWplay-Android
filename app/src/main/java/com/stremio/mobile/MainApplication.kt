@@ -61,6 +61,26 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
     lateinit var container: AppContainer
         private set
 
+    // Application scoped: casting keeps working when the player screen closes or the phone locks.
+    val castController: com.stremio.mobile.cast.CastPlaybackController by lazy {
+        com.stremio.mobile.cast.CastPlaybackController(
+            this,
+            onTimeChanged = { position, duration ->
+                if (castOwnsSelectedPlayback()) container.playbackRepository.reportTimeChanged(position, duration)
+            },
+            onPausedChanged = { paused ->
+                if (castOwnsSelectedPlayback()) container.playbackRepository.reportPausedChanged(paused)
+            },
+            onEnded = { if (castOwnsSelectedPlayback()) container.playbackRepository.reportEnded() },
+        )
+    }
+
+    private fun castOwnsSelectedPlayback(): Boolean {
+        return castController.state.value.reportsToSelection(
+            container.playbackRepository.state.value.selectedSelectionId,
+        )
+    }
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
@@ -133,3 +153,4 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
             .build()
     }
 }
+

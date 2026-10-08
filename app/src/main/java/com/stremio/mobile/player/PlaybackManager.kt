@@ -10,17 +10,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-data class PlaybackState(val activeUri:String?=null,val title:String?=null,val isPlaying:Boolean=false,val playerRevision:Long=0L)
+data class PlaybackState(val activeUri:String?=null,val title:String?=null,val isPlaying:Boolean=false,val playerRevision:Long=0L,val castUri:String?=null,val castRequiresHeaders:Boolean=false,val activeSelectionId:Long?=null,val selectedSelectionId:Long?=null)
 
 class PlaybackManager(private val context:Context){
     private val mutableState=MutableStateFlow(PlaybackState()); val state:StateFlow<PlaybackState> = mutableState
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
-    private var player:Player?=null;private var observer:Job?=null;private var revision=0L
-    private data class LoadRequest(val uri:Uri,val title:String?,val start:Long,val subtitles:List<ExternalSubtitle>,val lang:String?,val settings:com.stremio.core.types.profile.Profile.Settings?)
+    private var player:Player?=null;private var observer:Job?=null;private var revision=0L;private var selectionRevision=0L
+    private data class LoadRequest(val uri:Uri,val title:String?,val start:Long,val subtitles:List<ExternalSubtitle>,val lang:String?,val settings:com.stremio.core.types.profile.Profile.Settings?,val castUri:String?,val castRequiresHeaders:Boolean,val selectionId:Long)
     private var request:LoadRequest?=null;private var attempted=mutableSetOf<PlayerEngine>()
 
-    fun load(uri:Uri,title:String?=null,startPositionMs:Long=0,subtitles:List<ExternalSubtitle> = emptyList(),preferredSubtitleLang:String?=null,engine:PlayerEngine=PlayerEngine.EXO,settings:com.stremio.core.types.profile.Profile.Settings?=null){
-        observer?.cancel();player?.release();request=LoadRequest(uri,title,startPositionMs,subtitles,preferredSubtitleLang,settings);attempted=mutableSetOf()
+    // Core changes selection while resolving a stream, before a local engine is ready.
+    fun beginSelection():Long {val id=++selectionRevision;mutableState.value=mutableState.value.copy(selectedSelectionId=id);return id}
+    fun load(uri:Uri,title:String?=null,startPositionMs:Long=0,subtitles:List<ExternalSubtitle> = emptyList(),preferredSubtitleLang:String?=null,engine:PlayerEngine=PlayerEngine.EXO,settings:com.stremio.core.types.profile.Profile.Settings?=null,castUri:String?=null,castRequiresHeaders:Boolean=false,selectionId:Long=beginSelection()){
+        if(selectionId!=mutableState.value.selectedSelectionId)return
+        observer?.cancel();player?.release();request=LoadRequest(uri,title,startPositionMs,subtitles,preferredSubtitleLang,settings,castUri,castRequiresHeaders,selectionId);attempted=mutableSetOf()
         startEngine(engine,startPositionMs)
     }
     private fun startEngine(engine:PlayerEngine,position:Long){
@@ -40,10 +43,11 @@ class PlaybackManager(private val context:Context){
         startEngine(next,position)
     }
     private fun isFatal(message:String):Boolean{val s=message.lowercase();return s.contains("não suport")||s.contains("unsupported")||s.contains("error")||s.contains("erro")||s.contains("falhou")||s.contains("failed")||s.contains("vlc não conseguiu")}
-    private fun publish(uri:Uri,title:String?,playing:Boolean){revision++;mutableState.value=PlaybackState(uri.toString(),title,playing,revision)}
+    private fun publish(uri:Uri,title:String?,playing:Boolean){revision++;mutableState.value=PlaybackState(uri.toString(),title,playing,revision,request?.castUri,request?.castRequiresHeaders?:false,request?.selectionId,mutableState.value.selectedSelectionId)}
     fun attachView(view:android.view.View)=Unit;fun detachView()=Unit
     fun play(){player?.play();mutableState.value=mutableState.value.copy(isPlaying=true)};fun pause(){player?.pause();mutableState.value=mutableState.value.copy(isPlaying=false)}
     fun addExternalSubtitleTracks(tracks:List<ExternalSubtitle>){player?.addExternalSubtitleTracks(tracks)};fun addLocalSubtitle(track:ExternalSubtitle){player?.addLocalSubtitle(track)}
-    fun release(){observer?.cancel();observer=null;player?.release();player=null;request=null;attempted.clear();revision++;mutableState.value=PlaybackState(playerRevision=revision)}
+    fun release(){observer?.cancel();observer=null;player?.release();player=null;request=null;attempted.clear();revision++;mutableState.value=PlaybackState(playerRevision=revision,selectedSelectionId=mutableState.value.selectedSelectionId)}
     fun getPlayer():Player?=player
 }
+

@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" android:minSdkVersion="37" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
@@ -29,6 +30,14 @@
         <meta-data android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled" android:value="false" />
         <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id" />
         <meta-data android:name="com.facebook.sdk.ClientToken" android:value="@string/facebook_client_token" />
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.stremio.mobile.cast.MwCastOptionsProvider" />
+
+        <activity
+            android:name=".cast.CastExpandedControllerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MwCast" />
 
         <service
             android:name=".server.ServerService"
@@ -97,3 +106,4 @@
         </activity>
     </application>
 </manifest>
+
