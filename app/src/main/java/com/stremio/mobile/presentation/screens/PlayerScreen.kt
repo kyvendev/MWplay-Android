@@ -141,6 +141,8 @@ fun PlayerScreen(
     val castController = application.castController
     val castState by castController.state.collectAsState()
     val isCasting = castState.owns(activeUri)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
     var showCastDialog by remember { mutableStateOf(false) }
     LaunchedEffect(player, activeUri, castUri, castState.mediaUrl, castState.connected) {
         castController.attachLocalPlayback(activeUri, castUri ?: activeUri)
@@ -149,9 +151,14 @@ fun PlayerScreen(
         // Reopening this video or recreating its local engine must not start a second soundtrack.
         if (isCasting) player?.pause()
     }
-    LaunchedEffect(castState.localResume, player, activeUri) {
-        val resume = castState.localResume ?: return@LaunchedEffect
-        if (resume.localUri != activeUri || player == null) return@LaunchedEffect
+    LaunchedEffect(castState.localResume, player, activeUri, lifecycleState, profileSettings?.playInBackground) {
+        // A disconnected TV must not restart phone audio while the app is stopped.
+        val resume = castState.pendingLocalResume(
+            activeUri,
+            lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED),
+            profileSettings?.playInBackground == true,
+        ) ?: return@LaunchedEffect
+        if (player == null) return@LaunchedEffect
         player.seekTo(resume.positionMs)
         if (resume.playing) player.play() else player.pause()
         onSeekReported(resume.positionMs, resume.durationMs)
@@ -315,7 +322,11 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(runtimeState, isCasting) {
-        if (isCasting) return@LaunchedEffect
+        if (isCasting) {
+            // MPV can become ready after the first pause request was ignored.
+            if (runtimeState.isPlaying) player?.pause()
+            return@LaunchedEffect
+        }
         val wasPlaying = isPlaying
         isPlaying = runtimeState.isPlaying
         isBuffering = runtimeState.isBuffering
@@ -391,7 +402,6 @@ fun PlayerScreen(
         player?.setSubtitleStyle(subtitleStyle)
     }
 
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, player, profileSettings?.playInBackground) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {

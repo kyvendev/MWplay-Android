@@ -1,6 +1,9 @@
 package com.stremio.mobile.cast
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -35,5 +38,28 @@ class CastPlaybackStateTest {
         assertFalse(casting.copy(mediaUrl = null).owns(localProxyUrl))
         assertFalse(casting.copy(localUri = null).owns(localProxyUrl))
         assertFalse(CastPlaybackState(connected = true).owns(localProxyUrl))
+    }
+
+    @Test fun reattachingCanCaptureReceiverPositionBeforeItsNextProgressCallback() {
+        val receiver = casting.copy(localUri = null, positionMs = 120000, durationMs = 3600000, playing = true)
+        assertEquals(
+            CastLocalResume(localProxyUrl, 120000, 3600000, true),
+            receiver.snapshotForLocalPlayback(localProxyUrl),
+        )
+    }
+
+    @Test fun sessionEndWhileThePhoneIsLockedKeepsResumePendingUntilForeground() {
+        val resume = CastLocalResume(localProxyUrl, 120000, 3600000, true)
+        val stopped = CastPlaybackState(localResume = resume)
+        assertNull(stopped.pendingLocalResume(localProxyUrl, isForeground = false, allowBackgroundPlayback = false))
+        assertSame(resume, stopped.localResume)
+        assertSame(resume, stopped.pendingLocalResume(localProxyUrl, isForeground = true, allowBackgroundPlayback = false))
+    }
+
+    @Test fun backgroundResumeRequiresThePreferenceAndStillMatchesTheSelectedVideo() {
+        val resume = CastLocalResume(localProxyUrl, 120000, 3600000, true)
+        val stopped = CastPlaybackState(localResume = resume)
+        assertSame(resume, stopped.pendingLocalResume(localProxyUrl, isForeground = false, allowBackgroundPlayback = true))
+        assertNull(stopped.pendingLocalResume(remoteUrl, isForeground = true, allowBackgroundPlayback = true))
     }
 }

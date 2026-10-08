@@ -27,5 +27,17 @@ data class CastPlaybackState(
 ) {
     fun owns(localPlaybackUri: String?): Boolean = localPlaybackUri != null &&
         localUri == localPlaybackUri && mediaUrl != null && (connected || suspended)
+
+    fun snapshotForLocalPlayback(localPlaybackUri: String): CastLocalResume = CastLocalResume(
+        localPlaybackUri, positionMs.coerceAtLeast(0), durationMs.coerceAtLeast(0), playing,
+    )
+
+    fun pendingLocalResume(
+        localPlaybackUri: String?,
+        isForeground: Boolean,
+        allowBackgroundPlayback: Boolean,
+    ): CastLocalResume? = localResume?.takeIf {
+        it.localUri == localPlaybackUri && (isForeground || allowBackgroundPlayback)
+    }
 }
 

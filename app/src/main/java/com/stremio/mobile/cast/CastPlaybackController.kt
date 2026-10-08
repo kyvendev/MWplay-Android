@@ -169,7 +169,8 @@ class CastPlaybackController(
         if (client?.mediaInfo?.customData?.optBoolean("mwPlayMedia") != true) return
         ownedUrl = remoteUrl
         ownedLocalUri = localUri
-        lastOwnedResume = lastOwnedResume?.copy(localUri = localUri)
+        // Reattached sessions can end before the next progress callback arrives.
+        lastOwnedResume = mutableState.value.snapshotForLocalPlayback(localUri)
         mutableState.value = mutableState.value.copy(localUri = localUri)
     }
 
