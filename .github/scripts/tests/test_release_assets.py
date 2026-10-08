@@ -65,6 +65,48 @@ class ReleaseAssetsTest(unittest.TestCase):
         self.assertEqual(result["signer_certificate_sha256"], "a" * 64)
         self.assertEqual(result["verified_abis"], sorted(validation.REQUIRED_ABIS))
 
+    def parse_certificate(self, output):
+        with patch.object(validation, "command_output", return_value=output):
+            return validation.signing_certificate("apksigner", self.previous)
+
+    def test_sdk_bounded_v31_and_v3_labels_with_same_certificate(self):
+        output = f"Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate SHA-256 digest: {'a' * 64}\nSigner (minSdkVersion=24, maxSdkVersion=32) certificate SHA-256 digest: {'a' * 64}\n"
+        self.assertEqual(self.parse_certificate(output), "a" * 64)
+
+    def test_sdk_bounded_dev_release_label(self):
+        output = f"Signer (minSdkVersion=33 (dev release=true), maxSdkVersion=2147483647) certificate SHA-256 digest: {'A' * 64}\n"
+        self.assertEqual(self.parse_certificate(output), "a" * 64)
+
+    def test_source_stamp_and_public_key_digests_are_not_signing_certificates(self):
+        output = f"Signer #1 certificate SHA-256 digest: {'a' * 64}\nSigner #1 public key SHA-256 digest: {'b' * 64}\nSource Stamp Signer certificate SHA-256 digest: {'c' * 64}\n"
+        self.assertEqual(self.parse_certificate(output), "a" * 64)
+
+    def test_rejects_distinct_sdk_bounded_certificates_with_public_diagnostic(self):
+        output = f"Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate SHA-256 digest: {'a' * 64}\nSigner (minSdkVersion=24, maxSdkVersion=32) certificate SHA-256 digest: {'b' * 64}\n"
+        with self.assertRaisesRegex(ValueError, "distinct verified signing certificate") as failure:
+            self.parse_certificate(output)
+        self.assertIn("a" * 64, str(failure.exception))
+        self.assertIn("b" * 64, str(failure.exception))
+
+    def test_rejects_distinct_numbered_signers(self):
+        output = f"Signer #1 certificate SHA-256 digest: {'a' * 64}\nSigner #2 certificate SHA-256 digest: {'b' * 64}\n"
+        with self.assertRaisesRegex(ValueError, "distinct verified signing certificate"):
+            self.parse_certificate(output)
+
+    def test_rejects_unrecognized_extra_signer_certificate_line(self):
+        output = f"Signer #1 certificate SHA-256 digest: {'a' * 64}\nSigner unknown certificate SHA-256 digest: {'b' * 64}\n"
+        with self.assertRaisesRegex(ValueError, "distinct verified signing certificate"):
+            self.parse_certificate(output)
+
+    def test_rejects_missing_certificate_stdout(self):
+        with self.assertRaisesRegex(ValueError, "No signer certificate SHA-256 lines"):
+            self.parse_certificate("Verified\nSigner #1 public key SHA-256 digest: " + "a" * 64)
+
+    def test_apksigner_verification_failure_remains_a_failure(self):
+        with patch.object(validation, "command_output", side_effect=subprocess.CalledProcessError(1, ["apksigner", "verify"])):
+            with self.assertRaises(subprocess.CalledProcessError):
+                validation.signing_certificate("apksigner", self.previous)
+
     def test_tv_outputs_require_leanback_identity(self):
         for apk in self.apks.glob("*.apk"):
             self.identity_overrides[apk.name] = {"leanback": True}

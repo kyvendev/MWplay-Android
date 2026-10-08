@@ -19,10 +19,16 @@ def command_output(*arguments):
 
 def signing_certificate(apksigner, apk):
     output = command_output(apksigner, "verify", "--print-certs", str(apk))
-    certificates = re.findall(r"^Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]{64})$", output, re.MULTILINE)
-    if len(certificates) != 1:
-        raise ValueError(f"{apk.name}: expected exactly one verified signing certificate")
-    return certificates[0].lower()
+    # v3.1 verification prints SDK-bounded signer labels for both v3.1 and v3.0.
+    # The same production certificate can therefore appear more than once.
+    signer_lines = [line.strip() for line in output.splitlines() if line.startswith("Signer ") and "certificate SHA-256 digest:" in line]
+    label = r"Signer (?:#\d+|\(minSdkVersion=\d+(?: \(dev release=true\))?,\s*maxSdkVersion=\d+\))"
+    digests = [re.fullmatch(label + r" certificate SHA-256 digest:\s*([0-9a-fA-F]{64})", line) for line in signer_lines]
+    certificates = {match.group(1).lower() for match in digests if match}
+    if not signer_lines or any(match is None for match in digests) or len(certificates) != 1:
+        observed = "\n".join(signer_lines) if signer_lines else "[No signer certificate SHA-256 lines in apksigner stdout]"
+        raise ValueError(f"{apk.name}: expected exactly one distinct verified signing certificate; observed apksigner stdout:\n{observed}")
+    return certificates.pop()
 
 
 def apk_identity(aapt, apk):
