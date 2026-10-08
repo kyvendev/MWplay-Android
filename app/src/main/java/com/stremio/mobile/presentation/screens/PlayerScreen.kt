@@ -10,6 +10,7 @@ import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.net.Uri
 import android.view.View
+import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,10 +18,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,9 +42,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -84,6 +95,10 @@ import com.stremio.mobile.presentation.screens.player.PlayerControlsState
 import com.stremio.mobile.presentation.screens.player.PlayerGestureOverlays
 import com.stremio.mobile.presentation.screens.player.playerGestures
 import com.stremio.mobile.presentation.screens.player.rememberPlayerGestureState
+import com.stremio.mobile.presentation.screens.player.PlayerRemoteAction
+import com.stremio.mobile.presentation.screens.player.PlayerRemoteKey
+import com.stremio.mobile.presentation.screens.player.playerRemoteAction
+import com.stremio.mobile.presentation.components.tvFocusTarget
 import com.stremio.mobile.presentation.components.LocalGlassAlpha
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.GlobalUiTheme
@@ -100,6 +115,7 @@ fun PlayerScreen(
     onAttachView: (View) -> Unit,
     onDetachView: () -> Unit,
     onBack: () -> Unit,
+    onRemoteBackHandlerChanged: ((() -> Unit)?) -> Unit = {},
     getSubtitlePrefs: () -> Pair<Int, Int> = { 100 to 0 },
     onSubtitlePrefsChanged: (sizePercent: Int, offsetPercent: Int) -> Unit = { _, _ -> },
     profileSettings: com.stremio.core.types.profile.Profile.Settings? = null,
@@ -129,8 +145,6 @@ fun PlayerScreen(
     liquidGlassTuning: LiquidGlassTuning = LiquidGlassTuning(),
     modifier: Modifier = Modifier,
 ) {
-    BackHandler(onBack = onBack)
-
     val runtimeStateHolder = player?.runtimeState?.collectAsState()
         ?: remember { mutableStateOf(PlayerRuntimeState()) }
     val runtimeState = runtimeStateHolder.value
@@ -180,6 +194,9 @@ fun PlayerScreen(
     var resizeMode by remember { mutableStateOf(PlayerResizeMode.FIT) }
     var showControls by remember { mutableStateOf(true) }
     var lastActivityTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    val videoSurfaceFocus = remember { FocusRequester() }
+    val errorRetryFocus = remember { FocusRequester() }
+    var consumedWakeKey by remember { mutableIntStateOf(-1) }
     val coroutineScope = rememberCoroutineScope()
     var singleTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     // Timestamp of the last gesture-driven (silent) seek. Used to ignore the pause→buffer→resume
@@ -251,11 +268,32 @@ fun PlayerScreen(
         showControls = true
     }
 
+    val handleRemoteBack: () -> Unit = {
+        when {
+            showAudioDialog -> showAudioDialog = false
+            showSubtitleDialog -> showSubtitleDialog = false
+            showStatsPanel -> {
+                showStatsPanel = false
+                resetActivityTimer()
+            }
+            showControls && playbackError == null -> showControls = false
+            else -> onBack()
+        }
+    }
+    BackHandler(onBack = handleRemoteBack)
+    val currentRemoteBack by rememberUpdatedState(handleRemoteBack)
+    val currentBackHandlerChanged by rememberUpdatedState(onRemoteBackHandlerChanged)
+    DisposableEffect(Unit) {
+        currentBackHandlerChanged { currentRemoteBack() }
+        onDispose { currentBackHandlerChanged(null) }
+    }
+
     // Seek helper
     fun seekTo(pos: Long) {
-        positionMs = pos
-        player?.seekTo(pos)
-        onSeekReported(pos, durationMs)
+        val target = pos.coerceIn(0L, durationMs.coerceAtLeast(0L))
+        positionMs = target
+        player?.seekTo(target)
+        onSeekReported(target, durationMs)
         resetActivityTimer()
     }
 
@@ -285,6 +323,7 @@ fun PlayerScreen(
         showSubtitleDialog = false
         showStatsPanel = false
         torrentStats = null
+        consumedWakeKey = -1
     }
 
     LaunchedEffect(runtimeState) {
@@ -393,10 +432,10 @@ fun PlayerScreen(
     }
 
     // Inactivity Auto-Hide Timer
-    LaunchedEffect(showControls, isPlaying, lastActivityTime) {
-        if (showControls && isPlaying) {
-            delay(3000)
-            if (System.currentTimeMillis() - lastActivityTime >= 3000) {
+    LaunchedEffect(showControls, isPlaying, isBuffering, lastActivityTime, showAudioDialog, showSubtitleDialog, showStatsPanel, showNextVideoPopup, showNoSeedsBanner, playbackError) {
+        if (showControls && isPlaying && !isBuffering && !showAudioDialog && !showSubtitleDialog && !showStatsPanel && !showNextVideoPopup && !showNoSeedsBanner && playbackError == null) {
+            delay(5000)
+            if (System.currentTimeMillis() - lastActivityTime >= 5000) {
                 showControls = false
             }
         }
@@ -509,6 +548,17 @@ fun PlayerScreen(
     }
 
     val showFatalPlaybackError = playbackError != null && !isPlaying && !isBuffering
+    LaunchedEffect(showControls, showAudioDialog, showSubtitleDialog, showFatalPlaybackError) {
+        if (!showControls && !showAudioDialog && !showSubtitleDialog && !showFatalPlaybackError) {
+            videoSurfaceFocus.requestFocus()
+        }
+    }
+    LaunchedEffect(showFatalPlaybackError) {
+        if (showFatalPlaybackError) {
+            delay(80)
+            errorRetryFocus.requestFocus()
+        }
+    }
     val realPlayerGlassEnabled = globalUiStyle == "modern" && glassEffectsMode != "static"
     val controlsBackdrop = if (realPlayerGlassEnabled) {
         rememberLayerBackdrop {
@@ -530,13 +580,16 @@ fun PlayerScreen(
         currentSpeed = currentSpeed,
         resizeMode = resizeMode,
         title = title,
-        showControls = showControls,
+        showControls = showControls && !showFatalPlaybackError,
         hasInfoHash = infoHash != null,
         isStatsVisible = showStatsPanel,
-        canSelectSubtitles = runtimeState.subtitleTracks.isNotEmpty(),
+        // Local subtitle import and style settings remain available even before tracks load.
+        canSelectSubtitles = true,
         canSelectAudio = runtimeState.audioTracks.isNotEmpty(),
-        isMuted = isMuted,
+        isMuted = currentVolume == 0,
         volumeFraction = volumeFraction,
+        seekStepMs = (profileSettings?.seekTimeDuration ?: 10_000L).coerceAtLeast(1_000L),
+        canPlayNext = nextVideo != null,
     )
     val controlsActions = PlayerControlsActions(
         onBack = onBack,
@@ -577,7 +630,7 @@ fun PlayerScreen(
             resetActivityTimer()
         },
         onToggleMute = {
-            if (isMuted) {
+            if (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) == 0) {
                 val restoreVol = if (lastVolume > 0) lastVolume else (maxVolume * 0.3f).toInt().coerceAtLeast(1)
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, restoreVol, 0)
                 isMuted = false
@@ -600,6 +653,21 @@ fun PlayerScreen(
             showStatsPanel = !showStatsPanel
             resetActivityTimer()
         },
+        onDecreaseVolume = {
+            val volume = (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) - 1).coerceAtLeast(0)
+            if (volume > 0) lastVolume = volume
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+            isMuted = volume == 0
+            resetActivityTimer()
+        },
+        onIncreaseVolume = {
+            val volume = (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) + 1).coerceAtMost(maxVolume)
+            if (volume > 0) lastVolume = volume
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+            isMuted = volume == 0
+            resetActivityTimer()
+        },
+        onPlayNext = onPlayNext,
     )
 
     val globalTheme = remember(
@@ -630,7 +698,65 @@ fun PlayerScreen(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(Color.Black)
+                .onPreviewKeyEvent { event ->
+                    val nativeEvent = event.nativeKeyEvent
+                    if (consumedWakeKey == nativeEvent.keyCode) {
+                        if (event.type == KeyEventType.KeyUp) consumedWakeKey = -1
+                        return@onPreviewKeyEvent true
+                    }
+                    if (event.type == KeyEventType.KeyDown) {
+                        lastActivityTime = System.currentTimeMillis()
+                    }
+                    val remoteKey = when (nativeEvent.keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+                        android.view.KeyEvent.KEYCODE_DPAD_UP,
+                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> PlayerRemoteKey.NAVIGATION
+                        android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                        android.view.KeyEvent.KEYCODE_ENTER,
+                        android.view.KeyEvent.KEYCODE_NUMPAD_ENTER,
+                        android.view.KeyEvent.KEYCODE_SPACE -> PlayerRemoteKey.ACTIVATE
+                        android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> PlayerRemoteKey.PLAY_PAUSE
+                        android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> PlayerRemoteKey.PLAY
+                        android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> PlayerRemoteKey.PAUSE
+                        android.view.KeyEvent.KEYCODE_MEDIA_REWIND -> PlayerRemoteKey.REWIND
+                        android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> PlayerRemoteKey.FAST_FORWARD
+                        android.view.KeyEvent.KEYCODE_MEDIA_NEXT -> PlayerRemoteKey.NEXT
+                        else -> PlayerRemoteKey.OTHER
+                    }
+                    when (playerRemoteAction(
+                        key = remoteKey,
+                        controlsVisible = showControls,
+                        overlayVisible = showAudioDialog || showSubtitleDialog || showFatalPlaybackError,
+                        isKeyDown = event.type == KeyEventType.KeyDown,
+                        isRepeat = nativeEvent.repeatCount > 0,
+                        hasNextVideo = nextVideo != null,
+                    )) {
+                        PlayerRemoteAction.HAND_OFF -> false
+                        PlayerRemoteAction.SHOW_CONTROLS -> {
+                            consumedWakeKey = nativeEvent.keyCode
+                            resetActivityTimer()
+                            true
+                        }
+                        PlayerRemoteAction.TOGGLE_PLAYBACK -> { controlsActions.onPlayPause(); true }
+                        PlayerRemoteAction.PLAY -> {
+                            player?.play()
+                            onPausedChanged(false)
+                            resetActivityTimer()
+                            true
+                        }
+                        PlayerRemoteAction.PAUSE -> {
+                            player?.pause()
+                            onPausedChanged(true)
+                            resetActivityTimer()
+                            true
+                        }
+                        PlayerRemoteAction.SEEK_BACK -> { controlsActions.onSkipBack(); true }
+                        PlayerRemoteAction.SEEK_FORWARD -> { controlsActions.onSkipForward(); true }
+                        PlayerRemoteAction.PLAY_NEXT -> { onPlayNext(); true }
+                    }
+                },
         ) {
             // Backend-provided player view.
             key(player, activeUri) {
@@ -644,6 +770,9 @@ fun PlayerScreen(
                         factory = { context ->
                             (player?.createView(context) ?: View(context)).apply {
                                 keepScreenOn = true
+                                isFocusable = false
+                                isFocusableInTouchMode = false
+                                if (this is ViewGroup) descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                                 onAttachView(this)
                             }
                         },
@@ -658,6 +787,15 @@ fun PlayerScreen(
         DisposableEffect(player, activeUri) {
             onDispose { onDetachView() }
         }
+
+        // Keep a key-event target alive while the overlay is hidden. The native video view
+        // must not take focus away from the Compose controls or eat the remote's D-pad keys.
+        Box(
+            Modifier.fillMaxSize()
+                .focusRequester(videoSurfaceFocus)
+                .focusProperties { canFocus = !showControls && !showAudioDialog && !showSubtitleDialog && !showFatalPlaybackError }
+                .focusable()
+        )
 
         // Tap / swipe gesture layer. Detection + the transient HUDs live in PlayerGestures.kt;
         // player-owned actions are routed back through callbacks so the gesture layer never
@@ -711,7 +849,7 @@ fun PlayerScreen(
 
         // Playback error overlay — shown when the codec/source fails so it's visible instead
         // of an infinite buffering spinner, with a one-tap retry.
-        if (playbackError != null) {
+        if (showFatalPlaybackError) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -744,6 +882,7 @@ fun PlayerScreen(
                         ThemedButton(text = "Back", onClick = onBack)
                         ThemedButton(
                             text = "Retry",
+                            modifier = Modifier.focusRequester(errorRetryFocus),
                             onClick = {
                                 playbackError = null
                                 player?.retry()
@@ -807,12 +946,20 @@ fun PlayerScreen(
                         .padding(14.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = "Torrent Statistics",
-                            color = AccentPurple,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Torrent Statistics",
+                                color = AccentPurple,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                            )
+                            ThemedIconButton(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Fechar informações",
+                                onClick = { showStatsPanel = false; resetActivityTimer() },
+                                modifier = Modifier.size(48.dp),
+                            )
+                        }
                         HorizontalDivider(color = Color(0x22FFFFFF), modifier = Modifier.width(160.dp))
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -981,6 +1128,8 @@ fun NoSeedsBanner(
 ) {
     Row(
         modifier = Modifier
+            .widthIn(max = 720.dp)
+            .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(Color(0xF2141422))
             .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
@@ -999,6 +1148,7 @@ fun NoSeedsBanner(
             color = Color.White,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f),
         )
         ThemedButton(
             text = "Try Next Best Stream",
@@ -1063,14 +1213,14 @@ fun NextEpisodePopup(
             imageVector = Icons.Outlined.Close,
             contentDescription = "Dismiss",
             onClick = onDismiss,
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(48.dp),
         )
         ThemedIconButton(
             imageVector = Icons.Filled.PlayArrow,
             contentDescription = "Play next episode",
             onClick = onPlayNext,
             modifier = Modifier
-                .size(36.dp),
+                .size(48.dp),
             selected = true,
         )
     }
@@ -1084,7 +1234,15 @@ fun AudioTracksDialog(
 ) {
     val context = LocalContext.current
     val surfaceColor = themedSurfaceColor()
+    val initialTrackIndex = tracks.indexOfFirst { it.selected }.coerceAtLeast(0)
+    val initialTrackId = tracks.getOrNull(initialTrackIndex)?.id
+    val initialFocus = remember { FocusRequester() }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialTrackIndex)
     Dialog(onDismissRequest = onDismiss) {
+        LaunchedEffect(Unit) {
+            delay(80)
+            initialFocus.requestFocus()
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
@@ -1102,6 +1260,7 @@ fun AudioTracksDialog(
                     fontWeight = FontWeight.Bold,
                 )
                 LazyColumn(
+                    state = listState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f, fill = false)
                 ) {
@@ -1111,13 +1270,14 @@ fun AudioTracksDialog(
                             subtitle = track.label,
                             isSelected = track.selected,
                             onClick = { onSelect(track) },
+                            modifier = if (track.id == initialTrackId) Modifier.focusRequester(initialFocus) else Modifier,
                         )
                     }
                 }
                 ThemedTextButton(
                     text = "Close",
                     onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.align(Alignment.End).then(if (tracks.isEmpty()) Modifier.focusRequester(initialFocus) else Modifier)
                 )
             }
         }
@@ -1140,6 +1300,7 @@ fun WebSubtitlesDialog(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val initialFocus = remember { FocusRequester() }
     val clipboard = remember(context) {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
@@ -1196,6 +1357,10 @@ fun WebSubtitlesDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        LaunchedEffect(Unit) {
+            delay(80)
+            initialFocus.requestFocus()
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
@@ -1251,6 +1416,7 @@ fun WebSubtitlesDialog(
                                 TrackRow(
                                     label = "Off",
                                     isSelected = selectedLanguage == null,
+                                    modifier = Modifier.focusRequester(initialFocus),
                                     onClick = { selectFirstForLanguage(null) }
                                 )
                             }
@@ -1301,7 +1467,7 @@ fun WebSubtitlesDialog(
                     }
 
                     Column(
-                        modifier = Modifier.width(210.dp),
+                        modifier = Modifier.width(210.dp).fillMaxHeight().verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -1366,11 +1532,13 @@ private fun TrackInfoRow(
     subtitle: String,
     isSelected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 54.dp)
+            .tvFocusTarget(cornerRadius = 8.dp, focusedScale = 1f)
             .clip(RoundedCornerShape(8.dp))
             .background(if (isSelected) Color(0x337457F2) else Color.Transparent)
             .clickable(onClick = onClick)
@@ -1426,13 +1594,16 @@ private fun SubtitleVariantRow(
             .heightIn(min = 58.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(if (track.selected) Color(0x337457F2) else Color.Transparent)
-            .clickable(onClick = onSelect)
             .padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f)
+                .heightIn(min = 48.dp)
+                .tvFocusTarget(cornerRadius = 8.dp, focusedScale = 1f)
+                .clickable(onClick = onSelect)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
@@ -1459,13 +1630,13 @@ private fun SubtitleVariantRow(
                         imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
                         contentDescription = "Open subtitle URL",
                         onClick = { onOpenUrl(downloadUrl) },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(48.dp)
                     )
                     ThemedIconButton(
                         imageVector = Icons.Outlined.ContentCopy,
                         contentDescription = "Copy subtitle URL",
                         onClick = { onCopyUrl(downloadUrl) },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(48.dp)
                     )
                 }
                 if (!track.addonSubtitleId.isNullOrBlank()) {
@@ -1473,7 +1644,7 @@ private fun SubtitleVariantRow(
                         imageVector = Icons.Outlined.Badge,
                         contentDescription = "Copy subtitle ID",
                         onClick = { onCopyId(track.addonSubtitleId) },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(48.dp)
                     )
                 }
             }
@@ -1529,7 +1700,12 @@ fun TrackSelectorDialog(
     onDismiss: () -> Unit
 ) {
     val surfaceColor = themedSurfaceColor()
+    val initialFocus = remember { FocusRequester() }
     Dialog(onDismissRequest = onDismiss) {
+        LaunchedEffect(Unit) {
+            delay(80)
+            initialFocus.requestFocus()
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
@@ -1557,7 +1733,8 @@ fun TrackSelectorDialog(
                             TrackRow(
                                 label = "None",
                                 isSelected = isNoneSelected,
-                                onClick = onSelectNone
+                                onClick = onSelectNone,
+                                modifier = Modifier.focusRequester(initialFocus),
                             )
                         }
                     }
@@ -1566,7 +1743,8 @@ fun TrackSelectorDialog(
                         TrackRow(
                             label = option.label,
                             isSelected = option.isSelected && (!hasNoneOption || !isNoneSelected),
-                            onClick = { onSelect(option) }
+                            onClick = { onSelect(option) },
+                            modifier = if (!hasNoneOption && option == options.firstOrNull()) Modifier.focusRequester(initialFocus) else Modifier,
                         )
                     }
                 }
@@ -1574,7 +1752,7 @@ fun TrackSelectorDialog(
                 ThemedTextButton(
                     text = "Close",
                     onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.align(Alignment.End).then(if (!hasNoneOption && options.isEmpty()) Modifier.focusRequester(initialFocus) else Modifier)
                 )
             }
         }
@@ -1585,12 +1763,14 @@ fun TrackSelectorDialog(
 fun TrackRow(
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
+            .tvFocusTarget(cornerRadius = 8.dp, focusedScale = 1f)
             .clip(RoundedCornerShape(8.dp))
             .background(if (isSelected) Color(0x337457F2) else Color.Transparent)
             .clickable(onClick = onClick)
@@ -1680,10 +1860,15 @@ fun SubtitlesCustomizationDialog(
     onDismiss: () -> Unit
 ) {
     val surfaceColor = themedSurfaceColor()
+    val initialFocus = remember { FocusRequester() }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        LaunchedEffect(Unit) {
+            delay(80)
+            initialFocus.requestFocus()
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.85f)
@@ -1726,7 +1911,8 @@ fun SubtitlesCustomizationDialog(
                                 TrackRow(
                                     label = "None",
                                     isSelected = isNoneSelected,
-                                    onClick = onSelectNone
+                                    onClick = onSelectNone,
+                                    modifier = Modifier.focusRequester(initialFocus),
                                 )
                             }
 
@@ -1748,7 +1934,7 @@ fun SubtitlesCustomizationDialog(
                     )
 
                     Column(
-                        modifier = Modifier.width(200.dp),
+                        modifier = Modifier.width(200.dp).fillMaxHeight().verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -1843,7 +2029,7 @@ fun Stepper(
         ) {
             ThemedIconButton(
                 imageVector = Icons.Outlined.Remove,
-                contentDescription = "Decrease",
+                contentDescription = "$label: diminuir",
                 onClick = {
                     val current = value ?: return@ThemedIconButton
                     if (!disabled && (min == null || current > min)) {
@@ -1851,7 +2037,7 @@ fun Stepper(
                     }
                 },
                 enabled = !decreaseDisabled,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(48.dp)
             )
 
             Text(
@@ -1865,7 +2051,7 @@ fun Stepper(
 
             ThemedIconButton(
                 imageVector = Icons.Outlined.Add,
-                contentDescription = "Increase",
+                contentDescription = "$label: aumentar",
                 onClick = {
                     val current = value ?: return@ThemedIconButton
                     if (!disabled && (max == null || current < max)) {
@@ -1873,7 +2059,7 @@ fun Stepper(
                     }
                 },
                 enabled = !increaseDisabled,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(48.dp)
             )
         }
     }
@@ -1888,3 +2074,4 @@ private fun themedSurfaceColor(): Color {
         GlassSurface
     }
 }
+

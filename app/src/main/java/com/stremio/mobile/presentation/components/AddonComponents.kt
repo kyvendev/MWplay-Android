@@ -55,78 +55,89 @@ fun AddonRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 112.dp)
-                .clickable {
-                    triggerHaptic()
-                    onClick()
-                }
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
+            // Keep details and install/uninstall as sibling targets. Overlapping a clickable
+            // parent with its action button makes spatial D-pad navigation unpredictable.
+            Row(
                 modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(SearchBackground),
-                contentAlignment = Alignment.Center,
+                    .weight(1f)
+                    .heightIn(min = 84.dp)
+                    .tvFocusTarget(cornerRadius = 12.dp, focusedScale = 1f)
+                    .clickable {
+                        triggerHaptic()
+                        onClick()
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (addon.logo != null) {
-                    AsyncImage(
-                        model = addon.logo,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.Extension,
-                        contentDescription = null,
-                        tint = MutedText,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                Text(
-                    text = addon.name,
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    lineHeight = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (addon.official || addon.protected) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        if (addon.official) AddonBadge("Official")
-                        if (addon.protected) AddonBadge("Protected")
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SearchBackground),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (addon.logo != null) {
+                        AsyncImage(
+                            model = addon.logo,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Extension,
+                            contentDescription = null,
+                            tint = MutedText,
+                            modifier = Modifier.size(24.dp),
+                        )
                     }
                 }
-                Text(
-                    text = addon.description ?: addon.version?.let { "v$it" } ?: "No description available",
-                    color = MutedText,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (addon.types.isNotEmpty()) {
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
                     Text(
-                        text = addon.types.joinToString(" / "),
-                        color = AccentPurple,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = addon.name,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (addon.official || addon.protected) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            if (addon.official) AddonBadge("Official")
+                            if (addon.protected) AddonBadge("Protected")
+                        }
+                    }
+                    Text(
+                        text = addon.description ?: addon.version?.let { "v$it" } ?: "No description available",
+                        color = MutedText,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (addon.types.isNotEmpty()) {
+                        Text(
+                            text = addon.types.joinToString(" / "),
+                            color = AccentPurple,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
 
@@ -187,3 +198,4 @@ private fun AddonBadge(text: String) {
         )
     }
 }
+

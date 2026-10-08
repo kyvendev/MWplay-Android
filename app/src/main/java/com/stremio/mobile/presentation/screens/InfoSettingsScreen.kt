@@ -12,12 +12,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +36,7 @@ import com.stremio.mobile.presentation.components.ThemedButton
 import com.stremio.mobile.presentation.components.ThemedCard
 import com.stremio.mobile.presentation.components.ThemedTextButton
 import com.stremio.mobile.presentation.components.ThemedToggle
+import com.stremio.mobile.presentation.components.rememberIsTelevision
 import com.stremio.mobile.update.UpdateInfo
 import com.stremio.mobile.update.UpdateState
 import java.io.File
@@ -106,13 +111,19 @@ private fun DownloadProgress(state: UpdateState.Downloading) {
 
 @Composable
 private fun UpdateAvailableDialog(info: UpdateInfo, onUpdate: () -> Unit, onLater: () -> Unit, onSkip: () -> Unit) {
+    val isTv = rememberIsTelevision()
+    val laterRequester = remember { FocusRequester() }
+    LaunchedEffect(isTv) {
+        if (isTv) runCatching { laterRequester.requestFocus() }
+    }
     AlertDialog(onDismissRequest = onLater, title = { Text(text = "Atualização ${info.versionName} disponível", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp) }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(text = info.apkName, color = MutedText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(text = info.releaseNotes.ifBlank { "Uma nova versão do MW Play está pronta para instalar." }, color = Color.White, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 8, overflow = TextOverflow.Ellipsis)
         }
-    }, confirmButton = { ThemedButton(text = "Atualizar", onClick = onUpdate) }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ThemedTextButton(text = "Ignorar versão", onClick = onSkip); ThemedTextButton(text = "Depois", onClick = onLater) } }, containerColor = GlassSurface, shape = RoundedCornerShape(20.dp))
+    }, confirmButton = { ThemedButton(text = "Atualizar", onClick = onUpdate) }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ThemedTextButton(text = "Ignorar versão", onClick = onSkip); ThemedTextButton(text = "Depois", onClick = onLater, modifier = Modifier.focusRequester(laterRequester)) } }, containerColor = GlassSurface, shape = RoundedCornerShape(20.dp))
 }
 
 @Composable private fun SectionLabel(text: String) { Text(text = text, color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp)) }
 @Composable private fun ServerDetailRow(label: String, value: String) { Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { Text(text = label, color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Medium); Text(text = value, color = Color.White, fontSize = 13.sp, lineHeight = 16.sp) } }
+

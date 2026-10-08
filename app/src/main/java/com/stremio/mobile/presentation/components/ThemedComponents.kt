@@ -184,6 +184,7 @@ fun ThemedButton(
     content: @Composable RowScope.() -> Unit,
 ) {
     val theme = LocalGlobalUiTheme.current
+    val focusModifier = modifier.tvFocusTarget(enabled = enabled, cornerRadius = 999.dp, focusedScale = 1f)
     val legibility = if (theme.adaptiveGlassContrast) LocalGlassLegibility.current else GlassLegibility.Default
     val resolvedBackdrop = backdrop ?: LocalGlobalBackdrop.current
     val resolvedContentColor = if (theme.style == "modern" && contentColor == Color.White) {
@@ -200,7 +201,7 @@ fun ThemedButton(
     if (shouldUseRealGlass(theme, role, resolvedBackdrop)) {
         LiquidGlassCard(
             backdrop = resolvedBackdrop!!,
-            modifier = modifier,
+            modifier = focusModifier,
             cornerRadius = 999.dp,
         ) {
             Row(
@@ -218,7 +219,7 @@ fun ThemedButton(
         }
     } else if (theme.style == "modern") {
         Row(
-            modifier = modifier
+            modifier = focusModifier
                 .defaultMinSize(minHeight = 52.dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(containerColor.copy(alpha = if (enabled) 0.34f else 0.10f))
@@ -232,7 +233,7 @@ fun ThemedButton(
     } else {
         Button(
             onClick = combinedOnClick,
-            modifier = modifier,
+            modifier = focusModifier,
             enabled = enabled,
             colors = ButtonDefaults.buttonColors(
                 containerColor = containerColor,
@@ -284,6 +285,7 @@ fun ThemedTextButton(
     enabled: Boolean = true,
 ) {
     val theme = LocalGlobalUiTheme.current
+    val focusModifier = modifier.tvFocusTarget(enabled = enabled, cornerRadius = 999.dp, focusedScale = 1f)
     val legibility = if (theme.adaptiveGlassContrast) LocalGlassLegibility.current else GlassLegibility.Default
     val triggerHaptic = rememberGlobalHapticFeedback()
     val combinedOnClick = {
@@ -293,7 +295,7 @@ fun ThemedTextButton(
 
     if (theme.style == "modern") {
         StaticGlassChip(
-            modifier = modifier,
+            modifier = focusModifier,
             enabled = enabled,
             onClick = combinedOnClick,
         ) {
@@ -302,7 +304,7 @@ fun ThemedTextButton(
     } else {
         TextButton(
             onClick = combinedOnClick,
-            modifier = modifier,
+            modifier = focusModifier,
             enabled = enabled,
         ) {
             Text(text = text)
@@ -324,6 +326,7 @@ fun ThemedIconButton(
     role: ThemedSurfaceRole = ThemedSurfaceRole.Dense,
 ) {
     val theme = LocalGlobalUiTheme.current
+    val focusModifier = modifier.tvFocusTarget(enabled = enabled, cornerRadius = 999.dp, focusedScale = 1f)
     val legibility = if (theme.adaptiveGlassContrast) LocalGlassLegibility.current else GlassLegibility.Default
     val resolvedBackdrop = backdrop ?: LocalGlobalBackdrop.current
     val resolvedIconTint = if (theme.style == "modern" && iconTint == Color.White) {
@@ -340,7 +343,7 @@ fun ThemedIconButton(
     if (shouldUseRealGlass(theme, role, resolvedBackdrop)) {
         LiquidGlassCard(
             backdrop = resolvedBackdrop!!,
-            modifier = modifier.size(44.dp),
+            modifier = focusModifier.size(44.dp),
             cornerRadius = 999.dp,
         ) {
             Box(
@@ -363,7 +366,7 @@ fun ThemedIconButton(
             imageVector = imageVector,
             contentDescription = contentDescription,
             onClick = combinedOnClick,
-            modifier = modifier,
+            modifier = focusModifier,
             enabled = enabled,
             selected = selected,
             iconTint = resolvedIconTint,
@@ -373,11 +376,11 @@ fun ThemedIconButton(
             onClick = combinedOnClick,
             enabled = enabled,
             modifier = if (containerColor != null) {
-                modifier
+                focusModifier
                     .clip(CircleShape)
                     .background(containerColor)
             } else {
-                modifier
+                focusModifier
             },
         ) {
             Icon(
@@ -398,6 +401,7 @@ fun ThemedChip(
     content: @Composable RowScope.() -> Unit,
 ) {
     val theme = LocalGlobalUiTheme.current
+    val focusModifier = modifier.tvFocusTarget(enabled = enabled && onClick != null, cornerRadius = 999.dp, focusedScale = 1f)
     val triggerHaptic = rememberGlobalHapticFeedback()
     val combinedOnClick = onClick?.let {
         {
@@ -408,7 +412,7 @@ fun ThemedChip(
 
     if (theme.style == "modern") {
         StaticGlassChip(
-            modifier = modifier,
+            modifier = focusModifier,
             selected = selected,
             enabled = enabled,
             onClick = combinedOnClick,
@@ -421,7 +425,7 @@ fun ThemedChip(
     } else {
         val shape = RoundedCornerShape(999.dp)
         Row(
-            modifier = modifier
+            modifier = focusModifier
                 .clip(shape)
                 .background(if (selected) AccentPurple else GlassSurface)
                 .then(if (combinedOnClick != null) Modifier.clickable(enabled = enabled, onClick = combinedOnClick) else Modifier)
@@ -470,7 +474,8 @@ fun ThemedToggle(
         onCheckedChange(it)
     }
     
-    if (theme.style == "modern") {
+    // LiquidToggle only handles pointer gestures; the standard switch handles remote select.
+    if (theme.style == "modern" && !rememberIsTelevision()) {
         LiquidToggle(
             checked = checked,
             onCheckedChange = combinedOnCheckedChange,
@@ -481,7 +486,7 @@ fun ThemedToggle(
         Switch(
             checked = checked,
             onCheckedChange = combinedOnCheckedChange,
-            modifier = modifier,
+            modifier = modifier.tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1f),
             colors = SwitchDefaults.colors(
                 checkedThumbColor = androidx.compose.ui.graphics.Color.White,
                 checkedTrackColor = AccentPurple,
@@ -519,7 +524,8 @@ fun ThemedSlider(
     val resolvedBackdrop = backdrop ?: LocalGlobalBackdrop.current
     val triggerHaptic = rememberGlobalHapticFeedback()
     
-    if (theme.style == "modern") {
+    // Material Slider provides D-pad left/right adjustment and a single focus target on TV.
+    if (theme.style == "modern" && !rememberIsTelevision()) {
         LiquidSlider(
             value = value,
             onValueChange = {
@@ -540,7 +546,7 @@ fun ThemedSlider(
             },
             onValueChangeFinished = onValueChangeFinished,
             valueRange = valueRange,
-            modifier = modifier,
+            modifier = modifier.tvFocusTarget(cornerRadius = 12.dp, focusedScale = 1f),
             colors = SliderDefaults.colors(
                 thumbColor = AccentPurple,
                 activeTrackColor = AccentPurple
@@ -548,3 +554,4 @@ fun ThemedSlider(
         )
     }
 }
+

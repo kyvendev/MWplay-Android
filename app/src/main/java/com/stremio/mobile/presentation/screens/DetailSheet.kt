@@ -2,7 +2,7 @@ package com.stremio.mobile.presentation.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -90,14 +90,17 @@ fun DetailSheet(
     // the previously selected poster focused behind the sheet.
     LaunchedEffect(isTv, details.item.id) {
         if (isTv) {
-            runCatching { watchRequester.requestFocus() }
+            runCatching {
+                if (details.isLoading) listRequester.requestFocus() else watchRequester.requestFocus()
+            }
         }
     }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 420.dp, max = maxSheetHeight)
+            .focusGroup()
+            .heightIn(min = 420.dp.coerceAtMost(maxSheetHeight), max = maxSheetHeight)
             .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
             .background(Color(0xF20B0C16))
             .pointerInput(Unit) {
@@ -180,7 +183,6 @@ fun DetailSheet(
                         .then(if (isTv) Modifier.focusRequester(listRequester).focusProperties { right = watchRequester } else Modifier),
                     tint = AccentPurple,
                     surface = true,
-                    forceTvFocusable = isTv,
                 )
                 DetailLiquidActionButton(
                     label = "Assistir",
@@ -192,7 +194,6 @@ fun DetailSheet(
                         .then(if (isTv) Modifier.focusRequester(watchRequester).focusProperties { left = listRequester } else Modifier),
                     enabled = !details.isLoading,
                     tint = AccentGreen,
-                    forceTvFocusable = isTv,
                 )
             }
         }
@@ -209,7 +210,6 @@ private fun DetailLiquidActionButton(
     enabled: Boolean = true,
     backdrop: LayerBackdrop? = null,
     surface: Boolean = false,
-    forceTvFocusable: Boolean = false,
 ) {
     val triggerHaptic = rememberGlobalHapticFeedback()
     val theme = LocalGlobalUiTheme.current
@@ -252,8 +252,7 @@ private fun DetailLiquidActionButton(
             .clip(shape)
             .clickable(interactionSource = interactionSource, indication = null, enabled = enabled) {
                 triggerHaptic(); onClick()
-            }
-            .then(if (forceTvFocusable) Modifier.focusable(enabled = enabled) else Modifier),
+            },
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -270,3 +269,4 @@ private fun DetailLiquidActionButton(
         }
     }
 }
+

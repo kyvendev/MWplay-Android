@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -16,6 +18,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +34,7 @@ import com.stremio.mobile.presentation.components.AddonRow
 import com.stremio.mobile.presentation.components.EmptyState
 import com.stremio.mobile.presentation.components.LoadingRow
 import com.stremio.mobile.presentation.components.ThemedButton
+import com.stremio.mobile.presentation.components.tvTextInput
 import com.stremio.mobile.presentation.state.AddonsUiState
 import androidx.compose.ui.graphics.Color
 
@@ -86,6 +92,16 @@ fun AddonsHeaderAndControls(
 ) {
     var urlInput by rememberSaveable { mutableStateOf("") }
     var urlError by rememberSaveable { mutableStateOf(false) }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val installUrl: () -> Unit = {
+        if (onInstallByUrl(urlInput)) {
+            urlInput = ""
+            urlError = false
+            keyboard?.hide()
+        } else {
+            urlError = true
+        }
+    }
 
     Column(
         modifier = modifier,
@@ -102,7 +118,7 @@ fun AddonsHeaderAndControls(
                 OutlinedTextField(
                     value = urlInput,
                     onValueChange = { urlInput = it; urlError = false },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).tvTextInput(),
                     placeholder = {
                         Text(
                             text = "Paste addon manifest URL...",
@@ -113,11 +129,13 @@ fun AddonsHeaderAndControls(
                         )
                     },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { installUrl() }),
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = GlassSurface,
                         unfocusedContainerColor = GlassSurface,
-                        focusedBorderColor = Color(0x33FFFFFF),
+                        focusedBorderColor = AccentPurple,
                         unfocusedBorderColor = Color(0x19FFFFFF),
                         cursorColor = AccentPurple,
                         focusedTextColor = Color.White,
@@ -126,9 +144,8 @@ fun AddonsHeaderAndControls(
                 )
                 ThemedButton(
                     text = "Add",
-                    onClick = {
-                        if (onInstallByUrl(urlInput)) urlInput = "" else urlError = true
-                    },
+                    onClick = installUrl,
+                    enabled = urlInput.isNotBlank(),
                     containerColor = AccentPurple,
                 )
             }
@@ -167,3 +184,4 @@ fun AddonsHeaderAndControls(
         }
     }
 }
+

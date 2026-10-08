@@ -2,8 +2,12 @@ package com.stremio.mobile.presentation.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,12 +30,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +52,8 @@ import com.stremio.mobile.core.theme.SearchBackground
 import com.stremio.mobile.data.model.AddonItem
 import com.stremio.mobile.presentation.components.GlassPill
 import com.stremio.mobile.presentation.components.ThemedButton
+import com.stremio.mobile.presentation.components.rememberIsTelevision
+import com.stremio.mobile.presentation.components.tvFocusTarget
 import com.stremio.mobile.presentation.state.AddonDetailsUiState
 
 @Composable
@@ -55,13 +67,23 @@ fun AddonDetailsSheet(
 ) {
     val context = LocalContext.current
     val addon = details.addon
+    val isTv = rememberIsTelevision()
+    val backRequester = remember { FocusRequester() }
+    val maxSheetHeight = (LocalConfiguration.current.screenHeightDp.dp * 0.82f).coerceAtMost(720.dp)
+
+    LaunchedEffect(isTv) {
+        if (isTv) runCatching { backRequester.requestFocus() }
+    }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(max = maxSheetHeight)
+            .focusGroup()
             .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
             .background(Color(0xF2141422))
             .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -75,6 +97,8 @@ fun AddonDetailsSheet(
                 tint = Color.White,
                 modifier = Modifier
                     .size(36.dp)
+                    .focusRequester(backRequester)
+                    .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.1f)
                     .clip(CircleShape)
                     .background(SearchBackground)
                     .clickable(onClick = onBack)
@@ -171,7 +195,11 @@ fun AddonDetailsSheet(
                             text = "Configure",
                             onClick = {
                                 val url = addon.transportUrl.replace("manifest.json", "configure")
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                }.onFailure {
+                                    Toast.makeText(context, "Nenhum navegador disponível para configurar o addon.", Toast.LENGTH_LONG).show()
+                                }
                             },
                             containerColor = Color(0x26FFFFFF),
                         )
@@ -205,3 +233,4 @@ fun AddonDetailsSheet(
         Spacer(modifier = Modifier.height(4.dp))
     }
 }
+

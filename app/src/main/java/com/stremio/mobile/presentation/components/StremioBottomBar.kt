@@ -24,10 +24,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -59,19 +62,24 @@ fun StremioBottomBar(
 ) {
     var expanded by remember { mutableStateOf(true) }
     val focusManager = LocalFocusManager.current
+    val menuFocusRequester = remember { FocusRequester() }
+    val collapsedFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(expanded) {
-        if (!expanded) {
-            // Wait until the expanded rail focus targets have left composition, then move into
-            // the first available content target (hero/poster/settings control).
-            kotlinx.coroutines.yield()
+        // Wait for the new targets to be laid out, then transfer focus from a known source.
+        // Removing the focused menu/opener first leaves spatial search without an origin.
+        withFrameNanos { }
+        if (expanded) {
+            menuFocusRequester.requestFocus()
+        } else {
+            collapsedFocusRequester.requestFocus()
             focusManager.moveFocus(FocusDirection.Right)
         }
     }
 
     if (!expanded) {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxHeight()
                 .width(54.dp),
             contentAlignment = Alignment.CenterStart,
@@ -80,6 +88,7 @@ fun StremioBottomBar(
                 modifier = Modifier
                     .width(46.dp)
                     .height(72.dp)
+                    .focusRequester(collapsedFocusRequester)
                     .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.06f)
                     .clip(RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp))
                     .background(Color(0xE60B0C16))
@@ -99,7 +108,7 @@ fun StremioBottomBar(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxHeight()
             .width(116.dp)
             .background(Color(0xF20B0C16))
@@ -121,6 +130,14 @@ fun StremioBottomBar(
             modifier = Modifier
                 .width(96.dp)
                 .height(42.dp)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                        expanded = false
+                        true
+                    } else {
+                        false
+                    }
+                }
                 .tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1.06f)
                 .clip(RoundedCornerShape(14.dp))
                 .background(Color.White.copy(alpha = 0.08f))
@@ -154,6 +171,7 @@ fun StremioBottomBar(
                     selected = view == selectedView,
                     onClick = { onSelect(view) },
                     onExitToContent = { expanded = false },
+                    modifier = if (view == selectedView) Modifier.focusRequester(menuFocusRequester) else Modifier,
                 )
             }
         }
@@ -166,11 +184,12 @@ private fun TvNavigationItem(
     selected: Boolean,
     onClick: () -> Unit,
     onExitToContent: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(18.dp)
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .width(96.dp)
             .height(58.dp)
             .tvFocusTarget(cornerRadius = 18.dp, focusedScale = 1.06f)
@@ -207,3 +226,4 @@ private fun TvNavigationItem(
         )
     }
 }
+
