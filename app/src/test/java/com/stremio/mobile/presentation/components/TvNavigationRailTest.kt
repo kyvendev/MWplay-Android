@@ -3,6 +3,7 @@ package com.stremio.mobile.presentation.components
 import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,7 +36,6 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.stremio.mobile.data.model.CatalogItem
-import com.stremio.mobile.data.model.CatalogShelf
 import com.stremio.mobile.presentation.navigation.AppView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -57,7 +57,7 @@ class TvNavigationRailTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
-    private var selected by mutableStateOf(AppView.Home)
+    private var selected by mutableStateOf(AppView.Discover)
     private var detailsOpen by mutableStateOf(false)
     private val selectedViews = mutableListOf<AppView>()
     private val openedItems = mutableListOf<String>()
@@ -69,10 +69,10 @@ class TvNavigationRailTest {
         val screen = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
         assertTrue("Test must use a landscape TV viewport: $screen", screen.width > screen.height)
         assertTrue("Test must cover a wide TV viewport: $screen", screen.width >= 1200f)
-        val menuItem = composeRule.onNodeWithText("Início").fetchSemanticsNode().boundsInRoot
+        val menuItem = composeRule.onNodeWithText("Descobrir").fetchSemanticsNode().boundsInRoot
         assertTrue("Expanded rail must be at the left edge: $menuItem", menuItem.left < 122f)
 
-        composeRule.onNodeWithText("Início").assertIsFocused()
+        composeRule.onNodeWithText("Descobrir").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionRight) }
         composeRule.onNodeWithTag("filter-type").assertIsFocused()
         val opener = composeRule.onNodeWithContentDescription("Abrir menu").fetchSemanticsNode().boundsInRoot
@@ -84,7 +84,7 @@ class TvNavigationRailTest {
     @Test
     fun rightFromExpandedRailReachesFiltersAndPostersAndOkOpensMovie() {
         setBoardContent()
-        composeRule.onNodeWithText("Início").assertIsFocused()
+        composeRule.onNodeWithText("Descobrir").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionRight) }
         composeRule.onNodeWithTag("filter-type").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionCenter) }
@@ -124,7 +124,7 @@ class TvNavigationRailTest {
             .performKeyInput { pressKey(Key.DirectionLeft) }
         composeRule.onNodeWithContentDescription("Abrir menu").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionCenter) }
-        composeRule.onNodeWithText("Início").assertIsFocused()
+        composeRule.onNodeWithText("Descobrir").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionRight) }
         poster("First movie").assertIsFocused()
         composeRule.runOnIdle { assertTrue(selectedViews.isEmpty()) }
@@ -132,7 +132,7 @@ class TvNavigationRailTest {
 
     @Test
     fun choosingDiscoverClosesMenuAndNewContentCanBeUsedWithoutExtraFocusRequests() {
-        setBoardContent()
+        setBoardContent(initialView = AppView.Home)
         composeRule.onNodeWithText("Início").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionDown) }
         composeRule.onNodeWithText("Descobrir").assertIsFocused()
@@ -160,19 +160,19 @@ class TvNavigationRailTest {
     @Test
     fun backClosesExpandedRailAndEntersContentWithoutSwitchingSections() {
         setBoardContent()
-        composeRule.onNodeWithText("Início").assertIsFocused()
+        composeRule.onNodeWithText("Descobrir").assertIsFocused()
         composeRule.runOnUiThread { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
         composeRule.onNodeWithText("Fechar").assertDoesNotExist()
         composeRule.onNodeWithTag("filter-type").assertIsFocused()
         composeRule.runOnIdle {
-            assertEquals(AppView.Home, selected)
+            assertEquals(AppView.Discover, selected)
             assertTrue(selectedViews.isEmpty())
         }
     }
 
     @Test
     fun closingButtonCollapsesMenuAndReturnsToContent() {
-        setBoardContent()
+        setBoardContent(initialView = AppView.Home)
         composeRule.onNodeWithText("Início").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionUp) }
         composeRule.onNodeWithText("Fechar").assertIsFocused()
@@ -199,14 +199,15 @@ class TvNavigationRailTest {
     }
 
     private fun enterContent() {
-        composeRule.onNodeWithText("Início").assertIsFocused()
+        composeRule.onNodeWithText("Descobrir").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionRight) }
         composeRule.onNodeWithTag("filter-type").assertIsFocused()
     }
 
     private fun poster(name: String) = composeRule.onNodeWithContentDescription(name)
 
-    private fun setBoardContent() {
+    private fun setBoardContent(initialView: AppView = AppView.Discover) {
+        selected = initialView
         composeRule.setContent {
             CompositionLocalProvider(
                 LocalGlobalUiTheme provides GlobalUiTheme(style = "modern", hapticsEnabled = false),
@@ -263,18 +264,22 @@ class TvNavigationRailTest {
                 }
             }
             item(key = "posters-${selected.name}") {
-                PosterShelf(
-                    CatalogShelf(
-                        "Popular movies",
-                        listOf(
-                            CatalogItem("first", "movie", "First movie", null, null, null, null),
-                            CatalogItem("second", "movie", "Second movie", null, null, null, null),
-                        ),
-                        false,
-                    ),
-                    ShelfMode.Movie,
-                    { openedItems += it.id },
-                )
+                // Match Discover's three-column grid, including the same gutter as its filters.
+                // Home's horizontal shelves have a different gutter and different spatial neighbors.
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    listOf(
+                        CatalogItem("first", "movie", "First movie", null, null, null, null),
+                        CatalogItem("second", "movie", "Second movie", null, null, null, null),
+                    ).forEach { item ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            PosterTile(item, ShelfMode.Movie, { openedItems += item.id })
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
