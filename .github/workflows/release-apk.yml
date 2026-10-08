@@ -104,6 +104,29 @@ jobs:
                   raise SystemExit('Existing draft belongs to another source commit; refusing to overwrite it')
           PY
 
+      - name: Set up JDK for published signature verification
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify published signing certificate before native builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/previous-release"
+          gh release download v1.0.2 --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'MW-Play-v1.0.2-armeabi-v7a-release.apk' --dir "${RUNNER_TEMP}/previous-release"
+          build_tools="$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          python - "${build_tools}/apksigner" "${RUNNER_TEMP}/previous-release/MW-Play-v1.0.2-armeabi-v7a-release.apk" <<'PY'
+          import importlib.util, sys
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location('release_validation', '.github/scripts/validate-release-apks.py')
+          validation = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(validation)
+          certificate = validation.signing_certificate(sys.argv[1], Path(sys.argv[2]))
+          print(f'Verified published 1.0.2 signing certificate SHA-256: {certificate}')
+          PY
+
   build-stream-server:
     name: Build native server ${{ matrix.abi }}
     runs-on: ubuntu-latest
