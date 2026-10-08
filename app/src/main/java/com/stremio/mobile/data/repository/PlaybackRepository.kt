@@ -65,6 +65,11 @@ class PlaybackRepository(
             preferredSubtitleLang = preferredLang,
             engine = engine,
             settings = settings,
+            // The receiver must fetch the original URL; never send the phone's local proxy URL.
+            castUri = core.directUrl(option.core.stream),
+            castRequiresHeaders = option.core.stream.behaviorHints.proxyHeaders?.let {
+                it.request.isNotEmpty() || it.response.isNotEmpty()
+            } ?: false,
         )
         return true
     }
@@ -149,3 +154,4 @@ class PlaybackRepository(
         runCatching { core.updateSubtitleSettings(sizePercent = sizePercent, offsetPercent = offsetPercent) }
     }
 }
+

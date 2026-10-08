@@ -78,6 +78,8 @@ import com.stremio.mobile.presentation.state.MainSection
 import com.stremio.mobile.presentation.viewmodel.MainViewModel
 import com.stremio.mobile.update.UpdateInfo
 import com.stremio.mobile.update.UpdateState
+import com.stremio.mobile.MainApplication
+import com.stremio.mobile.cast.CastMiniController
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -191,7 +193,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     shelves = state.searchShelves,
                     onQueryChange = viewModel::search,
                     onOpenDetails = viewModel::openDetails,
-                    onOpenDiscoverCatalog = viewModel::openDiscoverCatalog,
+                    onOpenDiscoverCatalog = { shelf -> viewModel.clearSearch(); viewModel.openDiscoverCatalog(shelf) },
                     onBack = viewModel::clearSearch,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -529,11 +531,19 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 else -> Unit
             }
 
+            if (!isPlayerOpen) {
+                val application = LocalContext.current.applicationContext as MainApplication
+                CastMiniController(application.castController, Modifier.align(Alignment.BottomCenter)
+                    .navigationBarsPadding().padding(horizontal = 12.dp).padding(bottom = 90.dp))
+            }
+
             if (isPlayerOpen) {
                 val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
                 PlayerScreen(
                     player = viewModel.getPlayer(),
                     activeUri = playbackState.activeUri,
+                    castUri = playbackState.castUri,
+                    castRequiresHeaders = playbackState.castRequiresHeaders,
                     title = playbackState.title ?: "Stream",
                     onAttachView = viewModel::attachPlayerView,
                     onDetachView = viewModel::detachPlayerView,
@@ -1377,3 +1387,4 @@ private fun DiscoverFiltersRow(
         }
     }
 }
+

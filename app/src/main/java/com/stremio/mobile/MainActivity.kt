@@ -4,7 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import timber.log.Timber
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     @Volatile private var sessionValidationInFlight = false
     private val viewModel: MainViewModel by viewModels {
@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
             ) as T
         }
     }
-    override fun onCreate(savedInstanceState:Bundle?){val splash=installSplashScreen();splash.setKeepOnScreenCondition{viewModel.sessionRestoring.value};super.onCreate(savedInstanceState);WindowCompat.setDecorFitsSystemWindows(window,false);requestNotificationPermission();viewModel.acceptIntent(intent);setContent{StremioMobileApp(viewModel)}}
+    override fun onCreate(savedInstanceState:Bundle?){val splash=installSplashScreen();splash.setKeepOnScreenCondition{viewModel.sessionRestoring.value};super.onCreate(savedInstanceState);WindowCompat.setDecorFitsSystemWindows(window,false);(application as MainApplication).castController.initialize();requestNotificationPermission();viewModel.acceptIntent(intent);setContent{StremioMobileApp(viewModel)}}
     override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);viewModel.acceptIntent(intent)}
     @Suppress("DEPRECATION","OVERRIDE_DEPRECATION") override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){if(FacebookLoginBridge.callbackManager.onActivityResult(requestCode,resultCode,data))return;super.onActivityResult(requestCode,resultCode,data)}
     override fun onStart(){super.onStart();viewModel.onAppForegrounded();validateRemoteSession()}
@@ -63,3 +63,4 @@ class MainActivity : ComponentActivity() {
     }
     private fun requestNotificationPermission(){if(Build.VERSION.SDK_INT>=33)notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)}
 }
+

@@ -59,6 +59,14 @@ The official app is the official support channel. This app is the open-source, n
 - **Rust local streaming server integration** through JNI for high-performance streaming support.
 - **Release APK automation** through GitHub Actions with signed APK publishing and SHA256 checksums.
 
+## Chromecast on Mobile
+
+Keep the phone and Chromecast on the same Wi-Fi network, open a video, and tap the Cast icon in either player style. On Android 17, grant local network access when requested. Choose a device, then tap **Transmitir este vídeo**. The phone pauses only after the TV accepts the video, preserving the current position. The remote controls provide play/pause, seeking, TV volume and supported subtitles; a mini controller remains available after leaving the player. **Voltar a reproduzir no celular** disconnects and returns to the receiver's last position.
+
+The default Google Cast receiver fetches the original HTTP(S) media URL directly. Local/torrent streams, loopback URLs, files, content URIs and streams requiring custom proxy headers are not transmitted. Playback depends on the receiver's codecs and the media server's CORS support; only remote WebVTT external subtitles are sent. When a compatible remote URL is available, **Abrir em outro aplicativo** opens Android's player chooser as a fallback. An Android TV installation of MW Play is a separate app, not a Cast receiver.
+
+This sends the video, rather than mirroring the entire phone screen. For full screen mirroring, use Android's or Google Home's screen transmission feature. Google Play Services is required for Cast; local mobile playback remains available when Cast is unavailable.
+
 ## Architecture
 
 ```text
@@ -264,3 +272,4 @@ python .github/scripts/verify-apk-outputs.py app/build/outputs/apk/release armea
 ## Disclaimer
 
 This is an unofficial Android client experiment for Stremio-compatible workflows. It is not a replacement for the official Stremio apps and is provided for testing and development.
+

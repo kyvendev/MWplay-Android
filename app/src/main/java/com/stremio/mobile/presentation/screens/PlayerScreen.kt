@@ -91,11 +91,16 @@ import com.stremio.mobile.presentation.components.LocalGlobalBackdrop
 import com.stremio.mobile.presentation.components.ThemedButton
 import com.stremio.mobile.presentation.components.ThemedTextButton
 import com.stremio.mobile.presentation.components.ThemedIconButton
+import com.stremio.mobile.MainApplication
+import com.stremio.mobile.cast.CastDialog
+import com.stremio.mobile.cast.CastRemotePlayer
 
 @Composable
 fun PlayerScreen(
     player: com.stremio.mobile.player.Player?,
     activeUri: String?,
+    castUri: String? = null,
+    castRequiresHeaders: Boolean = false,
     title: String,
     onAttachView: (View) -> Unit,
     onDetachView: () -> Unit,
@@ -130,6 +135,29 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onBack)
+
+    val context = LocalContext.current
+    val application = remember(context) { context.applicationContext as MainApplication }
+    val castController = application.castController
+    val castState by castController.state.collectAsState()
+    val isCasting = castState.owns(activeUri)
+    var showCastDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(player, activeUri, castUri, castState.mediaUrl, castState.connected) {
+        castController.attachLocalPlayback(activeUri, castUri ?: activeUri)
+    }
+    LaunchedEffect(player, activeUri, isCasting) {
+        // Reopening this video or recreating its local engine must not start a second soundtrack.
+        if (isCasting) player?.pause()
+    }
+    LaunchedEffect(castState.localResume, player, activeUri) {
+        val resume = castState.localResume ?: return@LaunchedEffect
+        if (resume.localUri != activeUri || player == null) return@LaunchedEffect
+        player.seekTo(resume.positionMs)
+        if (resume.playing) player.play() else player.pause()
+        onSeekReported(resume.positionMs, resume.durationMs)
+        onPausedChanged(!resume.playing)
+        castController.consumeLocalResume()
+    }
 
     val runtimeStateHolder = player?.runtimeState?.collectAsState()
         ?: remember { mutableStateOf(PlayerRuntimeState()) }
@@ -186,7 +214,6 @@ fun PlayerScreen(
     // playback transitions it triggers, so a swipe/double-tap seek never wakes the controls.
     var lastSilentSeekMs by remember { mutableStateOf(0L) }
 
-    val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val localSubtitleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -202,18 +229,18 @@ fun PlayerScreen(
     var lastVolume by remember { mutableIntStateOf(if (initialVol > 0) initialVol else (audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * 0.3f).toInt()) }
 
     // Orientation & Status Bar visibility management
-    DisposableEffect(activity) {
+    DisposableEffect(activity, isCasting) {
         val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         val window = activity?.window
         
         // Force landscape playback
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        activity?.requestedOrientation = if (isCasting) ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 
         // Hide system/status bars
         if (window != null) {
             val controller = WindowCompat.getInsetsController(window, window.decorView)
-            controller.hide(WindowInsetsCompat.Type.statusBars())
-            controller.hide(WindowInsetsCompat.Type.navigationBars())
+            if (isCasting) controller.show(WindowInsetsCompat.Type.systemBars())
+            else controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
@@ -287,7 +314,8 @@ fun PlayerScreen(
         torrentStats = null
     }
 
-    LaunchedEffect(runtimeState) {
+    LaunchedEffect(runtimeState, isCasting) {
+        if (isCasting) return@LaunchedEffect
         val wasPlaying = isPlaying
         isPlaying = runtimeState.isPlaying
         isBuffering = runtimeState.isBuffering
@@ -380,8 +408,8 @@ fun PlayerScreen(
     }
 
     // Continuous Position Tracker
-    LaunchedEffect(player, isPlaying) {
-        if (player == null || !isPlaying) return@LaunchedEffect
+    LaunchedEffect(player, isPlaying, isCasting) {
+        if (player == null || !isPlaying || isCasting) return@LaunchedEffect
         while (true) {
             val state = player.runtimeState.value
             positionMs = state.positionMs
@@ -600,6 +628,11 @@ fun PlayerScreen(
             showStatsPanel = !showStatsPanel
             resetActivityTimer()
         },
+        onShowCast = {
+            castController.clearError()
+            showCastDialog = true
+            resetActivityTimer()
+        },
     )
 
     val globalTheme = remember(
@@ -648,6 +681,7 @@ fun PlayerScreen(
                             }
                         },
                         update = {
+                            it.keepScreenOn = !isCasting
                             player?.setResizeMode(resizeMode)
                             player?.setSubtitleStyle(subtitleStyle)
                         }
@@ -913,8 +947,34 @@ fun PlayerScreen(
                 )
             }
         }
+        if (isCasting) {
+            CastRemotePlayer(castController, onBack, Modifier.fillMaxSize())
+        }
     }
 }
+
+    if (showCastDialog) {
+        CastDialog(
+            controller = castController,
+            url = castUri ?: activeUri,
+            localUri = activeUri,
+            title = title,
+            positionMs = player?.runtimeState?.value?.positionMs ?: positionMs,
+            durationMs = durationMs,
+            playing = isPlaying,
+            requiresHeaders = castRequiresHeaders,
+            subtitles = runtimeState.subtitleTracks,
+            onLoaded = {
+                // A late receiver response must not pause a different, newly selected video.
+                application.container.playbackRepository.let { repository ->
+                    if (repository.state.value.activeUri == activeUri) repository.getPlayer()?.pause()
+                }
+                showAudioDialog = false
+                showSubtitleDialog = false
+            },
+            onDismiss = { showCastDialog = false },
+        )
+    }
 
     // Audio Tracks Dialogue
     if (showAudioDialog) {
@@ -1888,3 +1948,4 @@ private fun themedSurfaceColor(): Color {
         GlassSurface
     }
 }
+

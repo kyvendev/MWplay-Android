@@ -109,6 +109,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0-rc01")
     implementation("androidx.navigation:navigation-compose:2.9.8")
     implementation("androidx.fragment:fragment:1.5.4")
+    implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
     implementation("com.facebook.android:facebook-login:18.2.3")
     implementation(files("libs/rustls-platform-verifier-0.1.1.aar"))
 
@@ -197,3 +198,4 @@ tasks.register<Copy>("copyStreamServerJniLibs") {
     }
     into("src/main/jniLibs")
 }
+
