@@ -19,10 +19,12 @@ def command_output(*arguments):
 
 def signing_certificate(apksigner, apk):
     output = command_output(apksigner, "verify", "--print-certs", str(apk))
-    # v3.1 verification prints SDK-bounded signer labels for both v3.1 and v3.0.
-    # The same production certificate can therefore appear more than once.
-    signer_lines = [line.strip() for line in output.splitlines() if line.startswith("Signer ") and "certificate SHA-256 digest:" in line]
-    label = r"Signer (?:#\d+|\(minSdkVersion=\d+(?: \(dev release=true\))?,\s*maxSdkVersion=\d+\))"
+    # New build-tools use scheme labels such as "V2 Signer:" and SDK bounds
+    # for v3.0/v3.1. The same certificate can occur in several signature blocks.
+    signer_lines = [line.strip() for line in output.splitlines() if "certificate SHA-256 digest:" in line and not line.strip().startswith("Source Stamp Signer")]
+    bounds = r"\(minSdkVersion=\d+(?: \(dev release=true\))?,\s*maxSdkVersion=\d+\)"
+    scheme = r"(?:V(?:1|2|3(?:\.[012])?|4)(?: Hybrid (?:Classical|PQC))? )?"
+    label = scheme + r"Signer(?: #\d+)?:?(?: " + bounds + r")?"
     digests = [re.fullmatch(label + r" certificate SHA-256 digest:\s*([0-9a-fA-F]{64})", line) for line in signer_lines]
     certificates = {match.group(1).lower() for match in digests if match}
     if not signer_lines or any(match is None for match in digests) or len(certificates) != 1:

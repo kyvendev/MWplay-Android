@@ -73,6 +73,39 @@ class ReleaseAssetsTest(unittest.TestCase):
         output = f"Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate SHA-256 digest: {'a' * 64}\nSigner (minSdkVersion=24, maxSdkVersion=32) certificate SHA-256 digest: {'a' * 64}\n"
         self.assertEqual(self.parse_certificate(output), "a" * 64)
 
+    def test_actual_build_tools_37_v2_stdout(self):
+        certificate = "1294dd51cf7ac02e6cbf312d666a4c7fcbc64f35ce9b33cc3efc4cb16b1350d5"
+        output = f"Verifies\nVerified using v2 scheme (APK Signature Scheme v2): true\nNumber of signers: 1\nV2 Signer: certificate SHA-256 digest: {certificate}\nV2 Signer: public key SHA-256 digest: {'b' * 64}\n"
+        self.assertEqual(self.parse_certificate(output), certificate)
+
+    def test_scheme_prefixed_v1_v3_and_v4_labels(self):
+        for scheme in ("V1", "V3.0", "V4"):
+            with self.subTest(scheme=scheme):
+                self.assertEqual(self.parse_certificate(f"{scheme} Signer: certificate SHA-256 digest: {'a' * 64}\n"), "a" * 64)
+
+    def test_modern_sdk_bounded_v31_and_v30_labels(self):
+        output = f"V3.1 Signer: (minSdkVersion=33, maxSdkVersion=2147483647) certificate SHA-256 digest: {'a' * 64}\nV3.0 Signer: (minSdkVersion=24, maxSdkVersion=32) certificate SHA-256 digest: {'a' * 64}\n"
+        self.assertEqual(self.parse_certificate(output), "a" * 64)
+
+    def test_modern_sdk_bounded_dev_release_label(self):
+        output = f"V3.1 Signer: (minSdkVersion=33 (dev release=true), maxSdkVersion=2147483647) certificate SHA-256 digest: {'a' * 64}\n"
+        self.assertEqual(self.parse_certificate(output), "a" * 64)
+
+    def test_modern_v32_distinct_hybrid_certificates_are_rejected(self):
+        output = f"V3.2 Hybrid Classical Signer: (minSdkVersion=37, maxSdkVersion=2147483647) certificate SHA-256 digest: {'a' * 64}\nV3.2 Hybrid PQC Signer: (minSdkVersion=37, maxSdkVersion=2147483647) certificate SHA-256 digest: {'b' * 64}\n"
+        with self.assertRaisesRegex(ValueError, "distinct verified signing certificate"):
+            self.parse_certificate(output)
+
+    def test_modern_numbered_distinct_signers_are_rejected(self):
+        output = f"V2 Signer #1: certificate SHA-256 digest: {'a' * 64}\nV2 Signer #2: certificate SHA-256 digest: {'b' * 64}\n"
+        with self.assertRaisesRegex(ValueError, "distinct verified signing certificate"):
+            self.parse_certificate(output)
+
+    def test_unknown_scheme_extra_certificate_cannot_be_ignored(self):
+        output = f"V2 Signer: certificate SHA-256 digest: {'a' * 64}\nV99 Signer: certificate SHA-256 digest: {'b' * 64}\n"
+        with self.assertRaisesRegex(ValueError, "distinct verified signing certificate"):
+            self.parse_certificate(output)
+
     def test_sdk_bounded_dev_release_label(self):
         output = f"Signer (minSdkVersion=33 (dev release=true), maxSdkVersion=2147483647) certificate SHA-256 digest: {'A' * 64}\n"
         self.assertEqual(self.parse_certificate(output), "a" * 64)
