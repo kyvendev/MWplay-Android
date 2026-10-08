@@ -55,7 +55,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -857,7 +856,13 @@ private fun BoardScreen(
         LocalGlassAlpha provides state.globalGlassAlpha,
         LocalGlobalBackdrop provides appBackdrop
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        TvNavigationScaffold(
+            selectedView = state.selectedSection.toAppView(),
+            backdrop = contentBackdrop ?: appBackdrop,
+            onSelect = { onSelectSection(it.toSection()) },
+            contentFocusRequester = contentFocusRequester,
+            navigationEnabled = continueWatchingActionsEnabled,
+        ) { contentModifier ->
             if (appBackdrop != null) {
                 Box(
                     modifier = Modifier
@@ -871,9 +876,7 @@ private fun BoardScreen(
                 state = contentListState,
                 modifier = Modifier
                     .fillMaxSize()
-                    // Leave room for the rail even when collapsed, so opening it cannot hide
-                    // a focused poster or a settings control or reflow the focus hierarchy.
-                    .then(if (isTv) Modifier.padding(start = 122.dp).focusRequester(contentFocusRequester).focusRestorer().focusGroup() else Modifier)
+                    .then(contentModifier)
                     .then(if (contentBackdrop != null) Modifier.layerBackdrop(contentBackdrop) else Modifier)
                     .windowInsetsPadding(WindowInsets.statusBars),
             contentPadding = PaddingValues(bottom = if (isTv) 32.dp else BottomBarSpace + navBottom),
@@ -1208,12 +1211,6 @@ private fun BoardScreen(
             }
         }
 
-        StremioBottomBar(
-            selectedView = state.selectedSection.toAppView(),
-            backdrop = contentBackdrop ?: appBackdrop,
-            onSelect = { onSelectSection(it.toSection()) },
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
 }
 }

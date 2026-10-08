@@ -7,7 +7,7 @@ Native Android client for Stremio built with Kotlin, Jetpack Compose, Kotlin Mul
 This branch (`feat/mw-play-tv`) contains the TV app. The mobile app is maintained separately in `feat/mw-play-mobile`.
 
 - Use the D-pad to move between highlighted controls and OK to activate them. On focused sliders, Left/Right adjusts the value.
-- Press Right in the navigation menu to return to content. Move Left to the menu opener and press OK to reopen it.
+- The navigation menu stays on the left edge. Press Right, select a section, choose Close, or press Back in the open menu to return focus to the content. Right from the collapsed opener also returns to content; move Left to the opener and press OK to reopen the menu.
 - During playback, a direction or OK reveals hidden controls. Back closes the current menu or hides the controls; press Back again to leave playback.
 - The player exposes seeking, playback speed, audio, subtitle selection/import/style, volume, resize, stats, and the next episode when available. The remote's media keys also control playback.
 - Search, login, and addon address fields open the TV keyboard with OK. Details, stream selection, and player menus keep focus within the visible window.
