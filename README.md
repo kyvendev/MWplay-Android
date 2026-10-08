@@ -69,6 +69,12 @@ The official app is the official support channel. This app is the open-source, n
 - **Rust local streaming server integration** through JNI for high-performance streaming support.
 - **Release APK automation** through GitHub Actions with signed APK publishing and SHA256 checksums.
 
+## Continue Watching actions
+
+Hold OK/Enter on a Continue Watching poster to open its actions. A short press keeps the existing behavior. The menu offers resume playback, view details, remove from Continue Watching, and cancel for every item type, including live channels.
+
+Removing clears the resume position and dismisses episode notifications while retaining library membership, favorites, and watched-episode history. The change uses the native core's persistence and account synchronization. Removing an actively playing item does not interrupt playback; it stays out of this list until a new playback selection is made.
+
 ## Architecture
 
 ```text

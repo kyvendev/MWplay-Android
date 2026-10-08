@@ -2,6 +2,7 @@ package com.stremio.mobile.presentation.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,9 +28,14 @@ import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -53,13 +60,31 @@ private val TvGutter = 30.dp
 private val TvPosterWidth = 142.dp
 private val TvPosterRadius = 16.dp
 
+data class PosterShelfFocusRequest(val itemKey: String, val sequence: Int)
+
+internal fun CatalogItem.posterKey(): String = "$type-$id"
+
 @Composable
 fun PosterShelf(
     shelf: CatalogShelf,
     mode: ShelfMode,
     onItemClick: (CatalogItem) -> Unit,
     onSeeAllClick: (() -> Unit)? = null,
+    onItemLongClick: ((CatalogItem) -> Unit)? = null,
+    focusRestoreRequest: PosterShelfFocusRequest? = null,
 ) {
+    val listState = rememberLazyListState()
+    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    LaunchedEffect(focusRestoreRequest) {
+        val target = focusRestoreRequest ?: return@LaunchedEffect
+        val index = shelf.items.indexOfFirst { it.posterKey() == target.itemKey }
+        if (index < 0) return@LaunchedEffect
+        listState.scrollToItem(index)
+        // The requested poster may need to be composed after scrolling and closing the dialog.
+        withFrameNanos { }
+        withFrameNanos { }
+        focusRequesters[target.itemKey]?.requestFocus()
+    }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = TvGutter, end = 20.dp),
@@ -90,6 +115,7 @@ fun PosterShelf(
         }
 
         LazyRow(
+            state = listState,
             contentPadding = PaddingValues(start = TvGutter, end = TvGutter),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
@@ -98,8 +124,16 @@ fun PosterShelf(
                 shelf.items.isEmpty() -> item(contentType = "empty") {
                     Text(shelf.error ?: "Nenhum item disponível", color = MutedText, modifier = Modifier.padding(start = 18.dp))
                 }
-                else -> items(shelf.items, key = { "${it.type}-${it.id}" }, contentType = { "poster" }) { item ->
-                    PosterTile(item = item, mode = mode, onClick = { onItemClick(item) })
+                else -> items(shelf.items, key = { it.posterKey() }, contentType = { "poster" }) { item ->
+                    PosterTile(
+                        item = item,
+                        mode = mode,
+                        onClick = { onItemClick(item) },
+                        onLongClick = onItemLongClick?.let { callback -> { callback(item) } },
+                        modifier = if (onItemLongClick != null) {
+                            Modifier.focusRequester(focusRequesters.getOrPut(item.posterKey()) { FocusRequester() })
+                        } else Modifier,
+                    )
                 }
             }
         }
@@ -107,15 +141,30 @@ fun PosterShelf(
 }
 
 @Composable
-fun PosterTile(item: CatalogItem, mode: ShelfMode, onClick: () -> Unit) {
+fun PosterTile(
+    item: CatalogItem,
+    mode: ShelfMode,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    val interactionModifier = if (onLongClick != null) {
+        Modifier
+            .tvPosterMenuInput(onClick, onLongClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                onLongClickLabel = "Opções de continuar assistindo",
+            )
+    } else Modifier.clickable(onClick = onClick)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .width(TvPosterWidth)
             .aspectRatio(0.66f)
             .tvFocusTarget(cornerRadius = TvPosterRadius, focusedScale = 1.08f)
             .clip(RoundedCornerShape(TvPosterRadius))
             .background(CardFallback)
-            .clickable(onClick = onClick),
+            .then(interactionModifier),
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -166,3 +215,4 @@ fun PosterTile(item: CatalogItem, mode: ShelfMode, onClick: () -> Unit) {
     Box(modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFE8E8EE))) { Box(Modifier.fillMaxWidth(progress).height(4.dp).background(AccentPurple)) }
 }
 private fun progressFor(id: String): Float { val bucket = kotlin.math.abs(id.hashCode() % 46); return (bucket + 28) / 100f }
+

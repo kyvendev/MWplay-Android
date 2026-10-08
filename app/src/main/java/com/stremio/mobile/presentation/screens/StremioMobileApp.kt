@@ -49,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -133,6 +134,9 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     onOpenSearch = viewModel::openSearch,
                     onSelectSection = viewModel::selectSection,
                     onOpenDetails = viewModel::openDetails,
+                    onRemoveFromContinueWatching = viewModel::removeFromContinueWatching,
+                    continueWatchingActionsEnabled = !state.isSearchOpen && state.selectedDetails == null &&
+                        state.selectedAddonDetails == null && !streamsState.isOpen && !isPlayerOpen,
                     onCloseDetails = viewModel::closeDetails,
                     onToggleLibrary = viewModel::toggleLibrary,
                     onOpenStreams = viewModel::openStreams,
@@ -718,6 +722,8 @@ private fun BoardScreen(
     onOpenSearch: () -> Unit,
     onSelectSection: (MainSection) -> Unit,
     onOpenDetails: (CatalogItem) -> Unit,
+    onRemoveFromContinueWatching: (CatalogItem) -> Unit,
+    continueWatchingActionsEnabled: Boolean,
     onCloseDetails: () -> Unit,
     onToggleLibrary: (CatalogItem) -> Unit,
     onOpenStreams: (CatalogItem) -> Unit,
@@ -770,6 +776,21 @@ private fun BoardScreen(
     var settingsSubScreen by rememberSaveable { mutableStateOf(SettingsSubScreen.Main) }
     val isTv = rememberIsTelevision()
     val contentListState = rememberLazyListState()
+    val contentFocusRequester = remember { FocusRequester() }
+    var restoreFocusAfterEmptyContinueShelf by remember { mutableStateOf(false) }
+
+    LaunchedEffect(restoreFocusAfterEmptyContinueShelf, state.continueWatching.items.isEmpty(), continueWatchingActionsEnabled) {
+        if (restoreFocusAfterEmptyContinueShelf && state.continueWatching.items.isEmpty()) {
+            if (!continueWatchingActionsEnabled) return@LaunchedEffect
+            restoreFocusAfterEmptyContinueShelf = false
+            if (isTv && state.selectedSection == MainSection.Home) {
+                contentListState.scrollToItem(0)
+                withFrameNanos { }
+                withFrameNanos { }
+                contentFocusRequester.requestFocus()
+            }
+        }
+    }
 
     LaunchedEffect(state.selectedSection, settingsSubScreen) {
         contentListState.scrollToItem(0)
@@ -852,7 +873,7 @@ private fun BoardScreen(
                     .fillMaxSize()
                     // Leave room for the rail even when collapsed, so opening it cannot hide
                     // a focused poster or a settings control or reflow the focus hierarchy.
-                    .then(if (isTv) Modifier.padding(start = 122.dp).focusRestorer().focusGroup() else Modifier)
+                    .then(if (isTv) Modifier.padding(start = 122.dp).focusRequester(contentFocusRequester).focusRestorer().focusGroup() else Modifier)
                     .then(if (contentBackdrop != null) Modifier.layerBackdrop(contentBackdrop) else Modifier)
                     .windowInsetsPadding(WindowInsets.statusBars),
             contentPadding = PaddingValues(bottom = if (isTv) 32.dp else BottomBarSpace + navBottom),
@@ -875,11 +896,17 @@ private fun BoardScreen(
                         }
                     }
                     if (state.continueWatching.items.isNotEmpty() || state.continueWatching.isLoading) {
-                        item(contentType = "shelf") {
-                            PosterShelf(
+                        item(key = "continue-watching", contentType = "shelf") {
+                            ContinueWatchingShelf(
                                 shelf = state.continueWatching,
-                                mode = ShelfMode.Continue,
-                                onItemClick = onOpenDetails
+                                onItemClick = onOpenDetails,
+                                onRemoveItem = { item ->
+                                    if (state.continueWatching.items.size == 1) restoreFocusAfterEmptyContinueShelf = true
+                                    onRemoveFromContinueWatching(item)
+                                },
+                                onEmptyAfterRemoval = { restoreFocusAfterEmptyContinueShelf = true },
+                                onContinueWatching = onOpenStreams,
+                                actionsEnabled = continueWatchingActionsEnabled,
                             )
                         }
                     }

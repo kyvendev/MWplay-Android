@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.stremio.core.runtime.RuntimeEvent
@@ -38,6 +39,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,6 +85,8 @@ class MainViewModel(
     private val noSeedsReason = MutableStateFlow<String?>(null)
     private val selectedDetails = MutableStateFlow<MetaDetails?>(null)
     private val continueWatching = MutableStateFlow(CatalogShelf(title = "Continue Watching"))
+    private val pendingContinueWatchingRemovals = mutableSetOf<Pair<String, String>>()
+    private val recentContinueWatchingRemovals = mutableMapOf<String, Long>()
     private val boardShelves = MutableStateFlow<List<CatalogShelf>>(emptyList())
     private val requestedRequests = mutableSetOf<String>()
 
@@ -945,6 +949,49 @@ class MainViewModel(
         viewModelScope.launch {
             boardRepository.getContinueWatchingFlow().collect { cwShelf ->
                 continueWatching.value = cwShelf
+            }
+        }
+        viewModelScope.launch {
+            core.events.collect { runtimeEvent ->
+                val event = runtimeEvent.event as? RuntimeEvent.Event.CoreEvent ?: return@collect
+                val error = event.value.type as? Event.Type.Error ?: return@collect
+                val now = android.os.SystemClock.elapsedRealtime()
+                recentContinueWatchingRemovals.entries.removeAll { now - it.value > 60_000L }
+                val (ids, message) = when (val source = error.value.source.type) {
+                    is Event.Type.LibraryItemsPushedToStorage -> source.value.ids to
+                        "Não foi possível salvar a remoção neste aparelho. O item pode voltar ao reiniciar o aplicativo."
+                    is Event.Type.LibraryItemsPushedToApi -> source.value.ids to
+                        "O item foi removido neste aparelho, mas a sincronização falhou. Atualize a biblioteca quando a conexão voltar."
+                    else -> return@collect
+                }
+                if (ids.any { it in recentContinueWatchingRemovals }) {
+                    Timber.e("Failed to persist/sync continue-watching removal: %s", error.value.error)
+                    Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    fun removeFromContinueWatching(item: CatalogItem) {
+        if (!item.isContinueWatching) return
+        val key = item.id to item.type
+        if (!pendingContinueWatchingRemovals.add(key)) return
+        recentContinueWatchingRemovals[item.id] = android.os.SystemClock.elapsedRealtime()
+        viewModelScope.launch {
+            try {
+                // The core's fresh preview drives the UI, so failures never hide cards permanently.
+                boardRepository.removeFromContinueWatching(item)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                Timber.e(error, "Failed to remove continue-watching item")
+                Toast.makeText(
+                    appContext,
+                    "Não foi possível remover de continuar assistindo. Tente novamente.",
+                    Toast.LENGTH_LONG,
+                ).show()
+            } finally {
+                pendingContinueWatchingRemovals.remove(key)
             }
         }
     }
@@ -2097,3 +2144,4 @@ class MainViewModel(
         return digest.joinToString("") { "%02x".format(it) }
     }
 }
+

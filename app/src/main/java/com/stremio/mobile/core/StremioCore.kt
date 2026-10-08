@@ -22,6 +22,7 @@ import com.stremio.core.runtime.msg.Action
 import com.stremio.core.runtime.msg.ActionCtx
 import com.stremio.core.runtime.msg.ActionLoad
 import com.stremio.core.runtime.msg.ActionPlayer
+import com.stremio.core.runtime.msg.Event
 import com.stremio.core.types.addon.ExtraValue
 import com.stremio.core.types.addon.ResourcePath
 import com.stremio.core.types.addon.ResourceRequest
@@ -29,14 +30,19 @@ import com.stremio.core.types.api.AuthRequest
 import com.stremio.core.types.profile.GDPRConsent
 import com.stremio.core.types.resource.Stream
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * One stream option surfaced for a meta item, paired with the addon request it came from so it
@@ -64,6 +70,7 @@ data class SubtitlePrefs(
 class StremioCore(context: Context) {
     private val tag = "StremioCore"
     private val storage = AndroidStorage(context)
+    private val continueWatchingPlaybackGuard = ContinueWatchingPlaybackGuard()
 
     private val _events = MutableSharedFlow<RuntimeEvent>(extraBufferCapacity = 64)
     val events: SharedFlow<RuntimeEvent> = _events.asSharedFlow()
@@ -217,6 +224,53 @@ class StremioCore(context: Context) {
     fun continueWatchingPreview(): Flow<ContinueWatchingPreview> = newStateFlow(Field.CONTINUE_WATCHING_PREVIEW)
         .map { getContinueWatchingPreview() }
         .onStart { emit(getContinueWatchingPreview()) }
+
+    /** Reset only resume progress and dismiss existing episode notifications; keep the library. */
+    suspend fun removeFromContinueWatching(id: String, type: String) = coroutineScope {
+        require(id.isNotBlank() && type.isNotBlank())
+        fun isRemoved(): Boolean = getContinueWatchingPreview().libraryItems.none {
+            it.id == id && it.type == type
+        }
+        if (isRemoved()) return@coroutineScope
+
+        val previousSuppression = continueWatchingPlaybackGuard.snapshot()
+        continueWatchingPlaybackGuard.suppressIfActive(
+            ContinueWatchingPlaybackGuard.ItemKey(id, type),
+            currentPlaybackItemKey(),
+        )
+
+        // Listen before dispatch: native state/errors may arrive synchronously.
+        val completion = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeoutOrNull(10_000L) {
+                events.first { runtimeEvent ->
+                    when (val event = runtimeEvent.event) {
+                        is RuntimeEvent.Event.CoreEvent -> {
+                            val error = event.value.type as? Event.Type.Error
+                            val source = error?.value?.source?.type as? Event.Type.LibraryItemRewinded
+                            if (error != null && source?.value?.id == id) {
+                                throw IllegalStateException(error.value.error)
+                            }
+                            false
+                        }
+                        is RuntimeEvent.Event.NewState ->
+                            event.value.fields.contains(Field.CONTINUE_WATCHING_PREVIEW) && isRemoved()
+                        else -> false
+                    }
+                }
+                true
+            } ?: isRemoved()
+        }
+        try {
+            // This path deliberately propagates JNI failures instead of swallowing them.
+            continueWatchingRemovalActions(id).forEach { Core.dispatch(it, Field.CTX) }
+            check(isRemoved() || completion.await()) { "Não foi possível remover o item de continuar assistindo." }
+        } catch (error: Throwable) {
+            continueWatchingPlaybackGuard.restoreAfterFailure(previousSuppression)
+            throw error
+        } finally {
+            completion.cancel()
+        }
+    }
 
     fun getDiscover(): CatalogWithFilters = Core.getState(Field.DISCOVER)
 
@@ -448,6 +502,7 @@ class StremioCore(context: Context) {
         return newStateFlow(Field.PLAYER)
             .map { directUrl(getPlayer().stream) }
             .onStart {
+                continueWatchingPlaybackGuard.onNewSelection()
                 dispatchLoad(ActionLoad.Args.Player(selected), Field.PLAYER)
                 // Direct URL streams need no conversion.
                 directUrl(option.stream)?.let { emit(it) }
@@ -512,26 +567,38 @@ class StremioCore(context: Context) {
     }
 
     fun playerTimeChanged(timeMs: Long, durationMs: Long) {
+        if (!allowsCurrentPlaybackReports()) return
         val state = ActionPlayer.PlayerItemState(time = timeMs, duration = durationMs, device = DEVICE_NAME)
         dispatch(Action(Action.Type.Player(ActionPlayer(ActionPlayer.Args.TimeChanged(state)))), Field.PLAYER)
     }
 
     fun playerSeek(timeMs: Long, durationMs: Long) {
+        if (!allowsCurrentPlaybackReports()) return
         val state = ActionPlayer.PlayerItemState(time = timeMs, duration = durationMs, device = DEVICE_NAME)
         dispatch(Action(Action.Type.Player(ActionPlayer(ActionPlayer.Args.SeekAction(state)))), Field.PLAYER)
     }
 
     fun playerPausedChanged(paused: Boolean) {
+        if (!allowsCurrentPlaybackReports()) return
         dispatch(Action(Action.Type.Player(ActionPlayer(ActionPlayer.Args.PausedChanged(paused)))), Field.PLAYER)
     }
 
     fun playerEnded() {
+        if (!allowsCurrentPlaybackReports()) return
         dispatch(Action(Action.Type.Player(ActionPlayer(ActionPlayer.Args.Ended(pbandk.wkt.Empty())))), Field.PLAYER)
     }
 
     fun playerNextVideo() {
+        if (!allowsCurrentPlaybackReports()) return
         dispatch(Action(Action.Type.Player(ActionPlayer(ActionPlayer.Args.NextVideo(pbandk.wkt.Empty())))), Field.PLAYER)
     }
+
+    private fun currentPlaybackItemKey(): ContinueWatchingPlaybackGuard.ItemKey? =
+        getPlayer().libraryItem?.let { ContinueWatchingPlaybackGuard.ItemKey(it.id, it.type) }
+
+    private fun allowsCurrentPlaybackReports(): Boolean =
+        continueWatchingPlaybackGuard.suppressedItem == null ||
+            continueWatchingPlaybackGuard.allowsReports(currentPlaybackItemKey())
 
     private fun directUrl(converted: LoadableConvertedStream?): String? {
         val content = converted?.content
@@ -579,3 +646,4 @@ class StremioCore(context: Context) {
         private const val DEVICE_NAME = "android"
     }
 }
+
