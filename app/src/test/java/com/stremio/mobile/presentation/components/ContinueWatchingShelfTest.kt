@@ -16,6 +16,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
@@ -42,6 +43,31 @@ class ContinueWatchingShelfTest {
     private val movie = CatalogItem("movie", "movie", "Movie", null, null, null, null, progress = 0.4f, isContinueWatching = true)
     private val channel = CatalogItem("channel", "tv", "Live channel", null, null, null, null, progress = 0.2f, isContinueWatching = true)
     private val series = CatalogItem("series", "series", "Series", null, null, null, null, continueWatchingVideoId = "episode", isContinueWatching = true)
+
+    @Test
+    fun navigatingFromMenuCancelsPosterFocusRestorationWhenAnotherSurfaceOpens() {
+        var enabled by mutableStateOf(true)
+        var resumes = 0
+        composeRule.setContent {
+            ContinueWatchingShelf(
+                shelf = CatalogShelf("Continue Watching", listOf(movie), false),
+                onItemClick = {},
+                onRemoveItem = {},
+                onContinueWatching = {
+                    resumes++
+                    enabled = false
+                },
+                actionsEnabled = enabled,
+            )
+        }
+        poster("Movie").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+            .performTouchInput { longClick() }
+        composeRule.onNodeWithText("Continuar assistindo").performClick()
+        composeRule.mainClock.advanceTimeBy(100)
+        composeRule.waitForIdle()
+        composeRule.runOnIdle { assertEquals(1, resumes) }
+        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+    }
 
     @Test
     fun shortOkAndEnterKeepExistingSingleClickBehavior() {

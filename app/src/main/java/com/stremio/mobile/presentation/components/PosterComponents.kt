@@ -75,7 +75,8 @@ fun PosterShelf(
 ) {
     val listState = rememberLazyListState()
     val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
-    LaunchedEffect(focusRestoreRequest) {
+    LaunchedEffect(focusRestoreRequest, onItemLongClick != null) {
+        if (onItemLongClick == null) return@LaunchedEffect
         val target = focusRestoreRequest ?: return@LaunchedEffect
         val index = shelf.items.indexOfFirst { it.posterKey() == target.itemKey }
         if (index < 0) return@LaunchedEffect
@@ -83,7 +84,7 @@ fun PosterShelf(
         // The requested poster may need to be composed after scrolling and closing the dialog.
         withFrameNanos { }
         withFrameNanos { }
-        focusRequesters[target.itemKey]?.requestFocus()
+        runCatching { focusRequesters[target.itemKey]?.requestFocus() }
     }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
