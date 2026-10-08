@@ -2,6 +2,16 @@
 
 Native Android client for Stremio built with Kotlin, Jetpack Compose, Kotlin Multiplatform, ExoPlayer, MPV, and a Rust-powered local streaming server.
 
+## MW Play Android TV
+
+This branch (`feat/mw-play-tv`) contains the TV app. The mobile app is maintained separately in `feat/mw-play-mobile`.
+
+- Use the D-pad to move between highlighted controls and OK to activate them. On focused sliders, Left/Right adjusts the value.
+- Press Right in the navigation menu to return to content. Move Left to the menu opener and press OK to reopen it.
+- During playback, a direction or OK reveals hidden controls. Back closes the current menu or hides the controls; press Back again to leave playback.
+- The player exposes seeking, playback speed, audio, subtitle selection/import/style, volume, resize, stats, and the next episode when available. The remote's media keys also control playback.
+- Search, login, and addon address fields open the TV keyboard with OK. Details, stream selection, and player menus keep focus within the visible window.
+
 [![Android CI](https://github.com/perpetus/stremio-android/actions/workflows/android-ci.yml/badge.svg)](https://github.com/perpetus/stremio-android/actions/workflows/android-ci.yml)
 [![Release APK](https://github.com/perpetus/stremio-android/actions/workflows/release-apk.yml/badge.svg)](https://github.com/perpetus/stremio-android/actions/workflows/release-apk.yml)
 
@@ -231,7 +241,7 @@ The MPV rebuild script is intended for Linux/macOS environments. stream-server n
 - MPV support is vendored source plus native outputs, not a Maven runtime dependency.
 - The app targets Android package `com.stremio.mobile`.
 - Supported native ABIs are currently `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64`.
-- The project is optimized for phone UI. TV/D-pad behavior is not the primary target.
+- This branch is optimized for Android TV and D-pad controls. Phone-specific changes remain in `feat/mw-play-mobile`.
 
 ## Useful Commands
 
@@ -264,3 +274,4 @@ python .github/scripts/verify-apk-outputs.py app/build/outputs/apk/release armea
 ## Disclaimer
 
 This is an unofficial Android client experiment for Stremio-compatible workflows. It is not a replacement for the official Stremio apps and is provided for testing and development.
+

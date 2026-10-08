@@ -9,6 +9,9 @@ class PlayerEngineTest {
         assertEquals(PlayerEngine.EXO, PlayerEngine.fromProfileValue(null))
         assertEquals(PlayerEngine.EXO, PlayerEngine.fromProfileValue("exo"))
         assertEquals(PlayerEngine.MPV, PlayerEngine.fromProfileValue("mpv"))
-        assertEquals(PlayerEngine.EXO, PlayerEngine.fromProfileValue("vlc"))
+        assertEquals(PlayerEngine.VLC, PlayerEngine.fromProfileValue("vlc"))
+        assertEquals(PlayerEngine.VLC, PlayerEngine.fromProfileValue("VLC"))
+        assertEquals(PlayerEngine.EXO, PlayerEngine.fromProfileValue("unknown"))
     }
 }
+

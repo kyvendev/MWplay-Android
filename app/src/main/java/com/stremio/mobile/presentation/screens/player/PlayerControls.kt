@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.VolumeMute
+import androidx.compose.material.icons.automirrored.outlined.VolumeDown
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.outlined.FastRewind
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Subtitles
+import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +31,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +66,8 @@ data class PlayerControlsState(
     val canSelectAudio: Boolean,
     val isMuted: Boolean,
     val volumeFraction: Float,
+    val seekStepMs: Long = 10_000L,
+    val canPlayNext: Boolean = false,
 )
 
 class PlayerControlsActions(
@@ -70,6 +82,9 @@ class PlayerControlsActions(
     val onShowSubtitles: () -> Unit,
     val onShowAudio: () -> Unit,
     val onToggleStats: () -> Unit,
+    val onDecreaseVolume: () -> Unit = {},
+    val onIncreaseVolume: () -> Unit = {},
+    val onPlayNext: () -> Unit = {},
 )
 
 @Composable
@@ -83,11 +98,9 @@ private fun TvPlayerControls(state: PlayerControlsState, actions: PlayerControls
     if (!state.showControls) return
 
     val primaryFocus = remember { FocusRequester() }
-    LaunchedEffect(state.showControls, state.isBuffering) {
-        if (state.showControls && !state.isBuffering) {
-            delay(80)
-            runCatching { primaryFocus.requestFocus() }
-        }
+    LaunchedEffect(Unit) {
+        delay(80)
+        primaryFocus.requestFocus()
     }
 
     Box(modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xD9000000), Color.Transparent, Color(0xE6000000))))) {
@@ -99,9 +112,8 @@ private fun TvPlayerControls(state: PlayerControlsState, actions: PlayerControls
             Text(state.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         }
 
-        if (!state.isBuffering) {
             Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
-                TvIconButton(Icons.Outlined.FastRewind, "Voltar 10 segundos", 58, actions.onSkipBack)
+                TvIconButton(Icons.Outlined.FastRewind, "Voltar ${state.seekStepMs / 1000} segundos", 58, actions.onSkipBack)
                 IconButton(
                     onClick = actions.onPlayPause,
                     modifier = Modifier
@@ -113,22 +125,22 @@ private fun TvPlayerControls(state: PlayerControlsState, actions: PlayerControls
                 ) {
                     Icon(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, if (state.isPlaying) "Pausar" else "Reproduzir", tint = Color.White, modifier = Modifier.size(44.dp))
                 }
-                TvIconButton(Icons.Outlined.FastForward, "Avançar 10 segundos", 58, actions.onSkipForward)
+                TvIconButton(Icons.Outlined.FastForward, "Avançar ${state.seekStepMs / 1000} segundos", 58, actions.onSkipForward)
             }
-        } else {
-            CircularProgressIndicator(color = AccentPurple, modifier = Modifier.align(Alignment.Center).size(54.dp))
-        }
 
         Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 38.dp, vertical = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             TvTimeline(state, actions)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     TvIconButton(if (state.isMuted) Icons.AutoMirrored.Outlined.VolumeMute else Icons.AutoMirrored.Outlined.VolumeUp, if (state.isMuted) "Ativar som" else "Silenciar", 50, actions.onToggleMute)
+                    TvIconButton(Icons.AutoMirrored.Outlined.VolumeDown, "Diminuir volume", 50, actions.onDecreaseVolume)
+                    TvIconButton(Icons.AutoMirrored.Outlined.VolumeUp, "Aumentar volume", 50, actions.onIncreaseVolume)
                     TvTextButton("${state.currentSpeed}x", Icons.Outlined.Speed, actions.onCycleSpeed)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (state.canSelectSubtitles) TvIconButton(Icons.Outlined.Subtitles, "Legendas", 50, actions.onShowSubtitles)
                     if (state.canSelectAudio) TvIconButton(Icons.Outlined.Audiotrack, "Áudio", 50, actions.onShowAudio)
+                    if (state.canPlayNext) TvIconButton(Icons.Outlined.SkipNext, "Próximo episódio", 50, actions.onPlayNext)
                     TvTextButton(resizeLabel(state.resizeMode), Icons.Outlined.AspectRatio, actions.onCycleAspect)
                     if (state.hasInfoHash) TvIconButton(Icons.Outlined.Info, "Informações", 50, actions.onToggleStats)
                 }
@@ -162,7 +174,27 @@ private fun TvTimeline(state: PlayerControlsState, actions: PlayerControlsAction
         Slider(
             value = progress,
             onValueChange = { actions.onSeekTo((it * duration).toLong()) },
-            modifier = Modifier.weight(1f).height(44.dp).tvFocusTarget(cornerRadius = 12.dp, focusedScale = 1.015f),
+            enabled = state.durationMs > 0,
+            modifier = Modifier.weight(1f).height(44.dp)
+                .tvFocusTarget(cornerRadius = 12.dp, focusedScale = 1.015f)
+                .semantics {
+                    contentDescription = "Progresso do vídeo"
+                    stateDescription = "${formatTime(state.positionMs)} de ${formatTime(state.durationMs)}"
+                }
+                .onPreviewKeyEvent { event ->
+                    when (event.key) {
+                        Key.DirectionLeft, Key.DirectionRight -> {
+                            if (state.durationMs <= 0) false else {
+                                if (event.type == KeyEventType.KeyDown) {
+                                    val delta = if (event.key == Key.DirectionRight) state.seekStepMs else -state.seekStepMs
+                                    actions.onSeekTo((state.positionMs + delta).coerceIn(0L, duration))
+                                }
+                                true
+                            }
+                        }
+                        else -> false
+                    }
+                },
             colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = AccentPurple, inactiveTrackColor = Color.White.copy(alpha = .28f))
         )
         Text(formatTime(state.durationMs), color = Color.White, fontSize = 14.sp, modifier = Modifier.width(62.dp), textAlign = TextAlign.Center)
@@ -182,3 +214,4 @@ private fun formatTime(ms: Long): String {
     val s = t % 60
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
 }
+

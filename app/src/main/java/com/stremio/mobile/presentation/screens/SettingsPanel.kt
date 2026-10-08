@@ -12,6 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -77,8 +79,13 @@ private fun SettingsMenuRow(icon:ImageVector,title:String,description:String,onC
 @Composable
 fun SettingsHeader(title:String,onBack:()->Unit) {
     val haptic=rememberGlobalHapticFeedback()
+    val isTv = rememberIsTelevision()
+    val backRequester = remember { FocusRequester() }
+    LaunchedEffect(isTv) {
+        if (isTv) runCatching { backRequester.requestFocus() }
+    }
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp),modifier=Modifier.fillMaxWidth().padding(vertical=8.dp)) {
-        Box(Modifier.tvFocusTarget(cornerRadius=999.dp,focusedScale=1.10f).clickable{haptic();onBack()}.padding(8.dp),contentAlignment=Alignment.Center){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Voltar",tint=Color.White,modifier=Modifier.size(24.dp))}
+        Box(Modifier.focusRequester(backRequester).tvFocusTarget(cornerRadius=999.dp,focusedScale=1.10f).clickable{haptic();onBack()}.padding(8.dp),contentAlignment=Alignment.Center){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Voltar",tint=Color.White,modifier=Modifier.size(24.dp))}
         Text(title,color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
     }
 }
@@ -96,11 +103,47 @@ fun SettingsToggleRow(title:String,checked:Boolean,onCheckedChange:(Boolean)->Un
 
 @Composable
 fun <T> SettingsDropdownRow(title:String,selectedValue:T,options:List<Pair<T,String>>,onSelect:(T)->Unit,description:String?=null) {
-    var expanded by remember{mutableStateOf(false)}; val selectedLabel=options.find{it.first==selectedValue}?.second?:selectedValue.toString(); val haptic=rememberGlobalHapticFeedback()
+    var expanded by remember { mutableStateOf(false) }
+    var restoreFocus by remember { mutableStateOf(false) }
+    val selectedIndex = options.indexOfFirst { it.first == selectedValue }.coerceAtLeast(0)
+    val selectedLabel = options.find { it.first == selectedValue }?.second ?: selectedValue.toString()
+    val haptic = rememberGlobalHapticFeedback()
+    val isTv = rememberIsTelevision()
+    val rowRequester = remember { FocusRequester() }
+    val optionRequester = remember { FocusRequester() }
+    val dismissMenu = {
+        expanded = false
+        restoreFocus = isTv
+    }
+
+    LaunchedEffect(expanded, restoreFocus) {
+        if (isTv && expanded && options.isNotEmpty()) {
+            withFrameNanos { }
+            runCatching { optionRequester.requestFocus() }
+        } else if (restoreFocus) {
+            withFrameNanos { }
+            runCatching { rowRequester.requestFocus() }
+            restoreFocus = false
+        }
+    }
+
     ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
-        Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();expanded=true}.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth().focusRequester(rowRequester).tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable(enabled = options.isNotEmpty()){haptic();expanded=true}.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}}
-            Box { Text(selectedLabel,color=AccentPurple,fontSize=15.sp,fontWeight=FontWeight.Medium,modifier=Modifier.padding(horizontal=8.dp,vertical=4.dp)); ThemedDropdownMenu(expanded,{expanded=false}) { options.forEach{(value,label)->DropdownMenuItem(text={Text(label,color=Color.White)},onClick={haptic();onSelect(value);expanded=false},modifier=Modifier.tvFocusTarget(cornerRadius=10.dp,focusedScale=1.02f))} } }
+            Box {
+                Text(selectedLabel,color=AccentPurple,fontSize=15.sp,fontWeight=FontWeight.Medium,modifier=Modifier.padding(horizontal=8.dp,vertical=4.dp))
+                ThemedDropdownMenu(expanded, dismissMenu) {
+                    options.forEachIndexed { index, (value, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label, color = Color.White) },
+                            onClick = { haptic(); onSelect(value); dismissMenu() },
+                            modifier = Modifier
+                                .then(if (index == selectedIndex) Modifier.focusRequester(optionRequester) else Modifier)
+                                .tvFocusTarget(cornerRadius = 10.dp, focusedScale = 1f),
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -120,3 +163,4 @@ fun SettingsClickRow(title:String,onClick:()->Unit,description:String?=null) {
     val haptic=rememberGlobalHapticFeedback()
     ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) { Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();onClick()}.padding(horizontal=16.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) { Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}};Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight,null,tint=Color.White,modifier=Modifier.size(20.dp)) } }
 }
+

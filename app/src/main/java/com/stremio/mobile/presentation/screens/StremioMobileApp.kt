@@ -8,6 +8,8 @@ import com.stremio.mobile.server.StreamingServerState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,12 +52,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -86,6 +95,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val streamsState by viewModel.streamsState.collectAsStateWithLifecycle()
     val isPlayerOpen by viewModel.isPlayerOpen.collectAsStateWithLifecycle()
+    val isTv = rememberIsTelevision()
     val rootGlobalTheme = remember(
         state.globalUiStyle,
         state.glassEffectsMode,
@@ -185,97 +195,103 @@ fun StremioMobileApp(viewModel: MainViewModel) {
             }
 
             if (state.account.isAuthenticated && state.isSearchOpen) {
-                SearchResultsScreen(
-                    query = state.searchQuery,
-                    results = state.searchResults,
-                    shelves = state.searchShelves,
-                    onQueryChange = viewModel::search,
-                    onOpenDetails = viewModel::openDetails,
-                    onOpenDiscoverCatalog = viewModel::openDiscoverCatalog,
-                    onBack = viewModel::clearSearch,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                TvModalSurface(onDismissRequest = viewModel::clearSearch) {
+                    SearchResultsScreen(
+                        query = state.searchQuery,
+                        results = state.searchResults,
+                        shelves = state.searchShelves,
+                        onQueryChange = viewModel::search,
+                        onOpenDetails = viewModel::openDetails,
+                        onOpenDiscoverCatalog = { request, title ->
+                            viewModel.clearSearch()
+                            viewModel.openDiscoverCatalog(request, title)
+                        },
+                        onBack = viewModel::clearSearch,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
 
             state.selectedDetails?.let { details ->
                 BackHandler(onBack = viewModel::closeDetails)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0x99000000))
-                        .clickable(
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                            indication = null
-                        ) { viewModel.closeDetails() }
-                ) {
-                    DetailSheet(
-                        details = details,
-                        inLibrary = state.library.items.any { it.id == details.item.id && it.type == details.item.type },
-                        onBack = viewModel::closeDetails,
-                        onToggleLibrary = { viewModel.toggleLibrary(details.item) },
-                        onOpenStreams = { viewModel.openStreams(details.item) },
+                TvModalSurface(onDismissRequest = viewModel::closeDetails) {
+                    Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .clickable(
+                            .fillMaxSize()
+                            .background(Color(0x99000000))
+                            .then(if (isTv) Modifier else Modifier.clickable(
                                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                 indication = null
-                            ) {} // Block click propagation
-                    )
+                            ) { viewModel.closeDetails() })
+                    ) {
+                        DetailSheet(
+                            details = details,
+                            inLibrary = state.library.items.any { it.id == details.item.id && it.type == details.item.type },
+                            onBack = viewModel::closeDetails,
+                            onToggleLibrary = { viewModel.toggleLibrary(details.item) },
+                            onOpenStreams = { viewModel.openStreams(details.item) },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .then(if (isTv) Modifier else Modifier.clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null
+                                ) {}) // Block touch propagation without a dead TV focus target.
+                        )
+                    }
                 }
             }
 
             state.selectedAddonDetails?.let { details ->
                 BackHandler(onBack = viewModel::closeAddonDetails)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0x99000000))
-                        .clickable(
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                            indication = null
-                        ) { viewModel.closeAddonDetails() }
-                ) {
-                    AddonDetailsSheet(
-                        details = details,
-                        onBack = viewModel::closeAddonDetails,
-                        onInstall = viewModel::installAddon,
-                        onUninstall = viewModel::uninstallAddon,
-                        onUpgrade = viewModel::upgradeAddon,
+                TvModalSurface(onDismissRequest = viewModel::closeAddonDetails) {
+                    Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .clickable(
+                            .fillMaxSize()
+                            .background(Color(0x99000000))
+                            .then(if (isTv) Modifier else Modifier.clickable(
                                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                 indication = null
-                            ) {} // Block click propagation
-                    )
+                            ) { viewModel.closeAddonDetails() })
+                    ) {
+                        AddonDetailsSheet(
+                            details = details,
+                            onBack = viewModel::closeAddonDetails,
+                            onInstall = viewModel::installAddon,
+                            onUninstall = viewModel::uninstallAddon,
+                            onUpgrade = viewModel::upgradeAddon,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .then(if (isTv) Modifier else Modifier.clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null
+                                ) {}) // Block touch propagation without a dead TV focus target.
+                        )
+                    }
                 }
             }
 
             if (streamsState.isOpen) {
-                BackHandler {
+                val onStreamsBack = {
                     if (streamsState.isSeries && streamsState.selectedVideoId != null) {
                         viewModel.backToEpisodes()
                     } else {
                         viewModel.closeStreams()
                     }
                 }
-                StreamsSheet(
-                    state = streamsState,
-                    preferredQuality = state.preferredQuality,
-                    onBack = {
-                        if (streamsState.isSeries && streamsState.selectedVideoId != null) {
-                            viewModel.backToEpisodes()
-                        } else {
-                            viewModel.closeStreams()
-                        }
-                    },
-                    onSelect = viewModel::playStream,
-                    onSelectEpisode = viewModel::selectEpisode,
-                    onSelectSeason = viewModel::selectSeason,
-                    onSelectProvider = viewModel::selectStreamProvider,
-                    onSelectSortCriterion = viewModel::selectStreamSortCriterion,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                BackHandler(onBack = onStreamsBack)
+                TvModalSurface(onDismissRequest = onStreamsBack) {
+                    StreamsSheet(
+                        state = streamsState,
+                        preferredQuality = state.preferredQuality,
+                        onBack = onStreamsBack,
+                        onSelect = viewModel::playStream,
+                        onSelectEpisode = viewModel::selectEpisode,
+                        onSelectSeason = viewModel::selectSeason,
+                        onSelectProvider = viewModel::selectStreamProvider,
+                        onSelectSortCriterion = viewModel::selectStreamSortCriterion,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
 
             if (state.showMobileDataWarning) {
@@ -302,13 +318,18 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { disableWarning = !disableWarning },
+                                    .tvFocusTarget(focusedScale = 1f)
+                                    .toggleable(
+                                        value = disableWarning,
+                                        role = Role.Checkbox,
+                                        onValueChange = { disableWarning = it },
+                                    ),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 androidx.compose.material3.Checkbox(
                                     checked = disableWarning,
-                                    onCheckedChange = { disableWarning = it },
+                                    onCheckedChange = null,
                                     colors = androidx.compose.material3.CheckboxDefaults.colors(
                                         checkedColor = AccentPurple,
                                         uncheckedColor = MutedText,
@@ -326,6 +347,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     },
                     confirmButton = {
                         androidx.compose.material3.TextButton(
+                            modifier = Modifier.tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                             onClick = {
                                 if (disableWarning) {
                                     viewModel.setMobileDataWarning(false)
@@ -338,6 +360,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     },
                     dismissButton = {
                         androidx.compose.material3.TextButton(
+                            modifier = Modifier.tvDialogInitialFocus().tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                             onClick = viewModel::cancelMobileDataPlayback
                         ) {
                             Text(text = "Cancel", color = MutedText)
@@ -371,6 +394,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     },
                     confirmButton = {
                         androidx.compose.material3.TextButton(
+                            modifier = Modifier.tvDialogInitialFocus().tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                             onClick = viewModel::startServer
                         ) {
                             Text(text = "Retry", color = AccentPurple, fontWeight = FontWeight.Bold)
@@ -378,6 +402,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     },
                     dismissButton = {
                         androidx.compose.material3.TextButton(
+                            modifier = Modifier.tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                             onClick = {
                                 (context as? Activity)?.finish()
                             }
@@ -422,6 +447,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         },
                         confirmButton = {
                             androidx.compose.material3.TextButton(
+                                modifier = Modifier.tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                                 onClick = { viewModel.downloadAndInstallUpdate(update.info) }
                             ) {
                                 Text(text = "Install", color = AccentPurple, fontWeight = FontWeight.Bold)
@@ -429,6 +455,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         },
                         dismissButton = {
                             androidx.compose.material3.TextButton(
+                                modifier = Modifier.tvDialogInitialFocus().tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                                 onClick = viewModel::dismissUpdateDialog
                             ) {
                                 Text(text = "Not Now", color = MutedText)
@@ -510,6 +537,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         },
                         confirmButton = {
                             androidx.compose.material3.TextButton(
+                                modifier = Modifier.tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                                 onClick = { viewModel.installDownloadedUpdate(update.file) }
                             ) {
                                 Text(text = "Install", color = AccentPurple, fontWeight = FontWeight.Bold)
@@ -517,6 +545,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         },
                         dismissButton = {
                             androidx.compose.material3.TextButton(
+                                modifier = Modifier.tvDialogInitialFocus().tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                                 onClick = viewModel::dismissUpdateDialog
                             ) {
                                 Text(text = "Later", color = MutedText)
@@ -531,41 +560,45 @@ fun StremioMobileApp(viewModel: MainViewModel) {
 
             if (isPlayerOpen) {
                 val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
-                PlayerScreen(
-                    player = viewModel.getPlayer(),
-                    activeUri = playbackState.activeUri,
-                    title = playbackState.title ?: "Stream",
-                    onAttachView = viewModel::attachPlayerView,
-                    onDetachView = viewModel::detachPlayerView,
-                    onBack = viewModel::closePlayer,
-                    getSubtitlePrefs = viewModel::getSubtitlePrefs,
-                    onSubtitlePrefsChanged = viewModel::updateSubtitlePrefs,
-                    profileSettings = state.profileSettings,
-                    getPlayerStreamState = viewModel::getPlayerStreamState,
-                    onAudioTrackSelected = viewModel::rememberAudioTrack,
-                    onSubtitleTrackSelected = viewModel::rememberSubtitleTrack,
-                    onSubtitlesDisabled = viewModel::rememberSubtitlesDisabled,
-                    onSubtitleStyleChanged = viewModel::rememberSubtitleStyle,
-                    onLocalSubtitlePicked = viewModel::importLocalSubtitle,
-                    nextVideo = state.nextVideo,
-                    showNextVideoPopup = state.showNextVideoPopup,
-                    onDismissNextVideoPopup = viewModel::dismissNextVideoPopup,
-                    onPlayNext = { state.nextVideo?.let(viewModel::playNextVideo) },
-                    onTick = viewModel::onPlayerTick,
-                    onSeekReported = viewModel::onPlayerSeek,
-                    onPausedChanged = viewModel::onPlayerPausedChanged,
-                    onEnded = viewModel::onPlaybackEnded,
-                    showNoSeedsBanner = state.showNoSeedsBanner,
-                    noSeedsReason = state.noSeedsReason,
-                    onPlayNextBestStream = { viewModel.playNextBestStream() },
-                    globalUiStyle = if (state.playerUiStyle == "global") state.globalUiStyle else state.playerUiStyle,
-                    glassEffectsMode = state.glassEffectsMode,
-                    globalGlassAlpha = state.globalGlassAlpha,
-                    adaptiveGlassContrast = state.adaptiveGlassContrast,
-                    glassHapticsEnabled = state.glassHapticsEnabled,
-                    hapticsIntensity = state.hapticsIntensity,
-                    liquidGlassTuning = state.liquidGlassTuning,
-                )
+                var playerRemoteBack by remember { mutableStateOf<(() -> Unit)?>(null) }
+                TvModalSurface(onDismissRequest = { playerRemoteBack?.invoke() ?: viewModel.closePlayer() }) {
+                    PlayerScreen(
+                        player = viewModel.getPlayer(),
+                        activeUri = playbackState.activeUri,
+                        title = playbackState.title ?: "Stream",
+                        onAttachView = viewModel::attachPlayerView,
+                        onDetachView = viewModel::detachPlayerView,
+                        onBack = viewModel::closePlayer,
+                        getSubtitlePrefs = viewModel::getSubtitlePrefs,
+                        onSubtitlePrefsChanged = viewModel::updateSubtitlePrefs,
+                        profileSettings = state.profileSettings,
+                        getPlayerStreamState = viewModel::getPlayerStreamState,
+                        onAudioTrackSelected = viewModel::rememberAudioTrack,
+                        onSubtitleTrackSelected = viewModel::rememberSubtitleTrack,
+                        onSubtitlesDisabled = viewModel::rememberSubtitlesDisabled,
+                        onSubtitleStyleChanged = viewModel::rememberSubtitleStyle,
+                        onLocalSubtitlePicked = viewModel::importLocalSubtitle,
+                        nextVideo = state.nextVideo,
+                        showNextVideoPopup = state.showNextVideoPopup,
+                        onDismissNextVideoPopup = viewModel::dismissNextVideoPopup,
+                        onPlayNext = { state.nextVideo?.let(viewModel::playNextVideo) },
+                        onTick = viewModel::onPlayerTick,
+                        onSeekReported = viewModel::onPlayerSeek,
+                        onPausedChanged = viewModel::onPlayerPausedChanged,
+                        onEnded = viewModel::onPlaybackEnded,
+                        showNoSeedsBanner = state.showNoSeedsBanner,
+                        noSeedsReason = state.noSeedsReason,
+                        onPlayNextBestStream = { viewModel.playNextBestStream() },
+                        globalUiStyle = if (state.playerUiStyle == "global") state.globalUiStyle else state.playerUiStyle,
+                        glassEffectsMode = state.glassEffectsMode,
+                        globalGlassAlpha = state.globalGlassAlpha,
+                        adaptiveGlassContrast = state.adaptiveGlassContrast,
+                        glassHapticsEnabled = state.glassHapticsEnabled,
+                        hapticsIntensity = state.hapticsIntensity,
+                        liquidGlassTuning = state.liquidGlassTuning,
+                        onRemoteBackHandlerChanged = { playerRemoteBack = it },
+                    )
+                }
             }
 
             if (state.showAnalyticsDisclosure) {
@@ -624,7 +657,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                                 text = "Opt Out",
                                 onClick = { viewModel.acknowledgeAnalyticsDisclosure(false) },
                                 containerColor = Color(0xFFD32F2F),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f).tvDialogInitialFocus()
                             )
                             ThemedButton(
                                 text = "Accept",
@@ -642,6 +675,40 @@ fun StremioMobileApp(viewModel: MainViewModel) {
         }
     }
 }
+}
+
+/** A separate TV window keeps D-pad focus inside the visible screen and restores it on exit. */
+@Composable
+private fun TvModalSurface(
+    onDismissRequest: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    if (rememberIsTelevision()) {
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+                dismissOnClickOutside = false,
+            ),
+        ) {
+            Box(modifier = Modifier.fillMaxSize().focusGroup()) {
+                content()
+            }
+        }
+    } else {
+        content()
+    }
+}
+
+@Composable
+private fun Modifier.tvDialogInitialFocus(): Modifier {
+    if (!rememberIsTelevision()) return this
+    val requester = remember { FocusRequester() }
+    LaunchedEffect(requester) {
+        requester.requestFocus()
+    }
+    return focusRequester(requester)
 }
 
 @Composable
@@ -701,6 +768,12 @@ private fun BoardScreen(
     onIgnoreUpdate: (String) -> Unit,
 ) {
     var settingsSubScreen by rememberSaveable { mutableStateOf(SettingsSubScreen.Main) }
+    val isTv = rememberIsTelevision()
+    val contentListState = rememberLazyListState()
+
+    LaunchedEffect(state.selectedSection, settingsSubScreen) {
+        contentListState.scrollToItem(0)
+    }
 
     LaunchedEffect(state.selectedSection) {
         if (state.selectedSection != MainSection.Settings) {
@@ -774,11 +847,15 @@ private fun BoardScreen(
             }
 
             LazyColumn(
+                state = contentListState,
                 modifier = Modifier
                     .fillMaxSize()
+                    // Leave room for the rail even when collapsed, so opening it cannot hide
+                    // a focused poster or a settings control or reflow the focus hierarchy.
+                    .then(if (isTv) Modifier.padding(start = 122.dp).focusRestorer().focusGroup() else Modifier)
                     .then(if (contentBackdrop != null) Modifier.layerBackdrop(contentBackdrop) else Modifier)
                     .windowInsetsPadding(WindowInsets.statusBars),
-            contentPadding = PaddingValues(bottom = BottomBarSpace + navBottom),
+            contentPadding = PaddingValues(bottom = if (isTv) 32.dp else BottomBarSpace + navBottom),
             verticalArrangement = Arrangement.spacedBy(if (isAddonsSettingsPage) 10.dp else 27.dp),
         ) {
             item {
@@ -1125,6 +1202,7 @@ private fun FilterChip(
     val textColor = if (selected) Color.White else MutedText
     Box(
         modifier = modifier
+            .tvFocusTarget(cornerRadius = 99.dp, focusedScale = 1.04f)
             .clip(RoundedCornerShape(99.dp))
             .background(backgroundColor)
             .clickable(onClick = onClick)
@@ -1161,16 +1239,33 @@ fun DropdownFilter(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var restoreAnchorFocus by remember { mutableStateOf(false) }
+    val isTv = rememberIsTelevision()
+    val anchorFocus = remember { FocusRequester() }
+    val selectedOptionFocus = remember { FocusRequester() }
+    val focusIndex = selectedIndex.coerceIn(0, (options.size - 1).coerceAtLeast(0))
     val theme = LocalGlobalUiTheme.current
     val useRealGlass = theme.style == "modern" && theme.glassEffectsMode == "full" && backdrop != null
+    LaunchedEffect(expanded) {
+        if (isTv && !expanded && restoreAnchorFocus) {
+            kotlinx.coroutines.yield()
+            anchorFocus.requestFocus()
+            restoreAnchorFocus = false
+        }
+    }
     Box(modifier = modifier) {
         val backgroundColor = GlassSurface
         val textColor = Color.White
         Row(
             modifier = Modifier
+                .focusRequester(anchorFocus)
+                .tvFocusTarget(cornerRadius = 99.dp, focusedScale = 1.04f)
                 .clip(RoundedCornerShape(99.dp))
                 .background(backgroundColor)
-                .clickable { expanded = true }
+                .clickable(enabled = options.isNotEmpty()) {
+                    restoreAnchorFocus = true
+                    expanded = true
+                }
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1228,6 +1323,11 @@ fun DropdownFilter(
             onDismissRequest = { expanded = false },
             modifier = menuModifier
         ) {
+            LaunchedEffect(Unit) {
+                if (isTv && options.isNotEmpty()) {
+                    selectedOptionFocus.requestFocus()
+                }
+            }
             options.forEachIndexed { index, option ->
                 val isSelected = index == selectedIndex
                 DropdownMenuItem(
@@ -1243,7 +1343,10 @@ fun DropdownFilter(
                         onSelectIndex(index)
                         expanded = false
                     },
-                    modifier = Modifier.background(if (isSelected) AccentPurple.copy(alpha = 0.15f) else Color.Transparent)
+                    modifier = Modifier
+                        .then(if (index == focusIndex) Modifier.focusRequester(selectedOptionFocus) else Modifier)
+                        .tvFocusTarget(cornerRadius = 8.dp, focusedScale = 1f)
+                        .background(if (isSelected) AccentPurple.copy(alpha = 0.15f) else Color.Transparent)
                 )
             }
         }
@@ -1377,3 +1480,4 @@ private fun DiscoverFiltersRow(
         }
     }
 }
+

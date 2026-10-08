@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -61,6 +62,8 @@ import com.stremio.mobile.presentation.components.PosterTile
 import com.stremio.mobile.presentation.components.ShelfMode
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.ThemedIconButton
+import com.stremio.mobile.presentation.components.rememberIsTelevision
+import com.stremio.mobile.presentation.components.tvTextInput
 
 /**
  * Full-screen search results, shown whenever the query is non-blank. Reuses the Discover-style
@@ -99,6 +102,7 @@ fun SearchResultsScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val isTv = rememberIsTelevision()
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val globalTheme = LocalGlobalUiTheme.current
     val fieldContainerColor = if (globalTheme.style == "modern") {
@@ -142,7 +146,8 @@ fun SearchResultsScreen(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 12.dp)
-                    .focusRequester(focusRequester),
+                    .focusRequester(focusRequester)
+                    .tvTextInput(),
                 placeholder = {
                     Text(
                         text = "Search movies, series, anime…",
@@ -163,11 +168,14 @@ fun SearchResultsScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(18.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                keyboardActions = KeyboardActions(onSearch = {
+                    keyboard?.hide()
+                    if (isTv) focusManager.moveFocus(FocusDirection.Down)
+                }),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = fieldContainerColor,
                     unfocusedContainerColor = fieldContainerColor,
-                    focusedBorderColor = Color(0x33FFFFFF),
+                    focusedBorderColor = AccentPurple,
                     unfocusedBorderColor = Color(0x19FFFFFF),
                     cursorColor = AccentPurple,
                     focusedTextColor = Color.White,
@@ -251,3 +259,4 @@ private fun androidx.compose.foundation.lazy.LazyListScope.items_grid(
         }
     }
 }
+

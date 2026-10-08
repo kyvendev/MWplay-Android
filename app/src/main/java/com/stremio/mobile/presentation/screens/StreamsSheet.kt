@@ -3,10 +3,12 @@ package com.stremio.mobile.presentation.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,10 +23,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -47,9 +54,9 @@ import com.stremio.mobile.data.model.qualityScore
 import com.stremio.mobile.presentation.components.ThemedCard
 import com.stremio.mobile.presentation.components.ThemedChip
 import com.stremio.mobile.presentation.components.ThemedIconButton
+import com.stremio.mobile.presentation.components.rememberIsTelevision
 import com.stremio.mobile.presentation.components.tvFocusTarget
 import com.stremio.mobile.presentation.state.StreamsUiState
-import kotlinx.coroutines.delay
 
 @Composable
 fun StreamsSheet(
@@ -63,10 +70,17 @@ fun StreamsSheet(
     onSelectSortCriterion: (StreamSortCriterion) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isTv = rememberIsTelevision()
+    val backFocus = remember { FocusRequester() }
     val firstContentFocus = remember { FocusRequester() }
+    var initialContentFocused by remember(state.forItem?.id, state.selectedVideoId) { mutableStateOf(false) }
+
+    LaunchedEffect(isTv, state.forItem?.id, state.selectedVideoId) {
+        if (isTv) runCatching { backFocus.requestFocus() }
+    }
 
     Column(
-        modifier = modifier.fillMaxSize().background(StremioBackgroundBrush)
+        modifier = modifier.fillMaxSize().focusGroup().background(StremioBackgroundBrush)
             .windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -75,7 +89,7 @@ fun StreamsSheet(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = "Voltar",
                 onClick = onBack,
-                modifier = Modifier.size(44.dp).tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.12f),
+                modifier = Modifier.size(44.dp).focusRequester(backFocus).tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.12f),
                 containerColor = GlassSurface,
             )
             Column(modifier = Modifier.weight(1f)) {
@@ -107,8 +121,8 @@ fun StreamsSheet(
                 val listState = rememberLazyListState()
 
                 if (state.seasons.size > 1) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
-                        items(state.seasons) { season ->
+                    LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
+                        items(state.seasons, key = { it }) { season ->
                             val selected = season == state.selectedSeason
                             Box(Modifier.tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.08f)) {
                                 ThemedChip(selected = selected, onClick = { onSelectSeason(season) }) {
@@ -119,11 +133,13 @@ fun StreamsSheet(
                     }
                 }
 
-                LaunchedEffect(state.selectedSeason, filteredEpisodes, targetIndex) {
+                LaunchedEffect(state.selectedSeason, filteredEpisodes.isNotEmpty()) {
                     if (filteredEpisodes.isNotEmpty()) {
                         listState.scrollToItem(targetIndex.coerceIn(filteredEpisodes.indices))
-                        delay(100)
-                        runCatching { firstContentFocus.requestFocus() }
+                        if (isTv && !initialContentFocused) {
+                            withFrameNanos { }
+                            initialContentFocused = runCatching { firstContentFocus.requestFocus(FocusDirection.Enter) }.getOrDefault(false)
+                        }
                     }
                 }
 
@@ -133,8 +149,7 @@ fun StreamsSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 ) {
-                    items(filteredEpisodes, key = { it.videoId }) { episode ->
-                        val index = filteredEpisodes.indexOf(episode)
+                    itemsIndexed(filteredEpisodes, key = { _, episode -> episode.videoId }) { index, episode ->
                         EpisodeRow(
                             episode = episode,
                             onClick = { onSelectEpisode(episode) },
@@ -159,26 +174,26 @@ fun StreamsSheet(
                         }
                     }
 
-                    if (providers.size > 1 || state.sortCriterion != StreamSortCriterion.DEFAULT) {
+                    if (state.streams.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (providers.size > 1) {
-                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    item { FilterChip("Todos", state.selectedProvider == null) { onSelectProvider(null) } }
-                                    items(providers) { provider -> FilterChip(provider, state.selectedProvider == provider) { onSelectProvider(provider) } }
+                                LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    item(key = "all-providers") { FilterChip("Todos", state.selectedProvider == null) { onSelectProvider(null) } }
+                                    items(providers, key = { "provider:$it" }) { provider -> FilterChip(provider, state.selectedProvider == provider) { onSelectProvider(provider) } }
                                 }
                             }
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(StreamSortCriterion.entries.toList()) { criterion ->
+                            LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(StreamSortCriterion.entries.toList(), key = { it.name }) { criterion ->
                                     FilterChip("Ordenar: ${criterion.label}", state.sortCriterion == criterion) { onSelectSortCriterion(criterion) }
                                 }
                             }
                         }
                     }
 
-                    LaunchedEffect(visibleStreams, state.selectedEpisodeLabel) {
-                        if (visibleStreams.isNotEmpty()) {
-                            delay(100)
-                            runCatching { firstContentFocus.requestFocus() }
+                    LaunchedEffect(visibleStreams, state.selectedVideoId, state.isResolving) {
+                        if (isTv && visibleStreams.isNotEmpty() && !state.isResolving && !initialContentFocused) {
+                            withFrameNanos { }
+                            initialContentFocused = runCatching { firstContentFocus.requestFocus(FocusDirection.Enter) }.getOrDefault(false)
                         }
                     }
 
@@ -256,3 +271,4 @@ private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
         ThemedChip(selected = selected, onClick = onClick) { Text(label, color = if (selected) Color.White else MutedText, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
     }
 }
+

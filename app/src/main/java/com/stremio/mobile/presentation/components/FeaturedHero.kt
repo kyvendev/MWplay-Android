@@ -3,7 +3,7 @@ package com.stremio.mobile.presentation.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,9 +21,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -57,15 +62,22 @@ fun FeaturedHeroPager(
         return
     }
     val pagerState = rememberPagerState(pageCount = { items.size })
+    var heroFocused by remember { mutableStateOf(false) }
     LaunchedEffect(items) {
         while (true) {
             kotlinx.coroutines.delay(5000)
-            if (!pagerState.isScrollInProgress) {
+            if (!heroFocused && !pagerState.isScrollInProgress) {
                 pagerState.animateScrollToPage((pagerState.currentPage + 1) % items.size)
             }
         }
     }
-    Box(modifier = modifier.fillMaxWidth().height(230.dp)) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(230.dp)
+            .onFocusChanged { heroFocused = it.hasFocus }
+            .focusGroup(),
+    ) {
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             FeaturedHeroCard(item = items[page], onClick = onClick)
         }
@@ -90,7 +102,6 @@ fun FeaturedHeroCard(
     modifier: Modifier = Modifier,
 ) {
     if (item == null) return
-    val isTv = rememberIsTelevision()
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -99,11 +110,7 @@ fun FeaturedHeroCard(
             .tvFocusTarget(cornerRadius = 26.dp, focusedScale = 1.025f)
             .clip(RoundedCornerShape(26.dp))
             .background(CardFallback)
-            .clickable { onClick(item) }
-            // HorizontalPager can keep its child out of spatial focus search on some TV
-            // devices. Give the hero a concrete focus node so RIGHT from the navigation rail
-            // always has a valid destination in the content area.
-            .then(if (isTv) Modifier.focusable() else Modifier),
+            .clickable { onClick(item) },
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current).data(item.background ?: item.poster).size(800, 460).memoryCachePolicy(CachePolicy.ENABLED).crossfade(true).build(),
@@ -126,3 +133,4 @@ fun FeaturedHeroCard(
         }
     }
 }
+

@@ -2,6 +2,7 @@ package com.stremio.mobile.presentation.components
 
 import android.app.UiModeManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,7 +17,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.stremio.mobile.core.theme.AccentPurple
@@ -25,9 +31,13 @@ import com.stremio.mobile.core.theme.AccentPurple
 @Composable
 fun rememberIsTelevision(): Boolean {
     val context = LocalContext.current
-    return remember(context) {
+    val modeType = LocalConfiguration.current.uiMode and Configuration.UI_MODE_TYPE_MASK
+    return remember(context, modeType) {
         val uiMode = context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
-        uiMode?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        modeType == Configuration.UI_MODE_TYPE_TELEVISION ||
+            uiMode?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
     }
 }
 
@@ -58,3 +68,24 @@ fun Modifier.tvFocusTarget(
             shape = shape,
         )
 }
+
+/** Opens the software keyboard with a remote's select key on an already focused field. */
+@Composable
+fun Modifier.tvTextInput(): Modifier {
+    if (!rememberIsTelevision()) return this
+    val keyboardController = LocalSoftwareKeyboardController.current
+    return this
+        .tvFocusTarget(cornerRadius = 12.dp, focusedScale = 1f)
+        .onPreviewKeyEvent { event ->
+            when (event.nativeKeyEvent.keyCode) {
+                android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                android.view.KeyEvent.KEYCODE_ENTER,
+                android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                    if (event.type == KeyEventType.KeyUp) keyboardController?.show()
+                    true
+                }
+                else -> false
+            }
+        }
+}
+
