@@ -76,8 +76,9 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
     }
 
     private fun castOwnsSelectedPlayback(): Boolean {
-        val localUri = container.playbackRepository.state.value.activeUri
-        return localUri == null || localUri == castController.state.value.localUri
+        return castController.state.value.reportsToSelection(
+            container.playbackRepository.state.value.selectedSelectionId,
+        )
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

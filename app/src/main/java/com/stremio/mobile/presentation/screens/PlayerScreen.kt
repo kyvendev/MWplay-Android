@@ -99,6 +99,7 @@ import com.stremio.mobile.cast.CastRemotePlayer
 fun PlayerScreen(
     player: com.stremio.mobile.player.Player?,
     activeUri: String?,
+    activeSelectionId: Long? = null,
     castUri: String? = null,
     castRequiresHeaders: Boolean = false,
     title: String,
@@ -140,23 +141,24 @@ fun PlayerScreen(
     val application = remember(context) { context.applicationContext as MainApplication }
     val castController = application.castController
     val castState by castController.state.collectAsState()
-    val isCasting = castState.owns(activeUri)
+    val isCasting = castState.owns(activeUri, activeSelectionId)
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
     var showCastDialog by remember { mutableStateOf(false) }
-    LaunchedEffect(player, activeUri, castUri, castState.mediaUrl, castState.connected) {
-        castController.attachLocalPlayback(activeUri, castUri ?: activeUri)
+    LaunchedEffect(player, activeUri, activeSelectionId, castUri, castState.mediaUrl, castState.connected) {
+        castController.attachLocalPlayback(activeUri, castUri ?: activeUri, activeSelectionId)
     }
-    LaunchedEffect(player, activeUri, isCasting) {
+    LaunchedEffect(player, activeUri, activeSelectionId, isCasting) {
         // Reopening this video or recreating its local engine must not start a second soundtrack.
         if (isCasting) player?.pause()
     }
-    LaunchedEffect(castState.localResume, player, activeUri, lifecycleState, profileSettings?.playInBackground) {
+    LaunchedEffect(castState.localResume, player, activeUri, activeSelectionId, lifecycleState, profileSettings?.playInBackground) {
         // A disconnected TV must not restart phone audio while the app is stopped.
         val resume = castState.pendingLocalResume(
             activeUri,
             lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED),
             profileSettings?.playInBackground == true,
+            activeSelectionId,
         ) ?: return@LaunchedEffect
         if (player == null) return@LaunchedEffect
         player.seekTo(resume.positionMs)
@@ -968,6 +970,7 @@ fun PlayerScreen(
             controller = castController,
             url = castUri ?: activeUri,
             localUri = activeUri,
+            selectionId = activeSelectionId,
             title = title,
             positionMs = player?.runtimeState?.value?.positionMs ?: positionMs,
             durationMs = durationMs,
@@ -977,10 +980,21 @@ fun PlayerScreen(
             onLoaded = {
                 // A late receiver response must not pause a different, newly selected video.
                 application.container.playbackRepository.let { repository ->
-                    if (repository.state.value.activeUri == activeUri) repository.getPlayer()?.pause()
+                    val current = repository.state.value
+                    if (current.activeUri == activeUri && current.activeSelectionId == activeSelectionId) repository.getPlayer()?.pause()
                 }
                 showAudioDialog = false
                 showSubtitleDialog = false
+            },
+            onExternalOpened = {
+                // The chooser opened successfully; prevent background phone/TV audio duplication.
+                application.container.playbackRepository.let { repository ->
+                    val current = repository.state.value
+                    if (current.activeUri == activeUri && current.activeSelectionId == activeSelectionId) {
+                        repository.getPlayer()?.pause()
+                        if (castController.state.value.owns(activeUri, activeSelectionId)) castController.pause()
+                    }
+                }
             },
             onDismiss = { showCastDialog = false },
         )

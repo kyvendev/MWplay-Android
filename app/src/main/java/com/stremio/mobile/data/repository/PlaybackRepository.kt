@@ -12,6 +12,8 @@ import com.stremio.mobile.player.PlayerEngine
 import com.stremio.mobile.player.PlayerSubtitleStyle
 import com.stremio.mobile.player.PlayerTrackOption
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 
@@ -34,6 +36,8 @@ class PlaybackRepository(
         engine: PlayerEngine = PlayerEngine.EXO,
         displayTitle: String? = null,
     ): Boolean {
+        // Invalidate old Cast progress before Core selects this video, including failed resolutions.
+        val selectionId = playbackManager.beginSelection()
         val url = runCatching { core.resolvePlayableUrl(option.core).first() }.getOrNull()
             ?: core.directUrl(option.core.stream)
 
@@ -57,6 +61,9 @@ class PlaybackRepository(
         val startPositionMs = runCatching { core.getResumePositionMs(option.core.streamRequest) }.getOrDefault(0L)
         val settings = runCatching { core.getCtx().profile.settings }.getOrNull()
 
+        // A cancelled or slower resolution must not replace a newer selected stream.
+        currentCoroutineContext().ensureActive()
+        if (selectionId != state.value.selectedSelectionId) return false
         playbackManager.load(
             uri = Uri.parse(url),
             title = displayTitle ?: option.name,
@@ -70,6 +77,7 @@ class PlaybackRepository(
             castRequiresHeaders = option.core.stream.behaviorHints.proxyHeaders?.let {
                 it.request.isNotEmpty() || it.response.isNotEmpty()
             } ?: false,
+            selectionId = selectionId,
         )
         return true
     }

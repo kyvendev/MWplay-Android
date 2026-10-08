@@ -1,7 +1,7 @@
 package com.stremio.mobile.cast
 
 data class CastSubtitle(val id: Long, val label: String, val language: String?, val selected: Boolean)
-data class CastLocalResume(val localUri: String, val positionMs: Long, val durationMs: Long, val playing: Boolean)
+data class CastLocalResume(val localUri: String, val positionMs: Long, val durationMs: Long, val playing: Boolean, val selectionId: Long? = null)
 
 data class CastPlaybackState(
     val ready: Boolean = false,
@@ -13,6 +13,7 @@ data class CastPlaybackState(
     val deviceName: String? = null,
     val mediaUrl: String? = null,
     val localUri: String? = null,
+    val localSelectionId: Long? = null,
     val title: String? = null,
     val loading: Boolean = false,
     val playing: Boolean = false,
@@ -25,19 +26,24 @@ data class CastPlaybackState(
     val error: String? = null,
     val localResume: CastLocalResume? = null,
 ) {
-    fun owns(localPlaybackUri: String?): Boolean = localPlaybackUri != null &&
-        localUri == localPlaybackUri && mediaUrl != null && (connected || suspended)
+    fun owns(localPlaybackUri: String?, activeSelectionId: Long? = localSelectionId): Boolean = localPlaybackUri != null && activeSelectionId != null &&
+        localUri == localPlaybackUri && localSelectionId == activeSelectionId && mediaUrl != null && (connected || suspended)
 
-    fun snapshotForLocalPlayback(localPlaybackUri: String): CastLocalResume = CastLocalResume(
-        localPlaybackUri, positionMs.coerceAtLeast(0), durationMs.coerceAtLeast(0), playing,
+    // Closing a player releases its engine, but Core still keeps its last selected video.
+    fun reportsToSelection(selectedSelectionId: Long?): Boolean = selectedSelectionId != null &&
+        localSelectionId == selectedSelectionId && mediaUrl != null
+
+    fun snapshotForLocalPlayback(localPlaybackUri: String, selectionId: Long? = localSelectionId): CastLocalResume = CastLocalResume(
+        localPlaybackUri, positionMs.coerceAtLeast(0), durationMs.coerceAtLeast(0), playing, selectionId,
     )
 
     fun pendingLocalResume(
         localPlaybackUri: String?,
         isForeground: Boolean,
         allowBackgroundPlayback: Boolean,
+        activeSelectionId: Long? = localResume?.selectionId,
     ): CastLocalResume? = localResume?.takeIf {
-        it.localUri == localPlaybackUri && (isForeground || allowBackgroundPlayback)
+        it.localUri == localPlaybackUri && it.selectionId == activeSelectionId && (isForeground || allowBackgroundPlayback)
     }
 }
 

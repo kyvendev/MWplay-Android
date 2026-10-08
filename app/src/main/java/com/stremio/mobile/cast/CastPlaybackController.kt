@@ -41,6 +41,7 @@ class CastPlaybackController(
     private var loadRevision = 0L
     private var ownedUrl: String? = null
     private var ownedLocalUri: String? = null
+    private var ownedSelectionId: Long? = null
     private var lastOwnedResume: CastLocalResume? = null
     private var endingResume: CastLocalResume? = null
     private var endReported = false
@@ -146,6 +147,7 @@ class CastPlaybackController(
         detachClient()
         ownedUrl = null
         ownedLocalUri = null
+        ownedSelectionId = null
         lastOwnedResume = null
         endingResume = null
         mutableState.value = CastPlaybackState(
@@ -163,23 +165,26 @@ class CastPlaybackController(
     fun consumeLocalResume() { mutableState.value = mutableState.value.copy(localResume = null) }
     private fun fail(message: String) { mutableState.value = mutableState.value.copy(loading = false, error = message) }
 
-    fun attachLocalPlayback(localUri: String?, remoteUrl: String?) {
+    fun attachLocalPlayback(localUri: String?, remoteUrl: String?, selectionId: Long?) {
         if (mutableState.value.loading) return
-        if (localUri == null || remoteUrl == null || remoteUrl != mutableState.value.mediaUrl) return
+        if (localUri == null || selectionId == null || remoteUrl == null || remoteUrl != mutableState.value.mediaUrl) return
+        if (ownedSelectionId != null && ownedSelectionId != selectionId) return
         if (client?.mediaInfo?.customData?.optBoolean("mwPlayMedia") != true) return
         ownedUrl = remoteUrl
         ownedLocalUri = localUri
+        ownedSelectionId = selectionId
         // Reattached sessions can end before the next progress callback arrives.
-        lastOwnedResume = mutableState.value.snapshotForLocalPlayback(localUri)
-        mutableState.value = mutableState.value.copy(localUri = localUri)
+        lastOwnedResume = mutableState.value.snapshotForLocalPlayback(localUri, selectionId)
+        mutableState.value = mutableState.value.copy(localUri = localUri, localSelectionId = selectionId)
     }
 
     fun load(
-        url: String?, localUri: String?, title: String, positionMs: Long, durationMs: Long,
+        url: String?, localUri: String?, selectionId: Long?, title: String, positionMs: Long, durationMs: Long,
         playing: Boolean, requiresHeaders: Boolean, subtitles: List<PlayerTrackOption>, onLoaded: () -> Unit,
     ) {
         val decision = CastMediaPolicy.evaluate(url, requiresHeaders)
         if (!decision.supported) { fail(decision.rejection ?: "Este vídeo não pode ser transmitido."); return }
+        if (selectionId == null) { fail("Aguarde o vídeo carregar no celular antes de transmitir."); return }
         val remote = client
         if (remote == null || !mutableState.value.connected) { connectionFailed(); return }
         if (mutableState.value.loading) return
@@ -212,7 +217,8 @@ class CastPlaybackController(
             }
             ownedUrl = decision.url
             ownedLocalUri = localUri ?: decision.url
-            lastOwnedResume = CastLocalResume(ownedLocalUri!!, positionMs, durationMs, playing)
+            ownedSelectionId = selectionId
+            lastOwnedResume = CastLocalResume(ownedLocalUri!!, positionMs, durationMs, playing, selectionId)
             endingResume = null
             endReported = false
             lastReportedPosition = -1
@@ -220,7 +226,7 @@ class CastPlaybackController(
             // Only pause the phone after the receiver accepts the load request.
             onLoaded()
             mutableState.value = mutableState.value.copy(loading = false, mediaUrl = decision.url,
-                localUri = ownedLocalUri, title = title, positionMs = positionMs, durationMs = durationMs, playing = playing)
+                localUri = ownedLocalUri, localSelectionId = selectionId, title = title, positionMs = positionMs, durationMs = durationMs, playing = playing)
             refreshMedia()
         }
     }
@@ -235,6 +241,7 @@ class CastPlaybackController(
             // Another sender took over this receiver: its progress must not resume our phone video.
             ownedUrl = null
             ownedLocalUri = null
+            ownedSelectionId = null
             lastOwnedResume = null
             endingResume = null
         }
@@ -245,6 +252,7 @@ class CastPlaybackController(
         }
         mutableState.value = mutableState.value.copy(
             mediaUrl = url, localUri = if (owns) ownedLocalUri else null,
+            localSelectionId = if (owns) ownedSelectionId else null,
             title = info?.metadata?.getString(MediaMetadata.KEY_TITLE), playing = remote.isPlaying,
             buffering = remote.isBuffering, positionMs = remote.approximateStreamPosition.coerceAtLeast(0),
             durationMs = remote.streamDuration.coerceAtLeast(0), subtitles = tracks,
@@ -261,7 +269,7 @@ class CastPlaybackController(
         val value = mutableState.value
         if (ownedUrl == null || value.mediaUrl != ownedUrl) return
         if (value.durationMs > 0 || lastOwnedResume?.durationMs == 0L || lastOwnedResume == null) {
-            ownedLocalUri?.let { lastOwnedResume = CastLocalResume(it, value.positionMs, value.durationMs, value.playing) }
+            ownedLocalUri?.let { lastOwnedResume = CastLocalResume(it, value.positionMs, value.durationMs, value.playing, ownedSelectionId) }
         }
         if (value.durationMs <= 0) return
         if (lastReportedPosition < 0 || kotlin.math.abs(value.positionMs - lastReportedPosition) >= 5000) {
@@ -290,6 +298,9 @@ class CastPlaybackController(
         }
         else if (remote.isPlaying) remote.pause().setResultCallback { checkResult(it.status.isSuccess) }
         else remote.play().setResultCallback { checkResult(it.status.isSuccess) }
+    }
+    fun pause() {
+        client?.pause()?.setResultCallback { checkResult(it.status.isSuccess) }
     }
     fun seekTo(positionMs: Long) {
         val duration = mutableState.value.durationMs

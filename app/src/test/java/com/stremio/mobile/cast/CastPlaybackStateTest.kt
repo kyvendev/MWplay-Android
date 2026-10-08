@@ -12,6 +12,7 @@ class CastPlaybackStateTest {
     private val localProxyUrl = "http://127.0.0.1:11470/proxy/movie"
     private val casting = CastPlaybackState(
         ready = true, connected = true, mediaUrl = remoteUrl, localUri = localProxyUrl,
+        localSelectionId = 7L,
     )
 
     @Test fun originalRemoteUrlCanOwnItsSeparateLocalProxyPlayback() {
@@ -43,7 +44,7 @@ class CastPlaybackStateTest {
     @Test fun reattachingCanCaptureReceiverPositionBeforeItsNextProgressCallback() {
         val receiver = casting.copy(localUri = null, positionMs = 120000, durationMs = 3600000, playing = true)
         assertEquals(
-            CastLocalResume(localProxyUrl, 120000, 3600000, true),
+            CastLocalResume(localProxyUrl, 120000, 3600000, true, 7L),
             receiver.snapshotForLocalPlayback(localProxyUrl),
         )
     }
@@ -61,5 +62,33 @@ class CastPlaybackStateTest {
         val stopped = CastPlaybackState(localResume = resume)
         assertSame(resume, stopped.pendingLocalResume(localProxyUrl, isForeground = false, allowBackgroundPlayback = true))
         assertNull(stopped.pendingLocalResume(remoteUrl, isForeground = true, allowBackgroundPlayback = true))
+    }
+
+    @Test fun closingTheLocalEngineKeepsProgressForItsLastSelectedVideo() {
+        assertTrue(casting.reportsToSelection(7L))
+        assertFalse(casting.reportsToSelection(null))
+        assertFalse(casting.owns(null, 7L))
+    }
+
+    @Test fun selectingAnotherVideoBlocksOldProgressEvenBeforeItsUrlResolves() {
+        // The old engine may still exist while Core is already resolving selection 8.
+        assertTrue(casting.owns(localProxyUrl, 7L))
+        assertFalse(casting.reportsToSelection(8L))
+        // Reusing a URL does not make a newly selected video belong to the old Cast session.
+        assertFalse(casting.owns(localProxyUrl, 8L))
+        assertFalse(casting.owns(localProxyUrl, null))
+    }
+
+    @Test fun receiverProgressRequiresKnownSelectionAndMediaOwnership() {
+        assertFalse(casting.copy(localSelectionId = null).reportsToSelection(7L))
+        assertFalse(casting.copy(mediaUrl = null).reportsToSelection(7L))
+    }
+
+    @Test fun oldSessionCannotResumeAnotherSelectionWithTheSameUrl() {
+        val resume = CastLocalResume(localProxyUrl, 120000, 3600000, true, 7L)
+        val stopped = CastPlaybackState(localResume = resume)
+        assertSame(resume, stopped.pendingLocalResume(localProxyUrl, true, false, 7L))
+        assertNull(stopped.pendingLocalResume(localProxyUrl, true, false, 8L))
+        assertNull(stopped.pendingLocalResume(localProxyUrl, true, false, null))
     }
 }

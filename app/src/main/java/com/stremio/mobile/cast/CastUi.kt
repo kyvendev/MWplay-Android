@@ -52,9 +52,9 @@ private val castButtonExecutor = Executors.newSingleThreadExecutor()
 @Composable
 fun CastDialog(
     controller: CastPlaybackController,
-    url: String?, localUri: String?, title: String, positionMs: Long, durationMs: Long,
+    url: String?, localUri: String?, selectionId: Long?, title: String, positionMs: Long, durationMs: Long,
     playing: Boolean, requiresHeaders: Boolean, subtitles: List<PlayerTrackOption>,
-    onLoaded: () -> Unit, onDismiss: () -> Unit,
+    onLoaded: () -> Unit, onExternalOpened: () -> Unit, onDismiss: () -> Unit,
 ) {
     val state by controller.state.collectAsState()
     val context = LocalContext.current
@@ -109,7 +109,7 @@ fun CastDialog(
                         Button(
                             enabled = !state.loading,
                             onClick = {
-                                controller.load(url, localUri, title, positionMs, durationMs, playing, requiresHeaders, subtitles) {
+                                controller.load(url, localUri, selectionId, title, positionMs, durationMs, playing, requiresHeaders, subtitles) {
                                     onLoaded()
                                     onDismiss()
                                 }
@@ -123,8 +123,9 @@ fun CastDialog(
                     TextButton(onClick = controller::retryInitialize) { Text("Tentar Chromecast novamente") }
                 }
                 if (decision.supported) {
-                    TextButton(onClick = {
+                    TextButton(enabled = !state.loading, onClick = {
                         externalError = openExternalPlayer(context, decision.url!!, decision.contentType!!, title, positionMs)
+                        if (externalError == null) onExternalOpened()
                     }) { Text("Abrir em outro aplicativo") }
                 }
                 externalError?.let { Text(it, color = MaterialTheme.colorScheme.error) }

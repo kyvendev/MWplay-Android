@@ -543,6 +543,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 PlayerScreen(
                     player = viewModel.getPlayer(),
                     activeUri = playbackState.activeUri,
+                    activeSelectionId = playbackState.activeSelectionId,
                     castUri = playbackState.castUri,
                     castRequiresHeaders = playbackState.castRequiresHeaders,
                     title = playbackState.title ?: "Stream",
