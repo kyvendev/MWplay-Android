@@ -2,6 +2,7 @@ package com.stremio.mobile.presentation.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,6 +64,7 @@ fun PosterShelf(
     mode: ShelfMode,
     onItemClick: (CatalogItem) -> Unit,
     onSeeAllClick: (() -> Unit)? = null,
+    onItemLongClick: ((CatalogItem) -> Unit)? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Row(
@@ -130,6 +133,7 @@ fun PosterShelf(
                             item = item,
                             mode = mode,
                             onClick = { onItemClick(item) },
+                            onLongClick = onItemLongClick?.let { { it(item) } },
                         )
                     }
                 }
@@ -143,6 +147,7 @@ fun PosterTile(
     item: CatalogItem,
     mode: ShelfMode,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
     Box(
         modifier = Modifier
@@ -150,7 +155,19 @@ fun PosterTile(
             .aspectRatio(0.66f)
             .clip(RoundedCornerShape(18.dp))
             .background(CardFallback)
-            .clickable(onClick = onClick),
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        role = Role.Button,
+                        onClickLabel = "Ver detalhes",
+                        onClick = onClick,
+                        onLongClickLabel = "Opções de continuar assistindo",
+                        onLongClick = onLongClick,
+                    )
+                } else {
+                    Modifier.clickable(role = Role.Button, onClick = onClick)
+                },
+            ),
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -374,3 +391,4 @@ private fun progressFor(id: String): Float {
     val bucket = kotlin.math.abs(id.hashCode() % 46)
     return (bucket + 28) / 100f
 }
+

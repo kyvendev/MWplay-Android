@@ -126,6 +126,8 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     onOpenSearch = viewModel::openSearch,
                     onSelectSection = viewModel::selectSection,
                     onOpenDetails = viewModel::openDetails,
+                    onRemoveFromContinueWatching = viewModel::removeFromContinueWatching,
+                    continueWatchingActionsEnabled = !streamsState.isOpen && !streamsState.isResolving && !isPlayerOpen,
                     onCloseDetails = viewModel::closeDetails,
                     onToggleLibrary = viewModel::toggleLibrary,
                     onOpenStreams = viewModel::openStreams,
@@ -663,6 +665,8 @@ private fun BoardScreen(
     onOpenSearch: () -> Unit,
     onSelectSection: (MainSection) -> Unit,
     onOpenDetails: (CatalogItem) -> Unit,
+    onRemoveFromContinueWatching: (CatalogItem) -> Unit,
+    continueWatchingActionsEnabled: Boolean,
     onCloseDetails: () -> Unit,
     onToggleLibrary: (CatalogItem) -> Unit,
     onOpenStreams: (CatalogItem) -> Unit,
@@ -810,11 +814,15 @@ private fun BoardScreen(
                         }
                     }
                     if (state.continueWatching.items.isNotEmpty() || state.continueWatching.isLoading) {
-                        item(contentType = "shelf") {
-                            PosterShelf(
+                        item(key = "continue-watching", contentType = "shelf") {
+                            ContinueWatchingShelf(
                                 shelf = state.continueWatching,
-                                mode = ShelfMode.Continue,
-                                onItemClick = onOpenDetails
+                                onItemClick = onOpenDetails,
+                                onContinueWatching = onOpenStreams,
+                                onOpenDetails = onOpenDetails,
+                                onRemove = onRemoveFromContinueWatching,
+                                actionsEnabled = continueWatchingActionsEnabled && !state.isSearchOpen && state.selectedDetails == null &&
+                                    state.selectedAddonDetails == null,
                             )
                         }
                     }

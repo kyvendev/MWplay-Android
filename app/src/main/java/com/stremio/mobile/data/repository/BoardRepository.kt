@@ -16,6 +16,10 @@ class BoardRepository(private val core: StremioCore) {
         }
     }
 
+    suspend fun removeFromContinueWatching(item: CatalogItem) {
+        core.removeFromContinueWatching(item.id, item.type)
+    }
+
     fun loadBoardRange(start: Int, end: Int) {
         core.loadBoardRange(start, end)
     }
@@ -99,3 +103,4 @@ class BoardRepository(private val core: StremioCore) {
         )
     }
 }
+

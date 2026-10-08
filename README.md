@@ -67,6 +67,12 @@ The default Google Cast receiver fetches the original HTTP(S) media URL directly
 
 This sends the video, rather than mirroring the entire phone screen. For full screen mirroring, use Android's or Google Home's screen transmission feature. Google Play Services is required for Cast; local mobile playback remains available when Cast is unavailable.
 
+## Continue Watching actions
+
+Long-press a Continue Watching poster to open its actions. A short tap keeps the existing behavior. The menu offers resume playback, view details, remove from Continue Watching, and cancel for every item type, including live channels.
+
+Removing clears the resume position and dismisses episode notifications while retaining library membership, favorites, and watched-episode history. The change uses the native core's persistence and account synchronization. Removing an actively playing item does not interrupt playback; it stays out of this list until a new playback selection is made.
+
 ## Architecture
 
 ```text
