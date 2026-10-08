@@ -32,7 +32,11 @@ fun PlayerSettingsScreen(settings: com.stremio.core.types.profile.Profile.Settin
             )
             val colors = listOf("#FFFFFF" to "Branco", "#FFFF00" to "Amarelo", "#00FFFF" to "Ciano", "#FF00FF" to "Magenta", "#00FF00" to "Verde", "#FF0000" to "Vermelho", "#000000" to "Preto")
             val nextVideoDurations = listOf(0L to "Desativado", 5000L to "5 segundos", 10000L to "10 segundos", 15000L to "15 segundos", 30000L to "30 segundos")
-            val playerEngines = listOf(PlayerEngine.EXO.profileValue to "ExoPlayer", PlayerEngine.MPV.profileValue to "MPV")
+            val playerEngines = listOf(
+                PlayerEngine.EXO.profileValue to "ExoPlayer",
+                PlayerEngine.VLC.profileValue to "VLC",
+                PlayerEngine.MPV.profileValue to "MPV"
+            )
             val playerUiStyles = listOf("global" to "Seguir tema global", "classic" to "Clássico", "modern" to "Moderno (Liquid Glass)")
             SettingsDropdownRow(title = "Player interno", selectedValue = PlayerEngine.fromProfileValue(settings.playerType).profileValue, options = playerEngines, onSelect = { onUpdateSettings(settings.copy(playerType = it)) }, description = "A alteração vale a partir da próxima reprodução.")
             SettingsDropdownRow(title = "Estilo do player", selectedValue = playerUiStyle, options = playerUiStyles, onSelect = onSetPlayerUiStyle, description = "Escolha o visual usado especificamente no player de vídeo")
@@ -58,3 +62,4 @@ fun PlayerSettingsScreen(settings: com.stremio.core.types.profile.Profile.Settin
         }
     }
 }
+

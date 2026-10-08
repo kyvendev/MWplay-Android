@@ -61,7 +61,7 @@ The official app is the official support channel. This app is the open-source, n
 - **Stremio account integration** for synced library, addons, profile settings, and continue watching.
 - **Addon discovery and detail pages** for browsing, installing, and managing Stremio addons.
 - **Stream selection and playback** for direct HTTP streams and local streaming-server URLs.
-- **Dual internal player backends** with ExoPlayer as default and MPV as an optional internal player.
+- **Selectable internal player backends** with ExoPlayer as default and VLC or MPV available in player settings.
 - **Vendored MPV Android library** under `third_party/mpv-android-lib` with supported `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64` native outputs.
 - **Web-parity audio and subtitle controls** including language defaults, subtitle variants, local subtitle import, styling, delay, size, and position controls.
 - **Continue watching resume flow** with remembered stream selection for streams previously played on the device.
@@ -96,6 +96,7 @@ StremioMobile
 The app exposes a backend-neutral player API and currently supports:
 
 - **ExoPlayer / Media3** for the default Android-native playback path.
+- **VLC / LibVLC** for manual internal playback selection, alongside its role in automatic fallback.
 - **MPV** for users who prefer MPV behavior, track handling, and subtitle support.
 
 Player selection is controlled from app settings. Unknown or missing player values fall back to ExoPlayer.
