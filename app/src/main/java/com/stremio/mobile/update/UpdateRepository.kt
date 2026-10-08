@@ -6,7 +6,7 @@ import com.stremio.mobile.BuildConfig
 import com.stremio.mobile.core.extensions.use
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import org.json.JSONArray
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -18,7 +18,7 @@ data class UpdateInfo(
     val tagName: String,
     val apkName: String,
     val apkUrl: String,
-    val sha256Url: String?,
+    val sha256Url: String,
     val releaseNotes: String,
 )
 
@@ -34,7 +34,7 @@ sealed interface UpdateState {
 
 class UpdateRepository(private val context: Context) {
     suspend fun check(): UpdateState = withContext(Dispatchers.IO) {
-        val connection = (URL(LATEST_RELEASE_URL).openConnection() as HttpURLConnection).apply {
+        val connection = (URL(RELEASES_URL).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 10_000
             readTimeout = 10_000
@@ -43,24 +43,31 @@ class UpdateRepository(private val context: Context) {
         }
         connection.use {
             if (it.responseCode !in 200..299) return@withContext UpdateState.UpToDate
-            val release = JSONObject(it.inputStream.bufferedReader().use { reader -> reader.readText() })
-            val tagName = release.optString("tag_name").takeIf { tag -> tag.isNotBlank() }
-                ?: return@withContext UpdateState.UpToDate
-            val remoteVersion = tagName.removePrefix("v")
-            if (!remoteVersion.isStrictSemver()) return@withContext UpdateState.UpToDate
-            if (compareSemver(remoteVersion, BuildConfig.VERSION_NAME) <= 0) return@withContext UpdateState.UpToDate
-            val assets = release.optJSONArray("assets") ?: return@withContext UpdateState.UpToDate
-            val parsedAssets = buildList {
-                for (index in 0 until assets.length()) {
-                    val item = assets.optJSONObject(index) ?: continue
-                    val name = item.optString("name")
-                    val url = item.optString("browser_download_url")
-                    if (name.isNotBlank() && url.isNotBlank()) add(ReleaseAsset(name, url))
+            val response = JSONArray(it.inputStream.bufferedReader().use { reader -> reader.readText() })
+            val releases = buildList {
+                for (index in 0 until response.length()) {
+                    val release = response.optJSONObject(index) ?: continue
+                    val assets = release.optJSONArray("assets") ?: continue
+                    val parsedAssets = buildList {
+                        for (assetIndex in 0 until assets.length()) {
+                            val asset = assets.optJSONObject(assetIndex) ?: continue
+                            val name = asset.optString("name")
+                            val url = asset.optString("browser_download_url")
+                            if (name.isNotBlank() && url.isNotBlank()) add(ReleaseAsset(name, url))
+                        }
+                    }
+                    add(ReleaseCandidate(
+                        tagName = release.optString("tag_name"),
+                        assets = parsedAssets,
+                        releaseNotes = release.optString("body").takeIf { body -> body.isNotBlank() }.orEmpty(),
+                        draft = release.optBoolean("draft"),
+                        prerelease = release.optBoolean("prerelease"),
+                    ))
                 }
             }
-            val apkAsset = selectApkAsset(parsedAssets) ?: return@withContext UpdateState.UpToDate
-            val checksumAsset = parsedAssets.firstOrNull { it.name.endsWith("-SHA256SUMS.txt", ignoreCase = true) }
-            UpdateState.Available(UpdateInfo(remoteVersion, tagName, apkAsset.name, apkAsset.url, checksumAsset?.url, release.optString("body").takeIf { body -> body.isNotBlank() }.orEmpty()))
+            val selected = selectUpdateRelease(releases, RELEASE_CHANNEL, BuildConfig.VERSION_NAME, Build.SUPPORTED_ABIS.toList())
+                ?: return@withContext UpdateState.UpToDate
+            UpdateState.Available(UpdateInfo(selected.versionName, selected.tagName, selected.apk.name, selected.apk.url, selected.checksum.url, selected.releaseNotes))
         }
     }
 
@@ -69,6 +76,7 @@ class UpdateRepository(private val context: Context) {
         val destination = File(updatesDir, info.apkName)
         val partial = File(updatesDir, "${info.apkName}.part")
         if (partial.exists()) partial.delete()
+        val expected = fetchExpectedSha256(info.sha256Url, info.apkName)
         val connection = (URL(info.apkUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 15_000
@@ -91,31 +99,25 @@ class UpdateRepository(private val context: Context) {
                 }
             } }
         }
-        info.sha256Url?.let { checksumUrl ->
-            val expected = fetchExpectedSha256(checksumUrl, info.apkName)
-            if (expected != null && !partial.sha256().equals(expected, ignoreCase = true)) {
-                partial.delete()
-                throw IllegalStateException("Downloaded APK checksum did not match the release checksum.")
-            }
+        if (!partial.sha256().equals(expected, ignoreCase = true)) {
+            partial.delete()
+            throw IllegalStateException("Downloaded APK checksum did not match the release checksum.")
         }
         if (destination.exists()) destination.delete()
         if (!partial.renameTo(destination)) { partial.copyTo(destination, overwrite = true); partial.delete() }
         destination
     }
 
-    private fun selectApkAsset(assets: List<ReleaseAsset>): ReleaseAsset? {
-        Build.SUPPORTED_ABIS.forEach { abi -> assets.firstOrNull { it.name.endsWith("-$abi-release.apk", ignoreCase = true) }?.let { return it } }
-        return assets.firstOrNull { it.name.endsWith("-universal-release.apk", ignoreCase = true) }
-    }
-
-    private fun fetchExpectedSha256(checksumUrl: String, apkName: String): String? {
+    private fun fetchExpectedSha256(checksumUrl: String, apkName: String): String {
         val connection = (URL(checksumUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"; connectTimeout = 10_000; readTimeout = 10_000
             setRequestProperty("Accept", "text/plain"); setRequestProperty("User-Agent", "MWPlay/${BuildConfig.VERSION_NAME}")
         }
         return connection.use {
-            if (it.responseCode !in 200..299) return@use null
-            it.inputStream.bufferedReader().use { reader -> reader.lineSequence().map { line -> line.trim() }.firstOrNull { line -> line.endsWith(" $apkName") || line.endsWith("  $apkName") }?.substringBefore(' ')?.takeIf { hash -> hash.length == 64 } }
+            if (it.responseCode !in 200..299) throw IllegalStateException("Release checksum download failed with HTTP ${it.responseCode}.")
+            val checksumText = it.inputStream.bufferedReader().use { reader -> reader.readText() }
+            expectedReleaseChecksum(checksumText, apkName)
+                ?: throw IllegalStateException("Release checksum is missing or invalid for the selected APK.")
         }
     }
 
@@ -128,18 +130,9 @@ class UpdateRepository(private val context: Context) {
         return digest.digest().joinToString("") { byte -> "%02x".format(Locale.US, byte.toInt() and 0xff) }
     }
 
-    private fun String.isStrictSemver(): Boolean = SEMVER_REGEX.matches(this)
-    private fun compareSemver(remote: String, current: String): Int {
-        val remoteParts = remote.semverParts() ?: return 0
-        val currentParts = current.semverParts() ?: return 1
-        for (index in 0..2) { val diff = remoteParts[index].compareTo(currentParts[index]); if (diff != 0) return diff }
-        return 0
-    }
-    private fun String.semverParts(): List<Int>? = if (!isStrictSemver()) null else split(".").map { it.toInt() }
-    private data class ReleaseAsset(val name: String, val url: String)
-
     companion object {
-        private const val LATEST_RELEASE_URL = "https://api.github.com/repos/kyvendev/MWplay-Android/releases/latest"
-        private val SEMVER_REGEX = Regex("""\d+\.\d+\.\d+""")
+        private const val RELEASES_URL = "https://api.github.com/repos/kyvendev/MWplay-Android/releases?per_page=30"
+        private val RELEASE_CHANNEL = ReleaseChannel.TV
     }
 }
+

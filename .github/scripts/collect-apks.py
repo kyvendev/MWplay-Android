@@ -42,6 +42,7 @@ def main():
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--version-name", required=True)
     parser.add_argument("--build-type", required=True)
+    parser.add_argument("--file-prefix", default=APP_FILE_PREFIX, choices=("MW-Play", "MW-Play-Mobile", "MW-Play-TV"))
     args = parser.parse_args()
     elements = load_elements(args.metadata)
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -58,14 +59,14 @@ def main():
         source = args.apk_dir / output_file
         if not source.is_file():
             raise SystemExit(f"APK file not found for ABI {abi}: {source}")
-        destination = args.output_dir / f"{APP_FILE_PREFIX}-v{args.version_name}-{abi}-{args.build_type}.apk"
+        destination = args.output_dir / f"{args.file_prefix}-v{args.version_name}-{abi}-{args.build_type}.apk"
         shutil.copy2(source, destination)
         copied[abi] = destination
         print(f"{abi}: {source} -> {destination}")
     missing = REQUIRED_ABIS - set(copied)
     if missing:
         raise SystemExit(f"missing required APK ABI outputs: {', '.join(sorted(missing))}")
-    checksum_path = args.output_dir / f"{APP_FILE_PREFIX}-v{args.version_name}-SHA256SUMS.txt"
+    checksum_path = args.output_dir / f"{args.file_prefix}-v{args.version_name}-SHA256SUMS.txt"
     with checksum_path.open("w", encoding="utf-8", newline="\n") as checksum_file:
         for abi in sorted(copied):
             path = copied[abi]
@@ -74,3 +75,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+

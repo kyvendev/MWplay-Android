@@ -1,23 +1,113 @@
-name: MW Play Release APK
+name: MW Play TV Release APK
 
 on:
   push:
+    branches:
+      - feat/mw-play-tv
+    paths:
+      - .github/release-request.json
     tags:
-      - "v*"
+      - "tv-v[0-9]*"
   workflow_dispatch:
     inputs:
       version_name:
-        description: "Versão do MW Play para publicar (ex.: 1.0.0)"
+        description: "Versão já configurada em gradle.properties (ex.: 1.0.3)"
         required: true
         type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: mw-play-release-tv
+  cancel-in-progress: false
+
+env:
+  RELEASE_PLATFORM: tv
+  RELEASE_FILE_PREFIX: MW-Play-TV
 
 jobs:
+  prepare:
+    name: Validate TV release request
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate source branch and version
+        id: version
+        env:
+          DISPATCH_VERSION: ${{ inputs.version_name }}
+        run: |
+          python - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+          platform = os.environ['RELEASE_PLATFORM']
+          branch = f'feat/mw-play-{platform}'
+          properties = dict(re.findall(r'^(VERSION_NAME|VERSION_CODE)=(.+)$', Path('gradle.properties').read_text(), re.MULTILINE))
+          version = properties['VERSION_NAME'].strip()
+          code = int(properties['VERSION_CODE'])
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version) or not 125 <= code <= 2100000000:
+              raise SystemExit('Invalid release version or versionCode; preserve upgrade compatibility with code >= 125')
+          request = json.loads(Path('.github/release-request.json').read_text())
+          if request.get('platform') != platform or request.get('version_name') != version or request.get('version_code') != code:
+              raise SystemExit('Release request must match this platform and gradle.properties exactly')
+          tag = ('v' if platform == 'mobile' else 'tv-v') + version
+          ref_type, ref_name = os.environ['GITHUB_REF_TYPE'], os.environ['GITHUB_REF_NAME']
+          if ref_type == 'branch' and ref_name != branch:
+              raise SystemExit(f'Release must originate from {branch}')
+          if ref_type == 'tag' and ref_name != tag:
+              raise SystemExit(f'Unexpected platform release tag: {ref_name}')
+          if ref_type not in ('branch', 'tag'):
+              raise SystemExit('Unsupported release ref type')
+          if os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch' and os.environ['DISPATCH_VERSION'] != version:
+              raise SystemExit('Requested version must match gradle.properties')
+          subprocess.run(['git', 'merge-base', '--is-ancestor', os.environ['GITHUB_SHA'], f'origin/{branch}'], check=True)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'version_name={version}\nversion_code={code}\nrelease_tag={tag}\n')
+          print(f'Validated {platform} {version} ({code}) from {branch} at {os.environ["GITHUB_SHA"]}')
+          PY
+      - name: Require existing production signing secrets
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for name in ANDROID_RELEASE_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing required existing production signing secret ${name}"
+              exit 1
+            fi
+          done
+      - name: Refuse published releases or unrelated drafts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          repo, tag, sha = os.environ['GITHUB_REPOSITORY'], os.environ['RELEASE_TAG'], os.environ['GITHUB_SHA']
+          result = subprocess.run(['gh', 'release', 'view', tag, '--repo', repo, '--json', 'isDraft,targetCommitish,body'], capture_output=True, text=True)
+          if result.returncode:
+              if 'release not found' not in result.stderr.lower() and 'http 404' not in result.stderr.lower():
+                  raise SystemExit(result.stderr)
+          else:
+              release = json.loads(result.stdout)
+              if not release['isDraft']:
+                  raise SystemExit('Release is already published; refusing to replace existing assets')
+              if release['targetCommitish'] != sha or f'Source commit: `{sha}`' not in release['body']:
+                  raise SystemExit('Existing draft belongs to another source commit; refusing to overwrite it')
+          PY
+
   build-stream-server:
     name: Build native server ${{ matrix.abi }}
     runs-on: ubuntu-latest
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -149,19 +239,25 @@ jobs:
           path: jniLibs/
           if-no-files-found: error
 
+
   release:
-    name: Build and Publish MW Play Release
+    name: Test, build and publish MW Play TV
     runs-on: ubuntu-latest
-    needs: build-stream-server
+    needs: [prepare, build-stream-server]
+    permissions:
+      contents: write
     env:
-      ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+      VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+      VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
-      - name: Checkout
+      - name: Checkout exact release source
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           submodules: recursive
 
       - name: Download native JNI libraries
@@ -172,12 +268,9 @@ jobs:
           merge-multiple: true
 
       - name: Verify native libraries before APK build
-        shell: bash
         run: |
           for abi in armeabi-v7a arm64-v8a x86 x86_64; do
-            lib="app/src/main/jniLibs/${abi}/libstream_server.so"
-            test -s "${lib}"
-            echo "${abi}: $(stat -c%s "${lib}") bytes"
+            test -s "app/src/main/jniLibs/${abi}/libstream_server.so"
           done
 
       - name: Set up JDK
@@ -185,114 +278,120 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x ./gradlew
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Make Gradle executable
-        run: chmod +x ./gradlew
-
-      - name: Resolve release version
-        shell: bash
+      - name: Decode existing production signing keystore
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
         run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            version_name="${GITHUB_REF_NAME#v}"
-            release_tag="${GITHUB_REF_NAME}"
-          else
-            version_name="${{ inputs.version_name }}"
-            if [[ ! "${version_name}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "::error::Informe uma versão válida no formato X.Y.Z (ex.: 1.0.0)."
-              exit 1
-            fi
-            release_tag="v${version_name}"
-          fi
-          echo "VERSION_NAME=${version_name}" >> "${GITHUB_ENV}"
-          echo "VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "${GITHUB_ENV}"
-          echo "RELEASE_TAG=${release_tag}" >> "${GITHUB_ENV}"
-
-      - name: Decode signing keystore
-        shell: bash
-        run: |
-          missing=0
-          for name in ANDROID_RELEASE_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [[ -z "${!name}" ]]; then
-              echo "::error::Missing required secret ${name}"
-              missing=1
-            fi
-          done
-          if [[ "${missing}" == "1" ]]; then exit 1; fi
           keystore_file="${RUNNER_TEMP}/mw-play-release.keystore"
+          umask 077
           printf '%s' "${ANDROID_RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${keystore_file}"
+          test -s "${keystore_file}"
           echo "ANDROID_KEYSTORE_FILE=${keystore_file}" >> "${GITHUB_ENV}"
 
-      - name: Build signed release APKs
+      - name: Test and build signed release APKs
         env:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
         run: >
-          ./gradlew
-          :mpv-android-lib:assembleRelease
-          :app:assembleRelease
-          --warning-mode all
-          -PVERSION_CODE=${VERSION_CODE}
-          -PVERSION_NAME=${VERSION_NAME}
+          ./gradlew :app:testDebugUnitTest :mpv-android-lib:assembleRelease :app:assembleRelease
+          --warning-mode all -PVERSION_CODE=${VERSION_CODE} -PVERSION_NAME=${VERSION_NAME}
 
-      - name: Verify stream server is packaged in release APKs
-        shell: bash
-        run: |
-          python - <<'PY'
-          import glob, zipfile
-          apks = glob.glob('app/build/outputs/apk/release/*.apk')
-          if not apks:
-              raise SystemExit('No release APKs found')
-          for apk in apks:
-              with zipfile.ZipFile(apk) as z:
-                  native = [n for n in z.namelist() if n.endswith('/libstream_server.so')]
-                  if not native:
-                      raise SystemExit(f'{apk}: libstream_server.so missing')
-                  print(apk, '->', ', '.join(native))
-          PY
+      - name: Test release validation scripts
+        run: python -m unittest discover -s .github/scripts/tests -v
 
-      - name: Prepare release assets
-        shell: bash
-        run: |
-          rm -rf dist
-          python .github/scripts/collect-apks.py \
-            --metadata app/build/outputs/apk/release/output-metadata.json \
-            --apk-dir app/build/outputs/apk/release \
-            --output-dir dist \
-            --version-name "${VERSION_NAME}" \
-            --build-type release
-          mapping_path="app/build/outputs/mapping/release/mapping.txt"
-          if [[ -f "${mapping_path}" ]]; then
-            cp "${mapping_path}" "dist/MW-Play-v${VERSION_NAME}-mapping.txt"
-          fi
-
-      - name: Verify release assets
-        shell: bash
-        run: |
-          test -f "dist/MW-Play-v${VERSION_NAME}-armeabi-v7a-release.apk"
-          test -f "dist/MW-Play-v${VERSION_NAME}-arm64-v8a-release.apk"
-          test -f "dist/MW-Play-v${VERSION_NAME}-x86-release.apk"
-          test -f "dist/MW-Play-v${VERSION_NAME}-x86_64-release.apk"
-          test -f "dist/MW-Play-v${VERSION_NAME}-universal-release.apk"
-          test -f "dist/MW-Play-v${VERSION_NAME}-SHA256SUMS.txt"
-
-      - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mw-play-release-${{ env.VERSION_NAME }}
-          path: dist/*
-          if-no-files-found: error
-
-      - name: Publish GitHub Release
-        shell: bash
+      - name: Download published 1.0.2 for upgrade and signature verification
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            gh release create "${RELEASE_TAG}" \
-              --title "MW Play ${VERSION_NAME}" \
-              --notes "Release do MW Play ${VERSION_NAME}."
-          fi
-          gh release upload "${RELEASE_TAG}" dist/* --clobber
+          mkdir -p "${RUNNER_TEMP}/previous-release"
+          gh release download v1.0.2 --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'MW-Play-v1.0.2-armeabi-v7a-release.apk' --dir "${RUNNER_TEMP}/previous-release"
+
+      - name: Verify release identity, production signature and native packaging
+        run: |
+          build_tools="$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          python .github/scripts/validate-release-apks.py \
+            --apk-dir app/build/outputs/apk/release \
+            --previous-apk "${RUNNER_TEMP}/previous-release/MW-Play-v1.0.2-armeabi-v7a-release.apk" \
+            --version-name "${VERSION_NAME}" --version-code "${VERSION_CODE}" \
+            --platform "${RELEASE_PLATFORM}" --apksigner "${build_tools}/apksigner" --aapt "${build_tools}/aapt" \
+            --report-path "dist/${RELEASE_FILE_PREFIX}-v${VERSION_NAME}-provenance.json"
+
+      - name: Prepare platform-specific release assets
+        run: |
+          python .github/scripts/collect-apks.py \
+            --metadata app/build/outputs/apk/release/output-metadata.json \
+            --apk-dir app/build/outputs/apk/release --output-dir dist \
+            --version-name "${VERSION_NAME}" --build-type release --file-prefix "${RELEASE_FILE_PREFIX}"
+          test -s app/build/outputs/mapping/release/mapping.txt
+          cp app/build/outputs/mapping/release/mapping.txt "dist/${RELEASE_FILE_PREFIX}-v${VERSION_NAME}-mapping.txt"
+          (cd dist && sha256sum --check "${RELEASE_FILE_PREFIX}-v${VERSION_NAME}-SHA256SUMS.txt")
+
+      - name: Upload validated release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mw-play-tv-release-${{ env.VERSION_NAME }}
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish complete GitHub Release from exact source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          repo, tag, sha = os.environ['GITHUB_REPOSITORY'], os.environ['RELEASE_TAG'], os.environ['GITHUB_SHA']
+          platform, version = os.environ['RELEASE_PLATFORM'], os.environ['VERSION_NAME']
+          def gh(*args):
+              return subprocess.check_output(['gh', *args], text=True)
+          def release_info():
+              return json.loads(gh('release', 'view', tag, '--repo', repo, '--json', 'isDraft,targetCommitish,body,assets'))
+          def verify_draft(release):
+              if not release['isDraft'] or release['targetCommitish'] != sha or f'Source commit: `{sha}`' not in release['body']:
+                  raise SystemExit('Release is not a draft from this exact source commit; refusing to overwrite assets')
+          assets = sorted(Path('dist').iterdir())
+          if len(assets) != 8 or any(not asset.is_file() or not asset.stat().st_size for asset in assets):
+              raise SystemExit('Expected exactly 5 APKs, checksums, mapping and provenance')
+          result = subprocess.run(['gh', 'release', 'view', tag, '--repo', repo], capture_output=True, text=True)
+          draft_exists = result.returncode == 0
+          if draft_exists:
+              verify_draft(release_info())
+          elif 'release not found' not in result.stderr.lower() and 'http 404' not in result.stderr.lower():
+              raise SystemExit(result.stderr)
+          endpoint = f'repos/{repo}/git/ref/tags/{tag}'
+          reference_result = subprocess.run(['gh', 'api', endpoint], capture_output=True, text=True)
+          if reference_result.returncode:
+              if 'http 404' not in reference_result.stderr.lower():
+                  raise SystemExit(reference_result.stderr)
+              gh('api', f'repos/{repo}/git/refs', '--method', 'POST', '-f', f'ref=refs/tags/{tag}', '-f', f'sha={sha}')
+          reference = json.loads(gh('api', endpoint))['object']
+          while reference['type'] == 'tag':
+              reference = json.loads(gh('api', f'repos/{repo}/git/tags/{reference["sha"]}'))['object']
+          if reference['type'] != 'commit' or reference['sha'] != sha:
+              raise SystemExit('Release tag does not resolve to the exact build source commit')
+          if not draft_exists:
+              notes = Path(os.environ['RUNNER_TEMP']) / 'mw-play-release-notes.md'
+              body = Path('.github/release-notes.md').read_text().rstrip()
+              notes.write_text(body + f'\n\nSource branch: `feat/mw-play-{platform}`\n\nSource commit: `{sha}`\n')
+              gh('release', 'create', tag, '--repo', repo, '--draft', '--verify-tag', '--target', sha,
+                 '--title', f'MW Play {"Mobile" if platform == "mobile" else "TV"} {version}',
+                 '--notes-file', str(notes), '--latest=false')
+          verify_draft(release_info())
+          gh('release', 'upload', tag, '--repo', repo, *map(str, assets), '--clobber')
+          release = release_info()
+          verify_draft(release)
+          expected = {asset.name: asset.stat().st_size for asset in assets}
+          actual = {asset['name']: asset['size'] for asset in release['assets']}
+          if actual != expected or len(release['assets']) != len(assets):
+              raise SystemExit('Uploaded release assets differ from the validated local assets')
+          gh('release', 'edit', tag, '--repo', repo, '--draft=false', f'--latest={"true" if platform == "mobile" else "false"}')
+          print(f'Published {tag} from {sha} with {len(assets)} verified assets')
+          PY
+
+      - name: Remove temporary signing keystore
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/mw-play-release.keystore"

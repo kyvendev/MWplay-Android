@@ -193,6 +193,10 @@ adb uninstall com.stremio.mobile
 
 ## CI and APK Publishing
 
+TV releases use tags such as `tv-v1.0.3` and asset names starting with `MW-Play-TV`. Mobile releases have their own `v*` tags and `MW-Play-Mobile` files. The app selects updates from its own channel.
+
+For a release, set `VERSION_NAME` and an increasing `VERSION_CODE` in `gradle.properties`, match those values in `.github/release-request.json`, and update `.github/release-notes.md`. Committing the request on `feat/mw-play-tv` starts the signed release workflow. It runs tests, verifies all five APKs against the original production signing certificate, and publishes a complete release from the exact source commit.
+
 GitHub Actions workflows are included:
 
 - `android-ci.yml` builds, verifies, and uploads debug APK artifacts for `armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64`, and universal output.
