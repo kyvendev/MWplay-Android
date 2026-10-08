@@ -31,15 +31,17 @@ class MpvStreamPlayer(
 
     private var view: StremioMpvView? = null
     private var initialized = false
+    @Volatile private var nativeGeneration = 0
     private var surfaceReady = false
     private var released = false
     private var fileLoaded = false
+    private var loadRequested = false
     private var eofReached = false
     private val addedSubtitleIds = mutableSetOf<String>()
     private var resizeMode = PlayerResizeMode.FIT
 
     private var currentUri: Uri? = null
-    private var currentStartPositionMs: Long = 0L
+    private val playbackIntent = MpvPlaybackIntent()
     private var currentSubtitles: List<ExternalSubtitle> = emptyList()
     private var currentPreferredSubtitleLang: String? = null
     private var currentSubtitleStyle = PlayerSubtitleStyle()
@@ -73,25 +75,31 @@ class MpvStreamPlayer(
         }
 
         override fun event(eventId: Int) {
-            when (eventId) {
-                MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
-                    fileLoaded = true
-                    addMissingExternalSubtitles()
-                    if (currentStartPositionMs > 0) seekTo(currentStartPositionMs)
-                    publishState(error = null, ended = false)
-                }
-                MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
-                    if (released) return
-                    val duration = mutableRuntimeState.value.durationMs
-                    val position = mutableRuntimeState.value.positionMs
-                    val reachedEnd = eofReached || (duration > 0 && duration - position <= 1_500)
-                    if (reachedEnd) {
-                        publishState(error = null, ended = true)
-                    } else {
-                        publishState(error = "Playback failed", ended = false)
+            val generation = nativeGeneration
+            // Native callbacks may arrive off the UI thread. Apply deferred commands in
+            // order with play/pause/seek calls and ignore callbacks after release.
+            scope.launch {
+                if (released || !initialized || generation != nativeGeneration) return@launch
+                when (eventId) {
+                    MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
+                        fileLoaded = true
+                        MPVLib.setPropertyBoolean("pause", playbackIntent.desiredPaused)
+                        addMissingExternalSubtitles()
+                        applyPendingSeek()
+                        publishState(error = null, ended = false)
                     }
+                    MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
+                        val duration = mutableRuntimeState.value.durationMs
+                        val position = mutableRuntimeState.value.positionMs
+                        val reachedEnd = eofReached || (duration > 0 && duration - position <= 1_500)
+                        if (reachedEnd) {
+                            publishState(error = null, ended = true)
+                        } else {
+                            publishState(error = "Playback failed", ended = false)
+                        }
+                    }
+                    MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> publishState(error = null, ended = false)
                 }
-                MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> publishState(error = null, ended = false)
             }
         }
     }
@@ -107,7 +115,17 @@ class MpvStreamPlayer(
     }
 
     override fun createView(context: Context): View {
+        // A new native instance needs a fresh load, without losing a queued handback
+        // position or the user's pause request while the old surface was loading.
+        playbackIntent.prepareRetry(mutableRuntimeState.value.positionMs)
+        initialized = false
         view?.destroy()
+        nativeGeneration++
+        surfaceReady = false
+        fileLoaded = false
+        loadRequested = false
+        eofReached = false
+        addedSubtitleIds.clear()
         copyMpvAssets(appContext)
         return StremioMpvView(
             context = context,
@@ -141,10 +159,11 @@ class MpvStreamPlayer(
         settings: com.stremio.core.types.profile.Profile.Settings?,
     ) {
         currentUri = uri
-        currentStartPositionMs = startPositionMs
+        playbackIntent.prepareLoad(startPositionMs)
         currentSubtitles = subtitles
         currentPreferredSubtitleLang = preferredSubtitleLang
         fileLoaded = false
+        loadRequested = false
         eofReached = false
         addedSubtitleIds.clear()
         mutableRuntimeState.value = PlayerRuntimeState(isBuffering = true)
@@ -152,8 +171,9 @@ class MpvStreamPlayer(
     }
 
     override fun retry() {
-        currentStartPositionMs = mutableRuntimeState.value.positionMs
+        playbackIntent.prepareRetry(mutableRuntimeState.value.positionMs)
         fileLoaded = false
+        loadRequested = false
         eofReached = false
         addedSubtitleIds.clear()
         mutableRuntimeState.value = mutableRuntimeState.value.copy(error = null, ended = false, isBuffering = true)
@@ -161,21 +181,30 @@ class MpvStreamPlayer(
     }
 
     override fun play() {
-        if (!initialized) return
-        MPVLib.setPropertyBoolean("pause", false)
+        playbackIntent.requestPaused(false)
+        if (!initialized || released) return
+        MPVLib.setPropertyBoolean("pause", playbackIntent.desiredPaused)
         publishState()
     }
 
     override fun pause() {
-        if (!initialized) return
-        MPVLib.setPropertyBoolean("pause", true)
+        playbackIntent.requestPaused(true)
+        if (!initialized || released) return
+        MPVLib.setPropertyBoolean("pause", playbackIntent.desiredPaused)
         publishState()
     }
 
     override fun seekTo(positionMs: Long) {
-        if (!initialized) return
-        MPVLib.setPropertyDouble("time-pos", positionMs / 1000.0)
+        playbackIntent.requestSeek(positionMs)
+        if (!initialized || !fileLoaded || released) return
+        applyPendingSeek()
         publishState()
+    }
+
+    private fun applyPendingSeek() {
+        playbackIntent.applyPendingSeek { positionMs ->
+            MPVLib.setPropertyDouble("time-pos", positionMs / 1000.0)
+        }
     }
 
     override fun setPlaybackSpeed(speed: Float) {
@@ -239,22 +268,26 @@ class MpvStreamPlayer(
         view?.destroy()
         view = null
         initialized = false
+        loadRequested = false
         mutableRuntimeState.value = PlayerRuntimeState()
     }
 
     private fun loadIfReady(force: Boolean = false) {
         val uri = currentUri ?: return
-        if (!initialized || !surfaceReady) return
-        if (!force && fileLoaded) return
+        if (!initialized || !surfaceReady || released) return
+        if (!force && (fileLoaded || loadRequested)) return
 
-        val startSeconds = currentStartPositionMs / 1000.0
+        val startSeconds = (playbackIntent.pendingSeekMs ?: 0L) / 1000.0
         val command = if (startSeconds > 0.0) {
             arrayOf("loadfile", uri.toString(), "replace", "-1", "start=$startSeconds")
         } else {
             arrayOf("loadfile", uri.toString(), "replace")
         }
+        // Set pause before loadfile so initializing a local player while Casting cannot
+        // briefly start its audio. FILE_LOADED reapplies the latest requested state.
+        MPVLib.setPropertyBoolean("pause", playbackIntent.desiredPaused)
+        loadRequested = true
         MPVLib.command(command)
-        MPVLib.setPropertyBoolean("pause", false)
         publishState(error = null, ended = false)
     }
 
@@ -441,3 +474,4 @@ private fun copyMpvAssets(context: Context) {
         outFile.outputStream().use { output -> input.copyTo(output) }
     }
 }
+
