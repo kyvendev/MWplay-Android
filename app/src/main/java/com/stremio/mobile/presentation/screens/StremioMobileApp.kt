@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -1392,6 +1393,7 @@ private fun LibraryFiltersRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .focusRestorer()
     ) {
         // Types dropdown
         if (selectable.types.isNotEmpty()) {
@@ -1452,6 +1454,7 @@ private fun DiscoverFiltersRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .focusRestorer()
     ) {
         // Types dropdown
         if (selectable.types.isNotEmpty()) {

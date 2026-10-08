@@ -4,12 +4,14 @@ import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -22,20 +24,29 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodes
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.stremio.mobile.data.model.CatalogItem
+import com.stremio.mobile.data.model.CatalogShelf
 import com.stremio.mobile.presentation.navigation.AppView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -109,7 +120,7 @@ class TvNavigationRailTest {
             .performKeyInput { pressKey(Key.DirectionLeft) }
         composeRule.onNodeWithContentDescription("Abrir menu").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionRight) }
-        poster("First movie").assertIsFocused()
+        assertPosterFocused("First movie")
             .performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.runOnIdle { assertEquals(listOf("first"), openedItems) }
     }
@@ -126,7 +137,7 @@ class TvNavigationRailTest {
             .performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.onNodeWithText("Descobrir").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionRight) }
-        poster("First movie").assertIsFocused()
+        assertPosterFocused("First movie")
         composeRule.runOnIdle { assertTrue(selectedViews.isEmpty()) }
     }
 
@@ -198,6 +209,76 @@ class TvNavigationRailTest {
         composeRule.onNodeWithTag("filter-sort").assertIsFocused()
     }
 
+    @Test
+    fun homeShelfKeepsHorizontalNavigationAndRestoresSecondPosterAfterReopeningRail() {
+        setHomeShelfContent()
+        composeRule.onNodeWithText("Início").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        poster("First movie").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        poster("Second movie").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionLeft) }
+        poster("First movie").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        poster("Second movie").assertIsFocused()
+
+        // Isolate the nested restoration contract from the shelf's spatial neighbors.
+        composeRule.onNodeWithContentDescription("Abrir menu")
+            .performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+            .assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.onNodeWithText("Início").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        assertPosterFocused("Second movie")
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.runOnIdle { assertEquals(listOf("second"), openedItems) }
+    }
+
+    @Test
+    fun continueWatchingShelfRestoresSecondPosterAfterRailAndActionMenuClose() {
+        setHomeShelfContent(continueWatching = true)
+        composeRule.onNodeWithText("Início").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        poster("First movie").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        poster("Second movie").assertIsFocused()
+        composeRule.onNodeWithContentDescription("Abrir menu")
+            .performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+            .assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        assertPosterFocused("Second movie")
+            .performTouchInput { longClick() }
+
+        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused()
+            .performKeyInput {
+                pressKey(Key.DirectionDown)
+                pressKey(Key.DirectionDown)
+                pressKey(Key.DirectionDown)
+                pressKey(Key.DirectionCenter)
+            }
+        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        assertPosterFocused("Second movie")
+        composeRule.runOnIdle { assertTrue(openedItems.isEmpty()) }
+    }
+
+    @Test
+    fun discoverFilterRowRestoresLastUsedFilterAfterReopeningRail() {
+        setBoardContent()
+        enterContent()
+        composeRule.onNodeWithTag("filter-type")
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        composeRule.onNodeWithTag("filter-sort").assertIsFocused()
+        composeRule.onNodeWithContentDescription("Abrir menu")
+            .performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+            .assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.onNodeWithText("Descobrir").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        composeRule.onNodeWithTag("filter-sort").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.runOnIdle { assertEquals(1, filterClicks) }
+    }
+
     private fun enterContent() {
         composeRule.onNodeWithText("Descobrir").assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionRight) }
@@ -205,6 +286,22 @@ class TvNavigationRailTest {
     }
 
     private fun poster(name: String) = composeRule.onNodeWithContentDescription(name)
+
+    private fun assertPosterFocused(name: String): SemanticsNodeInteraction {
+        val target = poster(name)
+        try {
+            target.assertIsFocused()
+        } catch (failure: AssertionError) {
+            val focusedNodes = composeRule.onAllNodes(isFocused(), useUnmergedTree = true)
+                .fetchSemanticsNodes()
+                .joinToString("\n") { "id=${it.id}, bounds=${it.boundsInRoot}, config=${it.config}" }
+            throw AssertionError(
+                "Expected poster '$name' to retain focus after rail handoff. Focused nodes:\n$focusedNodes",
+                failure,
+            )
+        }
+        return target
+    }
 
     private fun setBoardContent(initialView: AppView = AppView.Discover) {
         selected = initialView
@@ -239,6 +336,48 @@ class TvNavigationRailTest {
         }
     }
 
+    private fun setHomeShelfContent(continueWatching: Boolean = false) {
+        selected = AppView.Home
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalGlobalUiTheme provides GlobalUiTheme(style = "modern", hapticsEnabled = false),
+            ) {
+                TvNavigationScaffold(
+                    selectedView = selected,
+                    backdrop = null,
+                    onSelect = { selected = it; selectedViews += it },
+                    contentFocusRequester = remember { FocusRequester() },
+                ) { contentModifier ->
+                    LazyColumn(
+                        modifier = contentModifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(24.dp),
+                    ) {
+                        item { Text("Home", modifier = Modifier.padding(16.dp)) }
+                        item {
+                            val shelf = CatalogShelf(
+                                if (continueWatching) "Continue Watching" else "Popular movies",
+                                listOf(
+                                    CatalogItem("first", "movie", "First movie", null, null, null, null),
+                                    CatalogItem("second", "movie", "Second movie", null, null, null, null),
+                                ).map { it.copy(isContinueWatching = continueWatching, progress = 0.4f) },
+                                false,
+                            )
+                            if (continueWatching) {
+                                ContinueWatchingShelf(
+                                    shelf = shelf,
+                                    onItemClick = { openedItems += it.id },
+                                    onRemoveItem = { error("Cancelling the action menu must not remove a movie") },
+                                )
+                            } else {
+                                PosterShelf(shelf, ShelfMode.Movie, { openedItems += it.id })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @Composable
     private fun BoardCatalogContent(contentModifier: Modifier) {
         LazyColumn(
@@ -247,20 +386,25 @@ class TvNavigationRailTest {
         ) {
             item(key = "heading-${selected.name}") { Text(selected.name, modifier = Modifier.padding(16.dp)) }
             item(key = "filters-${selected.name}") {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth().focusRestorer(),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    ThemedButton(
-                        if (selected == AppView.Discover) "Movies" else "Browse",
-                        { filterClicks++ },
-                        modifier = Modifier.width(120.dp).testTag("filter-type"),
-                    )
-                    ThemedButton(
-                        "Popular",
-                        { filterClicks++ },
-                        modifier = Modifier.width(120.dp).testTag("filter-sort"),
-                    )
+                    item(key = "type") {
+                        ThemedButton(
+                            if (selected == AppView.Discover) "Movies" else "Browse",
+                            { filterClicks++ },
+                            modifier = Modifier.width(120.dp).testTag("filter-type"),
+                        )
+                    }
+                    item(key = "sort") {
+                        ThemedButton(
+                            "Popular",
+                            { filterClicks++ },
+                            modifier = Modifier.width(120.dp).testTag("filter-sort"),
+                        )
+                    }
                 }
             }
             item(key = "posters-${selected.name}") {

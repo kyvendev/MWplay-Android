@@ -1,6 +1,5 @@
 package com.stremio.mobile.presentation.components
 
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -31,8 +30,9 @@ fun TvNavigationScaffold(
                 // Opening the rail must not cover or reflow the focused content.
                 .padding(start = 122.dp)
                 .focusRequester(contentFocusRequester)
-                .focusRestorer()
-                .focusGroup(),
+                // LazyColumn already owns a focus group. Adding another one would save the
+                // scroll container instead of the actual poster when focus leaves the content.
+                .focusRestorer(),
         )
         StremioBottomBar(
             selectedView = selectedView,

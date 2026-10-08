@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -117,6 +118,7 @@ fun PosterShelf(
 
         LazyRow(
             state = listState,
+            modifier = Modifier.focusRestorer(),
             contentPadding = PaddingValues(start = TvGutter, end = TvGutter),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
