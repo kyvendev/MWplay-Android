@@ -12,8 +12,8 @@ This branch (`feat/mw-play-tv`) contains the TV app. The mobile app is maintaine
 - The player exposes seeking, playback speed, audio, subtitle selection/import/style, volume, resize, stats, and the next episode when available. The remote's media keys also control playback.
 - Search, login, and addon address fields open the TV keyboard with OK. Details, stream selection, and player menus keep focus within the visible window.
 
-[![Android CI](https://github.com/perpetus/stremio-android/actions/workflows/android-ci.yml/badge.svg)](https://github.com/perpetus/stremio-android/actions/workflows/android-ci.yml)
-[![Release APK](https://github.com/perpetus/stremio-android/actions/workflows/release-apk.yml/badge.svg)](https://github.com/perpetus/stremio-android/actions/workflows/release-apk.yml)
+[![Android CI](https://github.com/kyvendev/MWplay-Android/actions/workflows/android-ci.yml/badge.svg)](https://github.com/kyvendev/MWplay-Android/actions/workflows/android-ci.yml)
+[![Release APK](https://github.com/kyvendev/MWplay-Android/actions/workflows/release-apk.yml/badge.svg)](https://github.com/kyvendev/MWplay-Android/actions/workflows/release-apk.yml)
 
 > [!WARNING]
 > This is a community Android client, not the official Stremio app. It is under active development, with signed APKs, CI builds, and ongoing fixes published in this repository.
@@ -117,16 +117,19 @@ The same global style is respected by settings rows, buttons, cards, toggles, sl
 - Android SDK 37
 - Android NDK `29.0.13846066`
 - Git with submodule support
-- Optional for native rebuilds:
-  - Rust toolchain
-  - `cargo-ndk`
-  - vcpkg for Android OpenSSL dependencies
+- Required for a complete build with the streaming server (`libstream_server.so`), see [Streaming server](#streaming-server-libstream_serverso):
+  - Linux or macOS host (WSL2 on Windows); CI uses `ubuntu-latest`
+  - `bash`, `rustup` with Rust `1.99.0`, `cargo-ndk` `4.1.2`
+  - Android NDK `r27c` (`27.2.12479018`) for the server, in addition to the app NDK above
+  - vcpkg checked out at commit `84bab45d415d22042bd0b9081aea57f362da3f35` and bootstrapped
+
+Without the streaming server step the APK still builds, but torrent streams are unavailable and the Streaming Server screen reports that the native server is missing.
 
 ## Clone
 
 ```powershell
-git clone --recurse-submodules https://github.com/perpetus/stremio-android.git
-cd stremio-android
+git clone --recurse-submodules https://github.com/kyvendev/MWplay-Android.git
+cd MWplay-Android
 ```
 
 If the repository is already cloned:
@@ -220,7 +223,7 @@ To create the base64 keystore secret from PowerShell:
 
 ## Native Libraries
 
-Prebuilt native outputs are committed for supported ABIs:
+Prebuilt MPV/FFmpeg outputs and `libc++_shared.so` are committed for supported ABIs (`libstream_server.so` is built separately, see below):
 
 - `armeabi-v7a`
 - `arm64-v8a`
@@ -243,7 +246,39 @@ MPV native rebuilds are handled separately through:
 third_party/mpv-android-lib/rebuild-native.sh
 ```
 
-The MPV rebuild script is intended for Linux/macOS environments. stream-server native builds can be run per ABI through the Gradle `copyStreamServerJniLibs` helper; Gradle can run those native ABI tasks in parallel when invoked with `--parallel`.
+The MPV rebuild script is intended for Linux/macOS environments.
+
+### Streaming server (`libstream_server.so`)
+
+`libstream_server.so` is not committed (`app/src/main/jniLibs/*/libstream_server.so` is gitignored). It is built from the `stream-server` submodule with libtorrent, Boost and OpenSSL linked statically, and it must be present in `app/src/main/jniLibs/<abi>/` before the APK is assembled. Gradle prints a warning for every ABI that is missing it.
+
+Local builds and GitHub Actions run the same script, `native/build-stream-server.sh`, with the same inputs:
+
+- `native/stream-server-toolchain.env`: pinned Rust, cargo-ndk, NDK, vcpkg commit, Android API level and cargo features.
+- `native/vcpkg-triplets/`: the Android vcpkg triplets (static libraries, API 24).
+- `stream-server/vcpkg.json`, `stream-server/vcpkg-overlays/` and `stream-server/Cargo.lock` (built with `--locked`).
+
+One-time setup on Linux/macOS/WSL2:
+
+```bash
+rustup toolchain install 1.99.0 --profile minimal
+rustup target add --toolchain 1.99.0 armv7-linux-androideabi aarch64-linux-android i686-linux-android x86_64-linux-android
+cargo +1.99.0 install cargo-ndk --version 4.1.2 --locked
+sdkmanager "ndk;27.2.12479018"
+git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
+git -C ~/vcpkg checkout 84bab45d415d22042bd0b9081aea57f362da3f35
+~/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+```
+
+Build every ABI into `app/src/main/jniLibs`, then assemble:
+
+```bash
+export VCPKG_ROOT=~/vcpkg
+./gradlew :app:copyStreamServerJniLibs   # or: bash native/build-stream-server.sh arm64-v8a
+./gradlew :app:assembleDebug
+```
+
+The script refuses to run with a different Rust, cargo-ndk, NDK or vcpkg version. The first build compiles libtorrent, Boost and OpenSSL through vcpkg and can take a long time. Cross-compiling the vcpkg dependencies from a native Windows host is not part of the supported path.
 
 ## Development Notes
 
@@ -278,7 +313,8 @@ python .github/scripts/verify-apk-outputs.py app/build/outputs/apk/release armea
 
 ## Repository
 
-- Android app: https://github.com/perpetus/stremio-android
+- Android app (MW Play): https://github.com/kyvendev/MWplay-Android
+- Upstream Android app: https://github.com/perpetus/stremio-android
 - Stream server: https://github.com/perpetus/stream-server
 - Stremio core Kotlin fork: https://github.com/perpetus/stremio-core-kotlin
 

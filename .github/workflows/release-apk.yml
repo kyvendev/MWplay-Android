@@ -139,50 +139,45 @@ jobs:
           - abi: armeabi-v7a
             rust-target: armv7-linux-androideabi
             vcpkg-triplet: arm-android
-            vcpkg-arch: arm
-            android-abi: armeabi-v7a
-            make-host: armv7a-linux-androideabi
           - abi: arm64-v8a
             rust-target: aarch64-linux-android
             vcpkg-triplet: arm64-android
-            vcpkg-arch: arm64
-            android-abi: arm64-v8a
-            make-host: aarch64-linux-android
           - abi: x86
             rust-target: i686-linux-android
             vcpkg-triplet: x86-android
-            vcpkg-arch: x86
-            android-abi: x86
-            make-host: i686-linux-android
           - abi: x86_64
             rust-target: x86_64-linux-android
             vcpkg-triplet: x64-android
-            vcpkg-arch: x64
-            android-abi: x86_64
-            make-host: x86_64-linux-android
     env:
       VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
     steps:
-      - name: Checkout stream-server
+      # Same source as the APK job: this release commit and its stream-server submodule pointer.
+      - name: Checkout exact release source
         uses: actions/checkout@v4
         with:
-          repository: perpetus/stream-server
-          ref: 368666eb09f9c4849a7df7f2a6a8b26171f24cfb
-          path: stream-server
+          ref: ${{ github.sha }}
+
+      - name: Checkout stream-server submodule
+        run: git submodule update --init stream-server
+
+      - name: Read pinned native toolchain
+        id: toolchain
+        run: grep -E '^[A-Z_]+=' native/stream-server-toolchain.env >> "$GITHUB_OUTPUT"
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.toolchain.outputs.RUST_TOOLCHAIN }}
           targets: ${{ matrix.rust-target }}
 
       - name: Install cargo-ndk
-        run: cargo install cargo-ndk
+        run: cargo install cargo-ndk --version ${{ steps.toolchain.outputs.CARGO_NDK_VERSION }} --locked
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r27c
+          ndk-version: ${{ steps.toolchain.outputs.ANDROID_NDK_RELEASE }}
 
       - name: Export GitHub Actions cache env for vcpkg
         uses: actions/github-script@v7
@@ -191,70 +186,31 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL);
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN);
 
+      # The key covers everything that changes the installed packages; no stale prefix fallback.
       - name: Cache vcpkg installed packages
         uses: actions/cache@v4
         with:
           path: vcpkg_installed-${{ matrix.abi }}
-          key: mw-play-vcpkg-${{ matrix.vcpkg-triplet }}-${{ hashFiles('stream-server/vcpkg.json') }}
-          restore-keys: |
-            mw-play-vcpkg-${{ matrix.vcpkg-triplet }}-
-            android-vcpkg-${{ matrix.vcpkg-triplet }}-
-
-      - name: Create Android triplet
-        shell: bash
-        run: |
-          mkdir -p stream-server/triplets
-          cat > stream-server/triplets/${{ matrix.vcpkg-triplet }}.cmake << 'EOF'
-          set(VCPKG_TARGET_ARCHITECTURE ${{ matrix.vcpkg-arch }})
-          set(VCPKG_CRT_LINKAGE dynamic)
-          set(VCPKG_LIBRARY_LINKAGE static)
-          set(VCPKG_CMAKE_SYSTEM_NAME Android)
-          set(VCPKG_CMAKE_SYSTEM_VERSION 24)
-          set(VCPKG_MAKE_BUILD_TRIPLET "--host=${{ matrix.make-host }}")
-          EOF
-          if [[ "${{ matrix.android-abi }}" == "armeabi-v7a" ]]; then
-            echo 'set(VCPKG_CMAKE_CONFIGURE_OPTIONS -DANDROID_ABI=armeabi-v7a -DANDROID_ARM_NEON=ON)' >> stream-server/triplets/${{ matrix.vcpkg-triplet }}.cmake
-          else
-            echo 'set(VCPKG_CMAKE_CONFIGURE_OPTIONS -DANDROID_ABI=${{ matrix.android-abi }})' >> stream-server/triplets/${{ matrix.vcpkg-triplet }}.cmake
-          fi
+          key: mw-play-vcpkg-${{ matrix.vcpkg-triplet }}-${{ hashFiles('stream-server/vcpkg.json', 'stream-server/vcpkg-overlays/**', format('native/vcpkg-triplets/{0}.cmake', matrix.vcpkg-triplet), 'native/stream-server-toolchain.env') }}
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: '84bab45d415d22042bd0b9081aea57f362da3f35'
+          vcpkgGitCommitId: ${{ steps.toolchain.outputs.VCPKG_COMMIT }}
           vcpkgDirectory: '${{ github.workspace }}/vcpkg'
           vcpkgJsonGlob: 'stream-server/vcpkg.json'
           runVcpkgInstall: false
 
-      - name: Install native dependencies
-        working-directory: stream-server
-        run: |
-          ${{ github.workspace }}/vcpkg/vcpkg install \
-            --triplet ${{ matrix.vcpkg-triplet }} \
-            --x-install-root=${{ github.workspace }}/vcpkg_installed-${{ matrix.abi }} \
-            --overlay-triplets=triplets \
-            --overlay-ports=vcpkg-overlays
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-
       - name: Build native streaming server
-        working-directory: stream-server/server
-        run: cargo ndk --target ${{ matrix.rust-target }} --platform 24 build --release --features libtorrent --no-default-features
+        run: bash native/build-stream-server.sh ${{ matrix.abi }}
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-          VCPKG_INSTALLED_DIR: ${{ github.workspace }}/vcpkg_installed-${{ matrix.abi }}
-          VCPKGRS_TRIPLET: ${{ matrix.vcpkg-triplet }}
-          PKG_CONFIG_ALLOW_CROSS: "1"
-          PKG_CONFIG_PATH: ${{ github.workspace }}/vcpkg_installed-${{ matrix.abi }}/${{ matrix.vcpkg-triplet }}/lib/pkgconfig
-          PKG_CONFIG_SYSROOT_DIR: ${{ github.workspace }}/vcpkg_installed-${{ matrix.abi }}/${{ matrix.vcpkg-triplet }}
-          OPENSSL_DIR: ${{ github.workspace }}/vcpkg_installed-${{ matrix.abi }}/${{ matrix.vcpkg-triplet }}
+          STREAM_SERVER_VCPKG_INSTALLED_DIR: ${{ github.workspace }}/vcpkg_installed-${{ matrix.abi }}
+          STREAM_SERVER_OUTPUT_DIR: ${{ github.workspace }}/jniLibs
 
-      - name: Prepare JNI library
-        run: |
-          mkdir -p jniLibs/${{ matrix.abi }}
-          cp stream-server/target/${{ matrix.rust-target }}/release/libstream_server.so jniLibs/${{ matrix.abi }}/
-          test -s jniLibs/${{ matrix.abi }}/libstream_server.so
+      - name: Verify JNI library
+        run: test -s jniLibs/${{ matrix.abi }}/libstream_server.so
 
       - name: Upload JNI library
         uses: actions/upload-artifact@v4

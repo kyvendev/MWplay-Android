@@ -148,63 +148,39 @@ dependencies {
 // Stream-server native build support. These tasks are intentionally not wired into preBuild;
 // CI/release packages the already-built JNI libraries from src/main/jniLibs, while developers
 // can explicitly rebuild the native server when its Rust sources change.
-data class StreamServerTarget(
-    val taskSuffix: String,
-    val abi: String,
-    val rustTarget: String,
-    val vcpkgTriplet: String,
-    val vcpkgInstallRootName: String,
-    val vcpkgInstalledEnvSuffix: String,
+// Both Gradle and GitHub Actions run native/build-stream-server.sh, which pins the toolchain
+// (native/stream-server-toolchain.env), the vcpkg triplets (native/vcpkg-triplets) and always
+// builds from the versioned stream-server submodule.
+val streamServerTargets = mapOf(
+    "Armv7" to "armeabi-v7a",
+    "Arm64" to "arm64-v8a",
+    "X86" to "x86",
+    "X86_64" to "x86_64",
 )
+val streamServerBuildScript = rootProject.file("native/build-stream-server.sh").invariantSeparatorsPath
 
-val streamServerTargets = listOf(
-    StreamServerTarget("Armv7", "armeabi-v7a", "armv7-linux-androideabi", "arm-android", "arm", "ARMV7"),
-    StreamServerTarget("Arm64", "arm64-v8a", "aarch64-linux-android", "arm64-android", "arm64", "ARM64"),
-    StreamServerTarget("X86", "x86", "i686-linux-android", "x86-android", "x86", "X86"),
-    StreamServerTarget("X86_64", "x86_64", "x86_64-linux-android", "x64-android", "x64", "X86_64"),
-)
-
-val externalStreamServerRoot = projectDir.resolve("../../stream-server").normalize()
-val submoduleStreamServerRoot = rootProject.file("stream-server")
-val streamServerRoot = when {
-    externalStreamServerRoot.resolve("server/Cargo.toml").isFile -> externalStreamServerRoot
-    submoduleStreamServerRoot.resolve("server/Cargo.toml").isFile -> submoduleStreamServerRoot
-    else -> externalStreamServerRoot
-}
-val vcpkgRoot = stringPropertyOrEnv("VCPKG_ROOT") ?: "C:\\vcpkg"
-
-streamServerTargets.forEach { target ->
-    tasks.register<Exec>("buildStreamServer${target.taskSuffix}") {
-        workingDir = streamServerRoot.resolve("server")
-        val cargoArgs = listOf(
-            "cargo", "ndk", "--target", target.rustTarget, "--platform", "24",
-            "build", "--release", "--features", "libtorrent", "--no-default-features",
-        )
-        if (org.apache.tools.ant.taskdefs.condition.Os.isFamily(org.apache.tools.ant.taskdefs.condition.Os.FAMILY_WINDOWS)) {
-            commandLine("cmd", "/c", cargoArgs.joinToString(" "))
-        } else {
-            commandLine(cargoArgs)
-        }
-
-        val targetVcpkgInstalledDir = stringPropertyOrEnv("VCPKG_INSTALLED_DIR_${target.vcpkgInstalledEnvSuffix}")
-            ?: stringPropertyOrEnv("VCPKG_INSTALLED_DIR")
-            ?: file("$vcpkgRoot/installed-${target.vcpkgInstallRootName}").absolutePath
-        val tripletRoot = file(targetVcpkgInstalledDir).resolve(target.vcpkgTriplet)
-        environment("VCPKG_ROOT", vcpkgRoot)
-        environment("VCPKG_INSTALLED_DIR", targetVcpkgInstalledDir)
-        environment("VCPKGRS_TRIPLET", target.vcpkgTriplet)
-        environment("OPENSSL_DIR", tripletRoot.absolutePath)
-        environment("PKG_CONFIG_ALLOW_CROSS", "1")
-        environment("PKG_CONFIG_PATH", tripletRoot.resolve("lib/pkgconfig").absolutePath)
-        environment("PKG_CONFIG_SYSROOT_DIR", tripletRoot.absolutePath)
+streamServerTargets.forEach { (taskSuffix, abi) ->
+    tasks.register<Exec>("buildStreamServer$taskSuffix") {
+        group = "native"
+        description = "Builds libstream_server.so for $abi into src/main/jniLibs/$abi"
+        workingDir = rootProject.projectDir
+        // Git Bash provides `bash` on Windows; the script itself is shared with CI.
+        commandLine("bash", streamServerBuildScript, abi)
+        stringPropertyOrEnv("VCPKG_ROOT")?.let { environment("VCPKG_ROOT", it) }
+        stringPropertyOrEnv("ANDROID_NDK_HOME")?.let { environment("ANDROID_NDK_HOME", it) }
+        (stringPropertyOrEnv("ANDROID_HOME") ?: localProperties.getProperty("sdk.dir"))?.let { environment("ANDROID_HOME", it) }
     }
 }
 
-tasks.register<Copy>("copyStreamServerJniLibs") {
-    dependsOn(streamServerTargets.map { "buildStreamServer${it.taskSuffix}" })
-    streamServerTargets.forEach { target ->
-        from(streamServerRoot.resolve("target/${target.rustTarget}/release/libstream_server.so")) { into(target.abi) }
-    }
-    into("src/main/jniLibs")
+// Without the CI-built libstream_server.so the app silently uses the stub server controller.
+// Warn on local builds so an APK without the native server is noticed before it is installed.
+val missingStreamServerAbis = supportedAbis.filterNot { file("src/main/jniLibs/$it/libstream_server.so").isFile }
+if (missingStreamServerAbis.isNotEmpty()) {
+    logger.warn("w: libstream_server.so missing in src/main/jniLibs for $missingStreamServerAbis; those APKs will run without the streaming server.")
 }
 
+tasks.register("copyStreamServerJniLibs") {
+    group = "native"
+    description = "Builds libstream_server.so for every supported ABI into src/main/jniLibs"
+    dependsOn(streamServerTargets.keys.map { "buildStreamServer$it" })
+}
