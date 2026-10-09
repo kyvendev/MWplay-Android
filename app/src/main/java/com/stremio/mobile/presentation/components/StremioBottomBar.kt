@@ -41,10 +41,21 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.stremio.mobile.core.theme.AccentPurple
+import com.stremio.mobile.core.theme.HairlineBorder
+import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.core.theme.SurfaceHigh
+import com.stremio.mobile.core.theme.SurfaceMid
+import com.stremio.mobile.core.theme.TvRailBrush
 import com.stremio.mobile.presentation.navigation.AppView
 
 /**
@@ -120,7 +131,8 @@ fun StremioBottomBar(
                     }
                     .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.06f)
                     .clip(RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp))
-                    .background(Color(0xE60B0C16))
+                    .background(SurfaceMid.copy(alpha = 0.94f))
+                    .border(1.dp, HairlineBorder, RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp))
                     .clickable(enabled = navigationEnabled) { expanded = true },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -140,25 +152,30 @@ fun StremioBottomBar(
         modifier = modifier
             .fillMaxHeight()
             .width(116.dp)
-            .background(Color(0xF20B0C16))
-            .padding(horizontal = 10.dp, vertical = 22.dp),
+            .background(TvRailBrush)
+            .drawBehind {
+                // Hairline edge separates the rail from artwork without a shadow layer.
+                drawRect(HairlineBorder, topLeft = Offset(size.width - 1.dp.toPx(), 0f), size = Size(1.dp.toPx(), size.height))
+            }
+            .padding(horizontal = 10.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        StremioMark(modifier = Modifier.size(46.dp))
+        StremioMark(modifier = Modifier.size(42.dp))
         Text(
-            text = "PLAY",
+            text = "MW PLAY",
             color = Color.White,
-            fontSize = 13.sp,
+            fontSize = 11.sp,
+            letterSpacing = 2.sp,
             fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.padding(top = 5.dp),
+            modifier = Modifier.padding(top = 6.dp),
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Row(
             modifier = Modifier
                 .width(96.dp)
-                .height(42.dp)
+                .height(40.dp)
                 .focusProperties { canFocus = navigationEnabled }
                 .onPreviewKeyEvent { event ->
                     if (navigationEnabled && event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
@@ -222,11 +239,12 @@ private fun TvNavigationItem(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(18.dp)
+    val tint = if (selected) Color.White else MutedText
 
-    Row(
+    Column(
         modifier = modifier
             .width(96.dp)
-            .height(58.dp)
+            .height(66.dp)
             .focusProperties { canFocus = enabled }
             .tvFocusTarget(cornerRadius = 18.dp, focusedScale = 1.06f)
             .onPreviewKeyEvent { event ->
@@ -240,26 +258,39 @@ private fun TvNavigationItem(
                 }
             }
             .clip(shape)
-            .background(if (selected) AccentPurple.copy(alpha = 0.34f) else Color.Transparent)
+            .background(if (selected) SurfaceHigh else Color.Transparent)
+            .drawBehind {
+                if (selected) {
+                    // Persistent "you are here" marker, distinct from the white focus ring.
+                    val barHeight = size.height * 0.46f
+                    drawRoundRect(
+                        color = AccentPurple,
+                        topLeft = Offset(0f, (size.height - barHeight) / 2f),
+                        size = Size(4.dp.toPx(), barHeight),
+                        cornerRadius = CornerRadius(2.dp.toPx()),
+                    )
+                }
+            }
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
             imageVector = view.icon,
             contentDescription = view.label,
-            tint = if (selected) Color.White else Color(0xFFC8C3D5),
-            modifier = Modifier.size(23.dp),
+            tint = tint,
+            modifier = Modifier.size(24.dp),
         )
         Text(
             text = view.label,
-            color = if (selected) Color.White else Color(0xFFC8C3D5),
+            color = tint,
             fontSize = 11.sp,
-            lineHeight = 13.sp,
+            letterSpacing = (-0.1).sp,
+            lineHeight = 14.sp,
             fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold,
-            maxLines = 2,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
-

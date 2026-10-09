@@ -13,8 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEventType
@@ -25,7 +24,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.stremio.mobile.core.theme.AccentPurple
+import com.stremio.mobile.core.theme.AccentGlow
 
 /** True on Android TV / Google TV devices. */
 @Composable
@@ -41,10 +40,17 @@ fun rememberIsTelevision(): Boolean {
     }
 }
 
+/** Focus fill behind text/icon controls; posters cover it with artwork. */
+internal val TvFocusFill = Color(0xFF7550F0)
+internal val TvFocusRing = Color.White
+
 /**
  * Strong, lightweight visual treatment for an existing focusable/clickable TV target.
  * No extra focus node is created and no per-card animation is run: this keeps D-pad
  * navigation predictable and avoids doing animation work across large catalog rows.
+ *
+ * The focused element is lifted with a hardware (RenderNode) shadow tinted with the brand
+ * glow, which costs nothing while unfocused and needs no blur or offscreen layer.
  */
 @Composable
 fun Modifier.tvFocusTarget(
@@ -59,12 +65,20 @@ fun Modifier.tvFocusTarget(
 
     return this
         .onFocusChanged { focused = it.hasFocus }
-        .scale(if (focused) focusedScale else 1f)
-        .clip(shape)
-        .background(if (focused) AccentPurple.copy(alpha = 0.82f) else Color.Transparent)
+        .graphicsLayer {
+            val scale = if (focused) focusedScale else 1f
+            scaleX = scale
+            scaleY = scale
+            this.shape = shape
+            clip = true
+            shadowElevation = if (focused) 14.dp.toPx() else 0f
+            ambientShadowColor = AccentGlow
+            spotShadowColor = AccentGlow
+        }
+        .background(if (focused) TvFocusFill else Color.Transparent)
         .border(
             width = if (focused) 3.dp else 0.dp,
-            color = if (focused) Color.White else Color.Transparent,
+            color = if (focused) TvFocusRing else Color.Transparent,
             shape = shape,
         )
 }

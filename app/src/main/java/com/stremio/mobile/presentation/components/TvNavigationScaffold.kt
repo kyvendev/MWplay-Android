@@ -28,7 +28,7 @@ fun TvNavigationScaffold(
         content(
             Modifier
                 // Opening the rail must not cover or reflow the focused content.
-                .padding(start = 122.dp)
+                .padding(start = TvRailReservedWidth)
                 .focusRequester(contentFocusRequester)
                 // LazyColumn already owns a focus group. Adding another one would save the
                 // scroll container instead of the actual poster when focus leaves the content.

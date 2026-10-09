@@ -22,14 +22,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.core.theme.ScreenGutter
+import com.stremio.mobile.core.theme.SettingsMaxWidth
 import com.stremio.mobile.presentation.components.*
 
 enum class SettingsSubScreen { Main, Addons, General, Interface, Player, Streaming, Android, LiquidGlassLab, Info }
 
 @Composable
 fun SettingsPanel(email: String?, onLogout: () -> Unit, onNavigateTo: (SettingsSubScreen) -> Unit) {
-    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        SectionTitle("Configurações")
+    Column(Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        SectionTitle("Configurações", modifier = Modifier)
         ThemedCard(Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -67,9 +69,9 @@ private fun AuthButton(text:String, containerColor:Color, onClick:()->Unit) {
 private fun SettingsMenuRow(icon:ImageVector,title:String,description:String,onClick:()->Unit) {
     val haptic=rememberGlobalHapticFeedback()
     ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
-        Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.025f).clickable{haptic();onClick()}.padding(horizontal=16.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.025f).clickable{haptic();onClick()}.padding(horizontal=20.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp),modifier=Modifier.weight(1f)) {
-                Icon(icon,null,tint=Color.White,modifier=Modifier.size(24.dp)); Column(verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);Text(description,color=MutedText,fontSize=12.sp)}
+                Icon(icon,null,tint=Color.White,modifier=Modifier.size(24.dp)); Column(verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.Bold);Text(description,color=MutedText,fontSize=14.sp)}
             }
             Icon(Icons.Outlined.ChevronRight,null,tint=Color.White,modifier=Modifier.size(24.dp))
         }
@@ -86,7 +88,7 @@ fun SettingsHeader(title:String,onBack:()->Unit) {
     }
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp),modifier=Modifier.fillMaxWidth().padding(vertical=8.dp)) {
         Box(Modifier.focusRequester(backRequester).tvFocusTarget(cornerRadius=999.dp,focusedScale=1.10f).clickable{haptic();onBack()}.padding(8.dp),contentAlignment=Alignment.Center){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Voltar",tint=Color.White,modifier=Modifier.size(24.dp))}
-        Text(title,color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
+        Text(title,color=Color.White,fontSize=26.sp,fontWeight=FontWeight.ExtraBold)
     }
 }
 
@@ -94,8 +96,8 @@ fun SettingsHeader(title:String,onBack:()->Unit) {
 fun SettingsToggleRow(title:String,checked:Boolean,onCheckedChange:(Boolean)->Unit,description:String?=null) {
     val haptic=rememberGlobalHapticFeedback()
     ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
-        Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();onCheckedChange(!checked)}.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}}
+        Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();onCheckedChange(!checked)}.padding(horizontal=20.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=14.sp)}}
             ThemedToggle(checked,onCheckedChange,modifier=Modifier.focusProperties{canFocus=false})
         }
     }
@@ -128,10 +130,10 @@ fun <T> SettingsDropdownRow(title:String,selectedValue:T,options:List<Pair<T,Str
     }
 
     ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
-        Row(Modifier.fillMaxWidth().focusRequester(rowRequester).tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable(enabled = options.isNotEmpty()){haptic();expanded=true}.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}}
+        Row(Modifier.fillMaxWidth().focusRequester(rowRequester).tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable(enabled = options.isNotEmpty()){haptic();expanded=true}.padding(horizontal=20.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=14.sp)}}
             Box {
-                Text(selectedLabel,color=AccentPurple,fontSize=15.sp,fontWeight=FontWeight.Medium,modifier=Modifier.padding(horizontal=8.dp,vertical=4.dp))
+                Text(selectedLabel,color=Color(0xFFD3C6FF),fontSize=17.sp,fontWeight=FontWeight.Medium,modifier=Modifier.padding(horizontal=8.dp,vertical=4.dp))
                 ThemedDropdownMenu(expanded, dismissMenu) {
                     options.forEachIndexed { index, (value, label) ->
                         DropdownMenuItem(
@@ -152,7 +154,7 @@ fun <T> SettingsDropdownRow(title:String,selectedValue:T,options:List<Pair<T,Str
 fun SettingsSliderRow(title:String,value:Float,onValueChange:(Float)->Unit,valueRange:ClosedFloatingPointRange<Float> = 0f..1f,displayValue:String="${(value*100).toInt()}%",description:String?=null) {
     ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
         Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) { Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}};Text(displayValue,color=AccentPurple,fontSize=15.sp,fontWeight=FontWeight.Bold) }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) { Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=14.sp)}};Text(displayValue,color=Color(0xFFC9B8FF),fontSize=17.sp,fontWeight=FontWeight.Bold) }
             ThemedSlider(value,onValueChange,modifier=Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=12.dp,focusedScale=1.01f),valueRange=valueRange)
         }
     }
@@ -161,6 +163,6 @@ fun SettingsSliderRow(title:String,value:Float,onValueChange:(Float)->Unit,value
 @Composable
 fun SettingsClickRow(title:String,onClick:()->Unit,description:String?=null) {
     val haptic=rememberGlobalHapticFeedback()
-    ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) { Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();onClick()}.padding(horizontal=16.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) { Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=15.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=12.sp)}};Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight,null,tint=Color.White,modifier=Modifier.size(20.dp)) } }
+    ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) { Row(Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=16.dp,focusedScale=1.02f).clickable{haptic();onClick()}.padding(horizontal=20.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) { Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=17.sp,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=14.sp)}};Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight,null,tint=Color.White,modifier=Modifier.size(20.dp)) } }
 }
 

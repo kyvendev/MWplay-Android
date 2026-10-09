@@ -1,6 +1,7 @@
 package com.stremio.mobile.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,11 +52,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -63,7 +69,11 @@ import com.kyant.backdrop.shadow.Shadow
 import com.stremio.mobile.core.theme.AccentGreen
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.CardFallback
+import com.stremio.mobile.core.theme.HairlineBorder
 import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.core.theme.StremioBackground
+import com.stremio.mobile.core.theme.SubtleText
+import com.stremio.mobile.core.theme.SurfaceHigh
 import com.stremio.mobile.data.model.MetaDetails
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.drawBackdropSafe
@@ -90,10 +100,26 @@ fun DetailSheet(
     // the previously selected poster focused behind the sheet.
     LaunchedEffect(isTv, details.item.id) {
         if (isTv) {
+            // Let the action buttons attach before requesting focus (same pattern as the rail).
+            withFrameNanos { }
             runCatching {
                 if (details.isLoading) listRequester.requestFocus() else watchRequester.requestFocus()
             }
         }
+    }
+
+    if (isTv) {
+        TvDetailLayout(
+            details = details,
+            inLibrary = inLibrary,
+            onBack = onBack,
+            onToggleLibrary = onToggleLibrary,
+            onOpenStreams = onOpenStreams,
+            listRequester = listRequester,
+            watchRequester = watchRequester,
+            modifier = modifier,
+        )
+        return
     }
 
     Column(
@@ -270,3 +296,168 @@ private fun DetailLiquidActionButton(
     }
 }
 
+
+/**
+ * Full-screen TV detail page: artwork fills the panel, information sits in a readable
+ * left column and the primary action ("Assistir") is first and receives initial focus.
+ */
+@Composable
+private fun TvDetailLayout(
+    details: MetaDetails,
+    inLibrary: Boolean,
+    onBack: () -> Unit,
+    onToggleLibrary: () -> Unit,
+    onOpenStreams: () -> Unit,
+    listRequester: FocusRequester,
+    watchRequester: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .focusGroup()
+            .background(StremioBackground),
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(details.item.background ?: details.item.poster)
+                .size(1280, 720)
+                .crossfade(true)
+                .build(),
+            contentDescription = details.item.name,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopEnd,
+        )
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(colorStops = arrayOf(0f to Color(0xFA06070D), 0.42f to Color(0xD906070D), 0.75f to Color(0x4006070D), 1f to Color(0x1006070D)))))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(colorStops = arrayOf(0f to Color(0x6606070D), 0.25f to Color.Transparent, 0.7f to Color.Transparent, 1f to Color(0xF206070D)))))
+
+        Box(
+            modifier = Modifier
+                .padding(start = 40.dp, top = 32.dp)
+                .size(48.dp)
+                .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.1f)
+                .clip(CircleShape)
+                .background(SurfaceHigh.copy(alpha = 0.85f))
+                .clickable(onClick = onBack),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Voltar", tint = Color.White, modifier = Modifier.size(24.dp))
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxWidth(0.56f)
+                .padding(start = 64.dp, top = 96.dp, bottom = 40.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = details.item.name,
+                color = Color.White,
+                fontSize = 40.sp,
+                lineHeight = 46.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val meta = listOfNotNull(
+                details.year,
+                details.runtime,
+                when (details.item.type) { "movie" -> "Filme"; "series" -> "Série"; else -> null },
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                details.item.imdbRating?.let { rating ->
+                    Text(
+                        text = "IMDb $rating",
+                        color = Color(0xFF1A1300),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFF5C518)).padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+                if (meta.isNotEmpty()) {
+                    Text(meta.joinToString("   •   "), color = Color(0xFFE2E3EE), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (details.genres.isNotEmpty()) {
+                Text(details.genres.take(4).joinToString("  ·  "), color = MutedText, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            when {
+                details.isLoading -> CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(28.dp))
+                details.error != null -> Text(text = details.error, color = Color(0xFFFFC66D), fontSize = 16.sp)
+                else -> Text(
+                    text = details.description ?: "Sinopse indisponível.",
+                    color = Color(0xFFDADBE6),
+                    fontSize = 17.sp,
+                    lineHeight = 25.sp,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(top = 10.dp),
+            ) {
+                TvDetailButton(
+                    label = "Assistir",
+                    imageVector = Icons.Outlined.PlayArrow,
+                    onClick = onOpenStreams,
+                    primary = true,
+                    enabled = !details.isLoading,
+                    modifier = Modifier.focusRequester(watchRequester).focusProperties { right = listRequester },
+                )
+                TvDetailButton(
+                    label = if (inLibrary) "Na minha lista" else "Minha lista",
+                    imageVector = if (inLibrary) Icons.Outlined.Check else Icons.Outlined.Add,
+                    onClick = onToggleLibrary,
+                    primary = false,
+                    modifier = Modifier.focusRequester(listRequester).focusProperties { left = watchRequester },
+                )
+            }
+            val credits = details.cast.take(4)
+            if (credits.isNotEmpty() && !details.isLoading) {
+                Text(
+                    text = "Elenco: " + credits.joinToString(", "),
+                    color = SubtleText,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvDetailButton(
+    label: String,
+    imageVector: ImageVector,
+    onClick: () -> Unit,
+    primary: Boolean,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val triggerHaptic = rememberGlobalHapticFeedback()
+    val shape = RoundedCornerShape(999.dp)
+    val alpha = if (enabled) 1f else 0.45f
+    Row(
+        modifier = modifier
+            .height(56.dp)
+            .widthIn(min = 196.dp)
+            .tvFocusTarget(enabled = enabled, cornerRadius = 999.dp, focusedScale = 1.06f)
+            .clip(shape)
+            .background(if (primary) AccentPurple.copy(alpha = alpha) else SurfaceHigh.copy(alpha = 0.9f * alpha))
+            .then(if (primary) Modifier else Modifier.border(1.dp, HairlineBorder, shape))
+            .clickable(enabled = enabled) { triggerHaptic(); onClick() }
+            .padding(horizontal = 26.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(imageVector, contentDescription = null, tint = Color.White.copy(alpha = alpha), modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label, color = Color.White.copy(alpha = alpha), fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}

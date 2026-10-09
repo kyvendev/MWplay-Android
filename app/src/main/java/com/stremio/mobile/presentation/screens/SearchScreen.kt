@@ -108,7 +108,7 @@ fun SearchResultsScreen(
     val fieldContainerColor = if (globalTheme.style == "modern") {
         Color.White.copy(alpha = (globalTheme.glassAlpha * 0.42f + 0.10f).coerceIn(0.10f, 0.36f))
     } else {
-        GlassSurface
+        SurfaceHigh
     }
 
     Column(
@@ -126,7 +126,7 @@ fun SearchResultsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 11.dp, top = 6.dp, end = ScreenGutter, bottom = 6.dp),
+                .padding(start = ScreenGutter, top = 24.dp, end = ScreenGutter, bottom = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ThemedIconButton(
@@ -134,8 +134,8 @@ fun SearchResultsScreen(
                 contentDescription = "Back",
                 onClick = onBack,
                 modifier = Modifier
-                    .size(40.dp),
-                containerColor = GlassSurface,
+                    .size(48.dp),
+                containerColor = SurfaceHigh,
             )
             OutlinedTextField(
                 value = localQuery,
@@ -145,14 +145,14 @@ fun SearchResultsScreen(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 12.dp)
+                    .padding(start = 16.dp)
                     .focusRequester(focusRequester)
                     .tvTextInput(),
                 placeholder = {
                     Text(
-                        text = "Search movies, series, anime…",
+                        text = "Buscar filmes, séries, anime…",
                         color = MutedText,
-                        fontSize = 13.sp,
+                        fontSize = 16.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -162,11 +162,12 @@ fun SearchResultsScreen(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = null,
                         tint = MutedText,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(999.dp),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 17.sp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
                     keyboard?.hide()
@@ -194,9 +195,9 @@ fun SearchResultsScreen(
             results.items.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = results.error ?: "No results for \"$query\".",
+                        text = results.error ?: "Nenhum resultado para \"$query\".",
                         color = MutedText,
-                        fontSize = 15.sp,
+                        fontSize = 17.sp,
                         modifier = Modifier.padding(horizontal = ScreenGutter),
                     )
                 }
@@ -206,7 +207,8 @@ fun SearchResultsScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        bottom = BottomBarSpace + navBottom,
+                        top = 8.dp,
+                        bottom = if (isTv) 40.dp else BottomBarSpace + navBottom,
                     ),
                     verticalArrangement = Arrangement.spacedBy(27.dp),
                 ) {

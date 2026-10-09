@@ -45,6 +45,8 @@ import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.GlassSurface
 import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.core.theme.StremioBackgroundBrush
+import com.stremio.mobile.core.theme.SubtleText
+import com.stremio.mobile.core.theme.SurfaceHigh
 import com.stremio.mobile.data.model.EpisodeOption
 import com.stremio.mobile.data.model.StreamOption
 import com.stremio.mobile.data.model.StreamSortCriterion
@@ -81,7 +83,7 @@ fun StreamsSheet(
 
     Column(
         modifier = modifier.fillMaxSize().focusGroup().background(StremioBackgroundBrush)
-            .windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 18.dp, vertical = 16.dp),
+            .windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = if (isTv) 48.dp else 18.dp, vertical = if (isTv) 28.dp else 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -93,12 +95,12 @@ fun StreamsSheet(
                 containerColor = GlassSurface,
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(if (state.showingEpisodes) "Episódios" else "Fontes", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                Text(if (state.showingEpisodes) "Episódios" else "Fontes", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
                 state.forItem?.let {
-                    Text(buildString { append(it.name); state.selectedEpisodeLabel?.let { label -> append(" · $label") } }, color = MutedText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(buildString { append(it.name); state.selectedEpisodeLabel?.let { label -> append(" · $label") } }, color = MutedText, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 state.releaseDateLabel?.takeIf { it.isNotBlank() }?.let {
-                    Text("Lançado em $it", color = MutedText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Lançado em $it", color = SubtleText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (state.isResolving) CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(24.dp))
@@ -126,7 +128,7 @@ fun StreamsSheet(
                             val selected = season == state.selectedSeason
                             Box(Modifier.tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.08f)) {
                                 ThemedChip(selected = selected, onClick = { onSelectSeason(season) }) {
-                                    Text("Temporada $season", color = if (selected) Color.White else MutedText, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+                                    Text("Temporada $season", color = if (selected) Color.White else MutedText, fontSize = 15.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
                                 }
                             }
                         }
@@ -217,7 +219,7 @@ fun StreamsSheet(
 private fun LoadingStreams(message: String) {
     Column(Modifier.fillMaxWidth().height(220.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(36.dp)); Spacer(Modifier.height(16.dp))
-        Text(message, color = MutedText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Text(message, color = MutedText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -229,19 +231,19 @@ private fun EpisodeRow(episode: EpisodeOption, onClick: () -> Unit, modifier: Mo
                 .tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1.025f).clickable(onClick = onClick).padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(86.dp).height(48.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF202033))) {
+            Box(Modifier.width(128.dp).height(72.dp).clip(RoundedCornerShape(10.dp)).background(SurfaceHigh)) {
                 if (!episode.thumbnail.isNullOrBlank()) AsyncImage(episode.thumbnail, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("E${episode.episode}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
                 Box(Modifier.align(Alignment.BottomStart).padding(5.dp).clip(RoundedCornerShape(6.dp)).background(if (episode.isCurrent) AccentPurple else Color(0xB3000000)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                    Text("E${episode.episode}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("E${episode.episode}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text("E${episode.episode}. ${episode.title}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                episode.releaseDate?.takeIf { it.isNotBlank() }?.let { Text(it, color = MutedText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                Text("E${episode.episode}. ${episode.title}", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                episode.releaseDate?.takeIf { it.isNotBlank() }?.let { Text(it, color = MutedText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
-            if (episode.watched) Box(Modifier.size(8.dp).clip(CircleShape).background(AccentPurple))
+            if (episode.watched) Box(Modifier.size(10.dp).clip(CircleShape).background(AccentPurple))
         }
     }
 }
@@ -250,16 +252,16 @@ private fun EpisodeRow(episode: EpisodeOption, onClick: () -> Unit, modifier: Mo
 private fun StreamRow(option: StreamOption, enabled: Boolean, onSelect: () -> Unit, modifier: Modifier = Modifier) {
     ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
         Row(modifier.fillMaxWidth().tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.025f).clickable(enabled = enabled, onClick = onSelect).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).clip(CircleShape).background(AccentPurple), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.PlayArrow, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
-            Spacer(Modifier.width(12.dp))
+            Box(Modifier.size(46.dp).clip(CircleShape).background(AccentPurple), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.PlayArrow, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
+            Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    option.quality?.let { Box(Modifier.clip(RoundedCornerShape(4.dp)).background(Color(0xFF3B3B4F)).padding(horizontal = 6.dp, vertical = 2.dp)) { Text(it.uppercase(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) } }
-                    if (option.addonTitle.isNotBlank()) Box(Modifier.clip(RoundedCornerShape(4.dp)).background(AccentPurple.copy(alpha = .12f)).border(1.dp, AccentPurple.copy(alpha = .24f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) { Text(option.addonTitle, color = AccentPurple, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
-                    Text(option.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    option.quality?.let { Box(Modifier.clip(RoundedCornerShape(4.dp)).background(Color(0xFF3B3F55)).padding(horizontal = 7.dp, vertical = 3.dp)) { Text(it.uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) } }
+                    if (option.addonTitle.isNotBlank()) Box(Modifier.clip(RoundedCornerShape(4.dp)).background(Color.White.copy(alpha = .10f)).border(1.dp, Color.White.copy(alpha = .18f), RoundedCornerShape(4.dp)).padding(horizontal = 7.dp, vertical = 3.dp)) { Text(option.addonTitle, color = Color(0xFFD3C6FF), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
+                    Text(option.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 }
                 val cleanDesc = option.cleanDescription ?: option.description ?: option.addonTitle
-                if (cleanDesc.isNotBlank()) { Spacer(Modifier.height(4.dp)); Text(cleanDesc, color = MutedText, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis) }
+                if (cleanDesc.isNotBlank()) { Spacer(Modifier.height(4.dp)); Text(cleanDesc, color = MutedText, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis) }
             }
         }
     }
@@ -268,7 +270,7 @@ private fun StreamRow(option: StreamOption, enabled: Boolean, onSelect: () -> Un
 @Composable
 private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(Modifier.tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.08f)) {
-        ThemedChip(selected = selected, onClick = onClick) { Text(label, color = if (selected) Color.White else MutedText, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
+        ThemedChip(selected = selected, onClick = onClick) { Text(label, color = if (selected) Color.White else MutedText, fontSize = 14.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
     }
 }
 

@@ -13,6 +13,8 @@ class StubStreamingServerController : StreamingServerController {
 
     override val state: StateFlow<StreamingServerState> = mutableState
 
+    override val isNativeServerAvailable: Boolean = false
+
     override suspend fun start() {
         // Deliberately remain stopped. Callers that actually require the local
         // server will receive the normal "did not start" playback error, while

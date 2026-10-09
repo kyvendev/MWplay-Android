@@ -1,5 +1,8 @@
 package com.stremio.mobile.presentation.screens
 
+import androidx.compose.foundation.layout.widthIn
+import com.stremio.mobile.core.theme.ScreenGutter
+import com.stremio.mobile.core.theme.SettingsMaxWidth
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,7 +34,7 @@ fun GeneralSettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsHeader(title = "Configurações gerais", onBack = onBack)
         Text(text = "INTEGRAÇÕES", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
         ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {

@@ -15,17 +15,25 @@ import androidx.compose.ui.text.font.FontWeight
 import com.stremio.mobile.R
 
 private val StremioDarkScheme: ColorScheme = darkColorScheme(
-    primary = Color(0xFF7CB7FF),
-    secondary = Color(0xFF8BD8C7),
+    primary = Color(0xFFB9A4FF),
+    secondary = Color(0xFF8DB4FF),
     tertiary = Color(0xFFFFC66D),
-    background = Color(0xFF101216),
-    surface = Color(0xFF171A20),
-    onPrimary = Color(0xFF061A2E),
-    onSecondary = Color(0xFF06251F),
+    background = StremioBackground,
+    surface = SurfaceMid,
+    surfaceVariant = SurfaceHigh,
+    surfaceContainer = SurfaceMid,
+    surfaceContainerHigh = SurfaceHigh,
+    surfaceContainerHighest = SurfaceHigh,
+    surfaceContainerLow = SurfaceLow,
+    surfaceContainerLowest = StremioBackground,
+    onPrimary = Color(0xFF1B0F45),
+    onSecondary = Color(0xFF071A3D),
     onTertiary = Color(0xFF2C1B00),
-    onBackground = Color(0xFFE8EAEE),
-    onSurface = Color(0xFFE8EAEE),
-    onSurfaceVariant = Color(0xFFB8BEC9),
+    onBackground = Color(0xFFECEDF3),
+    onSurface = Color(0xFFECEDF3),
+    onSurfaceVariant = MutedText,
+    outline = Color(0x33FFFFFF),
+    outlineVariant = HairlineBorder,
 )
 
 @OptIn(ExperimentalTextApi::class)

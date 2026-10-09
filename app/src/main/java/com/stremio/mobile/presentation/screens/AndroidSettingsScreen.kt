@@ -1,5 +1,8 @@
 package com.stremio.mobile.presentation.screens
 
+import androidx.compose.foundation.layout.widthIn
+import com.stremio.mobile.core.theme.ScreenGutter
+import com.stremio.mobile.core.theme.SettingsMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -20,7 +23,7 @@ fun AndroidSettingsScreen(
     isAnalyticsEnabled: Boolean, onSetAnalyticsEnabled: (Boolean) -> Unit,
     onShowAnalyticsDisclosure: () -> Unit, onBack: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsHeader(title = "Configurações do Android", onBack = onBack)
         Text(text = "SISTEMA E INTEGRAÇÃO", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
         SettingsToggleRow(title = "Iniciar servidor com o aparelho", checked = isAutoStartOnBoot, onCheckedChange = onSetAutoStartOnBoot, description = "Inicia o servidor local automaticamente quando o aparelho ligar")

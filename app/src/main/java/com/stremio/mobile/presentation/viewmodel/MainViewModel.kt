@@ -225,6 +225,7 @@ class MainViewModel(
     ) { values ->
         MainUiState(
             server = values[0] as StreamingServerState,
+            isNativeServerAvailable = serverController.isNativeServerAvailable,
             selectedFont = values[45] as AppFont,
             showMobileDataWarning = values[46] != null,
             isAnalyticsEnabled = values[47] as Boolean,

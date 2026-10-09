@@ -12,6 +12,9 @@ sealed interface StreamingServerState {
 interface StreamingServerController {
     val state: StateFlow<StreamingServerState>
 
+    /** False when the native server library is missing from this build (stub fallback). */
+    val isNativeServerAvailable: Boolean get() = true
+
     suspend fun start()
 
     suspend fun stop()
