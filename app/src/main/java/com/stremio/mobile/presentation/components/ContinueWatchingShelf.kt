@@ -201,10 +201,10 @@ internal fun ContinueWatchingMenu(
                             }
                         }
                         .verticalScroll(rememberScrollState())
-                        .padding(24.dp),
+                        .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(item.name, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(item.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text("A remoção limpa o ponto de retomada e mantém o item na biblioteca.", color = Color(0xFFC9C8D8), fontSize = 14.sp)
                     ThemedButton("Continuar assistindo", onContinue, modifier = Modifier.fillMaxWidth().focusRequester(initialFocus))
                     ThemedButton("Ver detalhes", onDetails, modifier = Modifier.fillMaxWidth())

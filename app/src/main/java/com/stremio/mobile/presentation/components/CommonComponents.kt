@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.sp
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.core.theme.ScreenGutter
+import com.stremio.mobile.core.theme.TvTextBodyLarge
+import com.stremio.mobile.core.theme.TvTextHeadline
 
 @Composable
 fun StremioMark(modifier: Modifier = Modifier) {
@@ -43,8 +45,8 @@ fun SectionTitle(
         text = title,
         modifier = modifier,
         color = Color.White,
-        fontSize = 28.sp,
-        lineHeight = 34.sp,
+        fontSize = TvTextHeadline,
+        lineHeight = 30.sp,
         fontWeight = FontWeight.ExtraBold,
     )
 }
@@ -55,19 +57,19 @@ fun EmptyState(message: String) {
         text = message,
         modifier = Modifier.padding(horizontal = ScreenGutter, vertical = 12.dp),
         color = MutedText,
-        fontSize = 16.sp,
-        lineHeight = 23.sp,
+        fontSize = TvTextBodyLarge,
+        lineHeight = 21.sp,
     )
 }
 
 @Composable
 fun LoadingRow() {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
         horizontalArrangement = Arrangement.Center,
     ) {
         CircularProgressIndicator(
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(28.dp),
             color = AccentPurple,
             strokeWidth = 3.dp,
         )
@@ -80,7 +82,7 @@ fun GlassPill(text: String) {
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
             .background(AccentPurple.copy(alpha = 0.88f))
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 11.dp, vertical = 5.dp),
     ) {
         Text(
             text = text.uppercase(),

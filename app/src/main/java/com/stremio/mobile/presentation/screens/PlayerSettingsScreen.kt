@@ -20,7 +20,7 @@ import com.stremio.mobile.player.PlayerEngine
 
 @Composable
 fun PlayerSettingsScreen(settings: com.stremio.core.types.profile.Profile.Settings?, playerUiStyle: String, onSetPlayerUiStyle: (String) -> Unit, onUpdateSettings: (com.stremio.core.types.profile.Profile.Settings) -> Unit, onBack: () -> Unit) {
-    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SettingsHeader(title = "Configurações do player", onBack = onBack)
         if (settings != null) {
             val context = LocalContext.current

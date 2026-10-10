@@ -52,11 +52,11 @@ fun InfoSettingsScreen(serverVersion: String, serverConfigPath: String, serverCa
     if (available != null && dismissedDialogTag != available.info.tagName) {
         UpdateAvailableDialog(info = available.info, onUpdate = { dismissedDialogTag = available.info.tagName; onDownloadAndInstallUpdate(available.info) }, onLater = { dismissedDialogTag = available.info.tagName }, onSkip = { dismissedDialogTag = available.info.tagName; onIgnoreUpdate(available.info.tagName) })
     }
-    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SettingsHeader(title = "Sobre o MW Play", onBack = onBack)
         SectionLabel("DIAGNÓSTICOS DO APLICATIVO")
         ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ServerDetailRow(label = "Versão do MW Play", value = BuildConfig.VERSION_NAME)
                 ServerDetailRow(label = "Versão do servidor de streaming", value = serverVersion)
                 ServerDetailRow(label = "Caminho da configuração", value = serverConfigPath)
@@ -65,7 +65,7 @@ fun InfoSettingsScreen(serverVersion: String, serverConfigPath: String, serverCa
         }
         SectionLabel("ATUALIZAÇÕES")
         ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Verificar atualizações automaticamente", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)

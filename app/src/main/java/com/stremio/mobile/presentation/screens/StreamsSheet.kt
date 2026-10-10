@@ -47,6 +47,10 @@ import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.core.theme.StremioBackgroundBrush
 import com.stremio.mobile.core.theme.SubtleText
 import com.stremio.mobile.core.theme.SurfaceHigh
+import com.stremio.mobile.core.theme.TvTextBody
+import com.stremio.mobile.core.theme.TvTextBodyLarge
+import com.stremio.mobile.core.theme.TvTextHeadline
+import com.stremio.mobile.core.theme.TvTextLabel
 import com.stremio.mobile.data.model.EpisodeOption
 import com.stremio.mobile.data.model.StreamOption
 import com.stremio.mobile.data.model.StreamSortCriterion
@@ -83,34 +87,34 @@ fun StreamsSheet(
 
     Column(
         modifier = modifier.fillMaxSize().focusGroup().background(StremioBackgroundBrush)
-            .windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = if (isTv) 48.dp else 18.dp, vertical = if (isTv) 28.dp else 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = if (isTv) 42.dp else 18.dp, vertical = if (isTv) 24.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ThemedIconButton(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = "Voltar",
                 onClick = onBack,
-                modifier = Modifier.size(44.dp).focusRequester(backFocus).tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.12f),
+                modifier = Modifier.size(40.dp).focusRequester(backFocus).tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.12f),
                 containerColor = GlassSurface,
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(if (state.showingEpisodes) "Episódios" else "Fontes", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                Text(if (state.showingEpisodes) "Episódios" else "Fontes", color = Color.White, fontSize = TvTextHeadline, fontWeight = FontWeight.ExtraBold)
                 state.forItem?.let {
-                    Text(buildString { append(it.name); state.selectedEpisodeLabel?.let { label -> append(" · $label") } }, color = MutedText, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(buildString { append(it.name); state.selectedEpisodeLabel?.let { label -> append(" · $label") } }, color = MutedText, fontSize = TvTextBodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 state.releaseDateLabel?.takeIf { it.isNotBlank() }?.let {
-                    Text("Lançado em $it", color = SubtleText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Lançado em $it", color = SubtleText, fontSize = TvTextLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            if (state.isResolving) CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(24.dp))
+            if (state.isResolving) CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(22.dp))
         }
 
         Spacer(Modifier.height(4.dp))
 
         when {
             state.error != null && state.streams.isEmpty() && state.episodes.isEmpty() -> Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                Text(state.error, color = Color(0xFFFFC66D), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Text(state.error, color = Color(0xFFFFC66D), fontSize = TvTextBody, fontWeight = FontWeight.Medium)
             }
             state.isLoading && state.streams.isEmpty() && state.episodes.isEmpty() -> LoadingStreams(if (state.isSeries) "Carregando episódios…" else "Buscando fontes…")
             state.showingEpisodes -> {
@@ -128,7 +132,7 @@ fun StreamsSheet(
                             val selected = season == state.selectedSeason
                             Box(Modifier.tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.08f)) {
                                 ThemedChip(selected = selected, onClick = { onSelectSeason(season) }) {
-                                    Text("Temporada $season", color = if (selected) Color.White else MutedText, fontSize = 15.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+                                    Text("Temporada $season", color = if (selected) Color.White else MutedText, fontSize = TvTextBody, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
                                 }
                             }
                         }
@@ -199,7 +203,7 @@ fun StreamsSheet(
                         }
                     }
 
-                    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().weight(1f)) {
                         items(visibleStreams, key = { it.key }) { option ->
                             StreamRow(
                                 option = option,
@@ -217,9 +221,9 @@ fun StreamsSheet(
 
 @Composable
 private fun LoadingStreams(message: String) {
-    Column(Modifier.fillMaxWidth().height(220.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(36.dp)); Spacer(Modifier.height(16.dp))
-        Text(message, color = MutedText, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+    Column(Modifier.fillMaxWidth().height(200.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(32.dp)); Spacer(Modifier.height(14.dp))
+        Text(message, color = MutedText, fontSize = TvTextBodyLarge, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -228,20 +232,20 @@ private fun EpisodeRow(episode: EpisodeOption, onClick: () -> Unit, modifier: Mo
     ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 14.dp) {
         Row(
             modifier = modifier.fillMaxWidth().background(if (episode.isCurrent) Color(0x332A2042) else Color.Transparent)
-                .tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1.025f).clickable(onClick = onClick).padding(14.dp),
+                .tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1.025f).clickable(onClick = onClick).padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(128.dp).height(72.dp).clip(RoundedCornerShape(10.dp)).background(SurfaceHigh)) {
+            Box(Modifier.width(112.dp).height(63.dp).clip(RoundedCornerShape(10.dp)).background(SurfaceHigh)) {
                 if (!episode.thumbnail.isNullOrBlank()) AsyncImage(episode.thumbnail, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("E${episode.episode}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("E${episode.episode}", color = Color.White, fontSize = TvTextLabel, fontWeight = FontWeight.Bold) }
                 Box(Modifier.align(Alignment.BottomStart).padding(5.dp).clip(RoundedCornerShape(6.dp)).background(if (episode.isCurrent) AccentPurple else Color(0xB3000000)).padding(horizontal = 6.dp, vertical = 2.dp)) {
                     Text("E${episode.episode}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("E${episode.episode}. ${episode.title}", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                episode.releaseDate?.takeIf { it.isNotBlank() }?.let { Text(it, color = MutedText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                Text("E${episode.episode}. ${episode.title}", color = Color.White, fontSize = TvTextBodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                episode.releaseDate?.takeIf { it.isNotBlank() }?.let { Text(it, color = MutedText, fontSize = TvTextLabel, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
             if (episode.watched) Box(Modifier.size(10.dp).clip(CircleShape).background(AccentPurple))
         }
@@ -251,17 +255,17 @@ private fun EpisodeRow(episode: EpisodeOption, onClick: () -> Unit, modifier: Mo
 @Composable
 private fun StreamRow(option: StreamOption, enabled: Boolean, onSelect: () -> Unit, modifier: Modifier = Modifier) {
     ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-        Row(modifier.fillMaxWidth().tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.025f).clickable(enabled = enabled, onClick = onSelect).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(46.dp).clip(CircleShape).background(AccentPurple), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.PlayArrow, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
-            Spacer(Modifier.width(16.dp))
+        Row(modifier.fillMaxWidth().tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.025f).clickable(enabled = enabled, onClick = onSelect).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(CircleShape).background(AccentPurple), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.PlayArrow, null, tint = Color.White, modifier = Modifier.size(20.dp)) }
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     option.quality?.let { Box(Modifier.clip(RoundedCornerShape(4.dp)).background(Color(0xFF3B3F55)).padding(horizontal = 7.dp, vertical = 3.dp)) { Text(it.uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) } }
                     if (option.addonTitle.isNotBlank()) Box(Modifier.clip(RoundedCornerShape(4.dp)).background(Color.White.copy(alpha = .10f)).border(1.dp, Color.White.copy(alpha = .18f), RoundedCornerShape(4.dp)).padding(horizontal = 7.dp, vertical = 3.dp)) { Text(option.addonTitle, color = Color(0xFFD3C6FF), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
-                    Text(option.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Text(option.name, color = Color.White, fontSize = TvTextBodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 }
                 val cleanDesc = option.cleanDescription ?: option.description ?: option.addonTitle
-                if (cleanDesc.isNotBlank()) { Spacer(Modifier.height(4.dp)); Text(cleanDesc, color = MutedText, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis) }
+                if (cleanDesc.isNotBlank()) { Spacer(Modifier.height(4.dp)); Text(cleanDesc, color = MutedText, fontSize = TvTextLabel, lineHeight = 18.sp, maxLines = 3, overflow = TextOverflow.Ellipsis) }
             }
         }
     }
@@ -270,7 +274,7 @@ private fun StreamRow(option: StreamOption, enabled: Boolean, onSelect: () -> Un
 @Composable
 private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(Modifier.tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.08f)) {
-        ThemedChip(selected = selected, onClick = onClick) { Text(label, color = if (selected) Color.White else MutedText, fontSize = 14.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
+        ThemedChip(selected = selected, onClick = onClick) { Text(label, color = if (selected) Color.White else MutedText, fontSize = TvTextLabel, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
     }
 }
 

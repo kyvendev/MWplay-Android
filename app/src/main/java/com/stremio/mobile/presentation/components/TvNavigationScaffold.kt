@@ -11,6 +11,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.stremio.mobile.core.theme.TvRailReservedWidth
 import com.stremio.mobile.presentation.navigation.AppView
 
 /** Keeps the TV rail at the screen edge and hands focus to the content group explicitly. */

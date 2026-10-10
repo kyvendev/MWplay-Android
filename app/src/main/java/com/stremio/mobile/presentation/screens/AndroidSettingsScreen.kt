@@ -23,7 +23,7 @@ fun AndroidSettingsScreen(
     isAnalyticsEnabled: Boolean, onSetAnalyticsEnabled: (Boolean) -> Unit,
     onShowAnalyticsDisclosure: () -> Unit, onBack: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SettingsHeader(title = "Configurações do Android", onBack = onBack)
         Text(text = "SISTEMA E INTEGRAÇÃO", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
         SettingsToggleRow(title = "Iniciar servidor com o aparelho", checked = isAutoStartOnBoot, onCheckedChange = onSetAutoStartOnBoot, description = "Inicia o servidor local automaticamente quando o aparelho ligar")

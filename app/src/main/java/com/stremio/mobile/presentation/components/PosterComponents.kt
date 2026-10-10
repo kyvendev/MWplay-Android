@@ -59,17 +59,18 @@ import com.stremio.mobile.core.theme.SurfaceHigh
 import com.stremio.mobile.core.theme.SurfaceLow
 import com.stremio.mobile.core.theme.SurfaceMid
 import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.core.theme.ScreenGutter
+import com.stremio.mobile.core.theme.TvPosterWidth
+import com.stremio.mobile.core.theme.TvRailReservedWidth
+import com.stremio.mobile.core.theme.TvShelfSpacing
+import com.stremio.mobile.core.theme.TvTextLabel
+import com.stremio.mobile.core.theme.TvTextTitle
 import com.stremio.mobile.data.model.CatalogItem
 import com.stremio.mobile.data.model.CatalogShelf
 
 enum class ShelfMode { Continue, Movie, Series }
 
-private val TvGutter = 30.dp
-private val TvShelfSpacing = 18.dp
-/** Matches the content start padding applied by TvNavigationScaffold. */
-internal val TvRailReservedWidth = 122.dp
-private val TvPosterWidth = 142.dp
-private val TvPosterRadius = 16.dp
+private val TvPosterRadius = 14.dp
 
 data class PosterShelfFocusRequest(val itemKey: String, val sequence: Int)
 
@@ -97,17 +98,17 @@ fun PosterShelf(
         withFrameNanos { }
         runCatching { focusRequesters[target.itemKey]?.requestFocus() }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = TvGutter, end = TvGutter),
+            modifier = Modifier.fillMaxWidth().padding(start = ScreenGutter, end = ScreenGutter),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = shelf.title,
                 modifier = Modifier.weight(1f),
                 color = Color.White,
-                fontSize = 21.sp,
-                lineHeight = 26.sp,
+                fontSize = TvTextTitle,
+                lineHeight = 23.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -120,10 +121,10 @@ fun PosterShelf(
                         .clip(RoundedCornerShape(999.dp))
                         .background(SurfaceMid)
                         .clickable(onClick = onSeeAllClick)
-                        .padding(start = 16.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                        .padding(start = 14.dp, end = 8.dp, top = 7.dp, bottom = 7.dp),
                 ) {
-                    Text("Ver tudo", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Icon(Icons.Outlined.ChevronRight, "Mostrar tudo", tint = Color.White, modifier = Modifier.padding(start = 4.dp).size(18.dp))
+                    Text("Ver tudo", color = Color.White, fontSize = TvTextLabel, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Outlined.ChevronRight, "Mostrar tudo", tint = Color.White, modifier = Modifier.padding(start = 4.dp).size(16.dp))
                 }
             }
         }
@@ -131,7 +132,7 @@ fun PosterShelf(
         LazyRow(
             state = listState,
             modifier = Modifier.focusRestorer(),
-            contentPadding = PaddingValues(start = TvGutter, end = TvGutter),
+            contentPadding = PaddingValues(start = ScreenGutter, end = ScreenGutter),
             horizontalArrangement = Arrangement.spacedBy(TvShelfSpacing),
         ) {
             when {
@@ -185,10 +186,10 @@ fun PosterTile(
         // Shown until (or instead of) the artwork, so missing posters still identify the title.
         Text(
             text = item.name,
-            modifier = Modifier.align(Alignment.Center).padding(12.dp),
+            modifier = Modifier.align(Alignment.Center).padding(10.dp),
             color = MutedText,
-            fontSize = 13.sp,
-            lineHeight = 17.sp,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             maxLines = 4,
@@ -250,7 +251,7 @@ private fun progressFor(id: String): Float { val bucket = kotlin.math.abs(id.has
 fun rememberPosterGridColumns(): Int {
     val screenWidth = LocalConfiguration.current.screenWidthDp
     return remember(screenWidth) {
-        val available = screenWidth - TvRailReservedWidth.value - TvGutter.value * 2
+        val available = screenWidth - TvRailReservedWidth.value - ScreenGutter.value * 2
         ((available + TvShelfSpacing.value) / (TvPosterWidth.value + TvShelfSpacing.value)).toInt().coerceIn(3, 10)
     }
 }
@@ -265,7 +266,7 @@ fun PosterGridRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = TvGutter),
+            .padding(horizontal = ScreenGutter),
         horizontalArrangement = Arrangement.spacedBy(TvShelfSpacing),
     ) {
         items.forEach { item ->

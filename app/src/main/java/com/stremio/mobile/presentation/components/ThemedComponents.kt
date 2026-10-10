@@ -207,11 +207,11 @@ fun ThemedButton(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .defaultMinSize(minHeight = 52.dp)
+                    .defaultMinSize(minHeight = 46.dp)
                     .clip(RoundedCornerShape(999.dp))
                     .background(containerColor.copy(alpha = if (enabled) 0.34f else 0.10f))
                     .clickable(enabled = enabled, onClick = combinedOnClick)
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
                 content = content,
@@ -220,12 +220,12 @@ fun ThemedButton(
     } else if (theme.style == "modern") {
         Row(
             modifier = focusModifier
-                .defaultMinSize(minHeight = 52.dp)
+                .defaultMinSize(minHeight = 46.dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(containerColor.copy(alpha = if (enabled) 0.34f else 0.10f))
                 .border(0.8.dp, Color.White.copy(alpha = if (enabled) 0.22f else 0.08f), RoundedCornerShape(999.dp))
                 .clickable(enabled = enabled, onClick = combinedOnClick)
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
             content = content,
@@ -343,7 +343,7 @@ fun ThemedIconButton(
     if (shouldUseRealGlass(theme, role, resolvedBackdrop)) {
         LiquidGlassCard(
             backdrop = resolvedBackdrop!!,
-            modifier = focusModifier.size(44.dp),
+            modifier = focusModifier.size(40.dp),
             cornerRadius = 999.dp,
         ) {
             Box(
@@ -357,7 +357,7 @@ fun ThemedIconButton(
                     imageVector = imageVector,
                     contentDescription = contentDescription,
                     tint = resolvedIconTint.copy(alpha = if (enabled) 1f else 0.45f),
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -429,7 +429,7 @@ fun ThemedChip(
                 .clip(shape)
                 .background(if (selected) AccentPurple else GlassSurface)
                 .then(if (combinedOnClick != null) Modifier.clickable(enabled = enabled, onClick = combinedOnClick) else Modifier)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = content,
         )

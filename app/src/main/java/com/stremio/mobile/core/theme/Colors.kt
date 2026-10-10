@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /** Shared horizontal screen gutter so Home/Discover/Library/Search align to the same left edge. */
-val ScreenGutter = 30.dp
+val ScreenGutter = 26.dp
 
 /** Space reserved at the bottom of scrollable content so the last row clears the floating bottom bar. */
 val BottomBarSpace = 96.dp
@@ -41,4 +41,4 @@ val StremioBackgroundBrush = Brush.linearGradient(
 )
 
 /** Settings rows stay readable on wide TVs instead of stretching across the whole panel. */
-val SettingsMaxWidth = 880.dp
+val SettingsMaxWidth = 800.dp

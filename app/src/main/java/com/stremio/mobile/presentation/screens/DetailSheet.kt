@@ -74,6 +74,12 @@ import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.core.theme.StremioBackground
 import com.stremio.mobile.core.theme.SubtleText
 import com.stremio.mobile.core.theme.SurfaceHigh
+import com.stremio.mobile.core.theme.TvButtonHeight
+import com.stremio.mobile.core.theme.TvIconSize
+import com.stremio.mobile.core.theme.TvTextBody
+import com.stremio.mobile.core.theme.TvTextBodyLarge
+import com.stremio.mobile.core.theme.TvTextDisplay
+import com.stremio.mobile.core.theme.TvTextLabel
 import com.stremio.mobile.data.model.MetaDetails
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.drawBackdropSafe
@@ -334,30 +340,30 @@ private fun TvDetailLayout(
 
         Box(
             modifier = Modifier
-                .padding(start = 40.dp, top = 32.dp)
-                .size(48.dp)
+                .padding(start = 34.dp, top = 26.dp)
+                .size(42.dp)
                 .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.1f)
                 .clip(CircleShape)
                 .background(SurfaceHigh.copy(alpha = 0.85f))
                 .clickable(onClick = onBack),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Voltar", tint = Color.White, modifier = Modifier.size(24.dp))
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Voltar", tint = Color.White, modifier = Modifier.size(TvIconSize))
         }
 
         Column(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxWidth(0.56f)
-                .padding(start = 64.dp, top = 96.dp, bottom = 40.dp)
+                .padding(start = 56.dp, top = 84.dp, bottom = 34.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = details.item.name,
                 color = Color.White,
-                fontSize = 40.sp,
-                lineHeight = 46.sp,
+                fontSize = TvTextDisplay,
+                lineHeight = 40.sp,
                 fontWeight = FontWeight.ExtraBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -367,38 +373,38 @@ private fun TvDetailLayout(
                 details.runtime,
                 when (details.item.type) { "movie" -> "Filme"; "series" -> "Série"; else -> null },
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 details.item.imdbRating?.let { rating ->
                     Text(
                         text = "IMDb $rating",
                         color = Color(0xFF1A1300),
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFF5C518)).padding(horizontal = 8.dp, vertical = 3.dp),
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFF5C518)).padding(horizontal = 7.dp, vertical = 3.dp),
                     )
                 }
                 if (meta.isNotEmpty()) {
-                    Text(meta.joinToString("   •   "), color = Color(0xFFE2E3EE), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(meta.joinToString("   •   "), color = Color(0xFFE2E3EE), fontSize = TvTextBodyLarge, fontWeight = FontWeight.SemiBold)
                 }
             }
             if (details.genres.isNotEmpty()) {
-                Text(details.genres.take(4).joinToString("  ·  "), color = MutedText, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(details.genres.take(4).joinToString("  ·  "), color = MutedText, fontSize = TvTextBody, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             when {
-                details.isLoading -> CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(28.dp))
-                details.error != null -> Text(text = details.error, color = Color(0xFFFFC66D), fontSize = 16.sp)
+                details.isLoading -> CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(26.dp))
+                details.error != null -> Text(text = details.error, color = Color(0xFFFFC66D), fontSize = TvTextBodyLarge)
                 else -> Text(
                     text = details.description ?: "Sinopse indisponível.",
                     color = Color(0xFFDADBE6),
-                    fontSize = 17.sp,
-                    lineHeight = 25.sp,
+                    fontSize = TvTextBodyLarge,
+                    lineHeight = 23.sp,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.padding(top = 8.dp),
             ) {
                 TvDetailButton(
                     label = "Assistir",
@@ -421,10 +427,10 @@ private fun TvDetailLayout(
                 Text(
                     text = "Elenco: " + credits.joinToString(", "),
                     color = SubtleText,
-                    fontSize = 14.sp,
+                    fontSize = TvTextLabel,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 6.dp),
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
@@ -445,19 +451,19 @@ private fun TvDetailButton(
     val alpha = if (enabled) 1f else 0.45f
     Row(
         modifier = modifier
-            .height(56.dp)
-            .widthIn(min = 196.dp)
+            .height(TvButtonHeight)
+            .widthIn(min = 172.dp)
             .tvFocusTarget(enabled = enabled, cornerRadius = 999.dp, focusedScale = 1.06f)
             .clip(shape)
             .background(if (primary) AccentPurple.copy(alpha = alpha) else SurfaceHigh.copy(alpha = 0.9f * alpha))
             .then(if (primary) Modifier else Modifier.border(1.dp, HairlineBorder, shape))
             .clickable(enabled = enabled) { triggerHaptic(); onClick() }
-            .padding(horizontal = 26.dp),
+            .padding(horizontal = 22.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(imageVector, contentDescription = null, tint = Color.White.copy(alpha = alpha), modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(10.dp))
-        Text(label, color = Color.White.copy(alpha = alpha), fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Icon(imageVector, contentDescription = null, tint = Color.White.copy(alpha = alpha), modifier = Modifier.size(TvIconSize))
+        Spacer(Modifier.width(8.dp))
+        Text(label, color = Color.White.copy(alpha = alpha), fontSize = TvTextBodyLarge, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }

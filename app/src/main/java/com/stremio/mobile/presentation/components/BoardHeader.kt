@@ -29,6 +29,7 @@ import com.stremio.mobile.core.theme.HairlineBorder
 import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.core.theme.ScreenGutter
 import com.stremio.mobile.core.theme.SurfaceHigh
+import com.stremio.mobile.core.theme.TvTextBody
 
 @Composable
 fun BoardHeader(
@@ -37,34 +38,34 @@ fun BoardHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = ScreenGutter, top = 20.dp, end = ScreenGutter),
+            .padding(start = ScreenGutter, top = 16.dp, end = ScreenGutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        StremioMark(modifier = Modifier.size(46.dp))
+        StremioMark(modifier = Modifier.size(42.dp))
         Spacer(modifier = Modifier.weight(1f))
         Row(
             modifier = Modifier
-                .height(46.dp)
-                .widthIn(min = 240.dp)
+                .height(40.dp)
+                .widthIn(min = 216.dp)
                 .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.04f)
                 .clip(RoundedCornerShape(999.dp))
                 .background(SurfaceHigh)
                 .border(1.dp, HairlineBorder, RoundedCornerShape(999.dp))
                 .clickable(onClick = onOpenSearch)
-                .padding(start = 16.dp, end = 22.dp),
+                .padding(start = 14.dp, end = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Pesquisar",
                 tint = Color.White,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
             )
             Text(
                 text = "Buscar filmes e séries",
                 color = MutedText,
-                fontSize = 15.sp,
+                fontSize = TvTextBody,
                 fontWeight = FontWeight.Medium,
             )
         }

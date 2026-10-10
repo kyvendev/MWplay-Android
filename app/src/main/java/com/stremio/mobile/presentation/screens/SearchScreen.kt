@@ -126,7 +126,7 @@ fun SearchResultsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = ScreenGutter, top = 24.dp, end = ScreenGutter, bottom = 18.dp),
+                .padding(start = ScreenGutter, top = 20.dp, end = ScreenGutter, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ThemedIconButton(
@@ -134,7 +134,7 @@ fun SearchResultsScreen(
                 contentDescription = "Back",
                 onClick = onBack,
                 modifier = Modifier
-                    .size(48.dp),
+                    .size(42.dp),
                 containerColor = SurfaceHigh,
             )
             OutlinedTextField(
@@ -145,14 +145,14 @@ fun SearchResultsScreen(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 16.dp)
+                    .padding(start = 14.dp)
                     .focusRequester(focusRequester)
                     .tvTextInput(),
                 placeholder = {
                     Text(
                         text = "Buscar filmes, séries, anime…",
                         color = MutedText,
-                        fontSize = 16.sp,
+                        fontSize = TvTextBodyLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -162,12 +162,12 @@ fun SearchResultsScreen(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = null,
                         tint = MutedText,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(TvIconSize),
                     )
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(999.dp),
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 17.sp),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
                     keyboard?.hide()
@@ -188,7 +188,7 @@ fun SearchResultsScreen(
         when {
             results.isLoading && results.items.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(34.dp))
+                    CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(30.dp))
                 }
             }
 
@@ -197,7 +197,7 @@ fun SearchResultsScreen(
                     Text(
                         text = results.error ?: "Nenhum resultado para \"$query\".",
                         color = MutedText,
-                        fontSize = 17.sp,
+                        fontSize = TvTextBodyLarge,
                         modifier = Modifier.padding(horizontal = ScreenGutter),
                     )
                 }
@@ -210,7 +210,7 @@ fun SearchResultsScreen(
                         top = 8.dp,
                         bottom = if (isTv) 40.dp else BottomBarSpace + navBottom,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(27.dp),
+                    verticalArrangement = Arrangement.spacedBy(TvSectionSpacing),
                 ) {
                     items(shelves.size) { index ->
                         val shelf = shelves[index]

@@ -34,13 +34,13 @@ fun GeneralSettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SettingsHeader(title = "Configurações gerais", onBack = onBack)
         Text(text = "INTEGRAÇÕES", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
         ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(text = "Integração com Trakt", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Integração com Trakt", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.weight(1f))
                     Text(text = if (isTraktAuthenticated) "Autenticado" else "Não autenticado", color = if (isTraktAuthenticated) Color(0xFF4CAF50) else MutedText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }

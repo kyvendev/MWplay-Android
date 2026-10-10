@@ -51,6 +51,9 @@ import com.stremio.mobile.data.model.CatalogItem
 import com.stremio.mobile.core.theme.CardFallback
 import com.stremio.mobile.core.theme.ScreenGutter
 import com.stremio.mobile.core.theme.StremioBackground
+import com.stremio.mobile.core.theme.TvTextBody
+import com.stremio.mobile.core.theme.TvTextHero
+import com.stremio.mobile.core.theme.TvTextLabel
 
 @Composable
 fun FeaturedHero(item: CatalogItem?, onClick: (CatalogItem) -> Unit) {
@@ -61,7 +64,7 @@ fun FeaturedHero(item: CatalogItem?, onClick: (CatalogItem) -> Unit) {
 @Composable
 private fun rememberHeroHeight(): Dp {
     val screenHeight = LocalConfiguration.current.screenHeightDp
-    return remember(screenHeight) { (screenHeight * 0.46f).dp.coerceIn(240.dp, 420.dp) }
+    return remember(screenHeight) { (screenHeight * 0.40f).dp.coerceIn(210.dp, 370.dp) }
 }
 
 @Composable
@@ -99,16 +102,16 @@ fun FeaturedHeroPager(
         Row(
             Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = ScreenGutter + 24.dp, bottom = 24.dp),
+                .padding(end = ScreenGutter + 20.dp, bottom = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             repeat(items.size) { iteration ->
                 val selected = pagerState.currentPage == iteration
-                val width = animateDpAsState(if (selected) 22.dp else 7.dp, label = "width")
+                val width = animateDpAsState(if (selected) 20.dp else 6.dp, label = "width")
                 Box(
                     Modifier
-                        .height(7.dp)
+                        .height(6.dp)
                         .width(width.value)
                         .clip(CircleShape)
                         .background(if (selected) Color.White else Color.White.copy(alpha = 0.38f)),
@@ -131,8 +134,8 @@ fun FeaturedHeroCard(
             .fillMaxWidth()
             .height(heroHeight)
             .padding(start = ScreenGutter, end = ScreenGutter)
-            .tvFocusTarget(cornerRadius = 24.dp, focusedScale = 1.015f)
-            .clip(RoundedCornerShape(24.dp))
+            .tvFocusTarget(cornerRadius = 20.dp, focusedScale = 1.015f)
+            .clip(RoundedCornerShape(20.dp))
             .background(CardFallback)
             .clickable { onClick(item) },
     ) {
@@ -149,15 +152,15 @@ fun FeaturedHeroCard(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth(0.58f)
-                .padding(start = 32.dp, end = 16.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(start = 28.dp, end = 16.dp, bottom = 22.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             GlassPill(text = "Em destaque")
             Text(
                 text = item.name,
                 color = Color.White,
-                fontSize = 36.sp,
-                lineHeight = 41.sp,
+                fontSize = TvTextHero,
+                lineHeight = 36.sp,
                 fontWeight = FontWeight.ExtraBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -171,7 +174,7 @@ fun FeaturedHeroCard(
                 Text(
                     text = meta.joinToString("   •   "),
                     color = Color(0xFFE2E3EE),
-                    fontSize = 15.sp,
+                    fontSize = TvTextBody,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                 )
@@ -181,13 +184,13 @@ fun FeaturedHeroCard(
                     .padding(top = 4.dp)
                     .clip(RoundedCornerShape(999.dp))
                     .background(Color.White)
-                    .padding(start = 14.dp, end = 18.dp, top = 9.dp, bottom = 9.dp),
+                    .padding(start = 12.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 // Visual call to action only: the whole card is the single focus/click target.
-                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = StremioBackground, modifier = Modifier.size(20.dp))
-                Text("Ver detalhes", color = StremioBackground, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = StremioBackground, modifier = Modifier.size(18.dp))
+                Text("Ver detalhes", color = StremioBackground, fontSize = TvTextLabel, fontWeight = FontWeight.Bold)
             }
         }
     }

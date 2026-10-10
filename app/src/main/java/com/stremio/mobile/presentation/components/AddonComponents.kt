@@ -75,7 +75,7 @@ fun AddonRow(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(50.dp)
+                        .size(44.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(SearchBackground),
                     contentAlignment = Alignment.Center,
@@ -92,7 +92,7 @@ fun AddonRow(
                             imageVector = Icons.Outlined.Extension,
                             contentDescription = null,
                             tint = MutedText,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(22.dp),
                         )
                     }
                 }
@@ -164,7 +164,7 @@ private fun AddonActionButton(
             containerColor = Color(0x26FFFFFF),
             modifier = Modifier
                 .widthIn(min = 108.dp, max = 132.dp)
-                .height(52.dp),
+                .height(46.dp),
         )
     } else {
         ThemedButton(
@@ -174,7 +174,7 @@ private fun AddonActionButton(
             containerColor = AccentPurple,
             modifier = Modifier
                 .widthIn(min = 108.dp, max = 132.dp)
-                .height(52.dp),
+                .height(46.dp),
         )
     }
 }

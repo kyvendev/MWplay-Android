@@ -53,6 +53,10 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.HairlineBorder
 import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.core.theme.TvIconSize
+import com.stremio.mobile.core.theme.TvRailItemHeight
+import com.stremio.mobile.core.theme.TvRailItemWidth
+import com.stremio.mobile.core.theme.TvRailWidth
 import com.stremio.mobile.core.theme.SurfaceHigh
 import com.stremio.mobile.core.theme.SurfaceMid
 import com.stremio.mobile.core.theme.TvRailBrush
@@ -112,13 +116,13 @@ fun StremioBottomBar(
         Box(
             modifier = modifier
                 .fillMaxHeight()
-                .width(54.dp),
+                .width(48.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
             Row(
                 modifier = Modifier
-                    .width(46.dp)
-                    .height(72.dp)
+                    .width(42.dp)
+                    .height(64.dp)
                     .focusRequester(collapsedFocusRequester)
                     .focusProperties { canFocus = navigationEnabled }
                     .onPreviewKeyEvent { event ->
@@ -141,7 +145,7 @@ fun StremioBottomBar(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = "Abrir menu",
                     tint = Color.White,
-                    modifier = Modifier.size(30.dp),
+                    modifier = Modifier.size(26.dp),
                 )
             }
         }
@@ -151,23 +155,23 @@ fun StremioBottomBar(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(116.dp)
+            .width(TvRailWidth)
             .background(TvRailBrush)
             .drawBehind {
                 // Hairline edge separates the rail from artwork without a shadow layer.
                 drawRect(HairlineBorder, topLeft = Offset(size.width - 1.dp.toPx(), 0f), size = Size(1.dp.toPx(), size.height))
             }
-            .padding(horizontal = 10.dp, vertical = 24.dp),
+            .padding(horizontal = 6.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        StremioMark(modifier = Modifier.size(50.dp))
+        StremioMark(modifier = Modifier.size(44.dp))
 
-        Spacer(modifier = Modifier.height(22.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Row(
             modifier = Modifier
-                .width(96.dp)
-                .height(40.dp)
+                .width(TvRailItemWidth)
+                .height(36.dp)
                 .focusProperties { canFocus = navigationEnabled }
                 .onPreviewKeyEvent { event ->
                     if (navigationEnabled && event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
@@ -188,7 +192,7 @@ fun StremioBottomBar(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = "Fechar menu",
                 tint = Color.White,
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier.size(22.dp),
             )
             Text(
                 text = "Fechar",
@@ -198,10 +202,10 @@ fun StremioBottomBar(
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AppView.entries.forEach { view ->
@@ -230,15 +234,15 @@ private fun TvNavigationItem(
     onExitToContent: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(16.dp)
     val tint = if (selected) Color.White else MutedText
 
     Column(
         modifier = modifier
-            .width(96.dp)
-            .height(66.dp)
+            .width(TvRailItemWidth)
+            .height(TvRailItemHeight)
             .focusProperties { canFocus = enabled }
-            .tvFocusTarget(cornerRadius = 18.dp, focusedScale = 1.06f)
+            .tvFocusTarget(cornerRadius = 16.dp, focusedScale = 1.06f)
             .onPreviewKeyEvent { event ->
                 if (enabled && event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
                     // RIGHT now deterministically collapses the rail instead of asking Compose
@@ -264,15 +268,15 @@ private fun TvNavigationItem(
                 }
             }
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterVertically),
+            .padding(horizontal = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
             imageVector = view.icon,
             contentDescription = view.label,
             tint = tint,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(TvIconSize),
         )
         Text(
             text = view.label,

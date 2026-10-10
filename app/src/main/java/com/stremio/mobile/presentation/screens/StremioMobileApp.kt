@@ -896,7 +896,7 @@ private fun BoardScreen(
                     .then(if (contentBackdrop != null) Modifier.layerBackdrop(contentBackdrop) else Modifier)
                     .windowInsetsPadding(WindowInsets.statusBars),
             contentPadding = PaddingValues(bottom = if (isTv) 32.dp else BottomBarSpace + navBottom),
-            verticalArrangement = Arrangement.spacedBy(if (isAddonsSettingsPage) 10.dp else 27.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isAddonsSettingsPage) 10.dp else TvSectionSpacing),
         ) {
             item {
                 BoardHeader(
@@ -964,15 +964,15 @@ private fun BoardScreen(
                                     contentDescription = "Back",
                                     onClick = { onCloseDiscoverCatalog() },
                                     modifier = Modifier
-                                        .size(44.dp),
+                                        .size(40.dp),
                                     containerColor = SurfaceHigh,
                                 )
                             }
                             Text(
                                 text = if (state.isDiscoverSeeAll) state.discoverCatalogTitle ?: "Descobrir" else "Descobrir",
                                 color = Color.White,
-                                fontSize = 28.sp,
-                                lineHeight = 34.sp,
+                                fontSize = TvTextHeadline,
+                                lineHeight = 30.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -1213,13 +1213,13 @@ private fun FilterChip(
             .clip(RoundedCornerShape(99.dp))
             .background(backgroundColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             color = textColor,
-            fontSize = 13.sp,
+            fontSize = TvTextLabel,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
     }
@@ -1274,27 +1274,27 @@ fun DropdownFilter(
                     expanded = true
                 }
                 .border(1.dp, HairlineBorder, RoundedCornerShape(99.dp))
-                .padding(start = 18.dp, end = 12.dp, top = 11.dp, bottom = 11.dp),
+                .padding(start = 16.dp, end = 10.dp, top = 9.dp, bottom = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = label,
                 color = textColor,
-                fontSize = 15.sp,
+                fontSize = TvTextBody,
                 fontWeight = FontWeight.Bold
             )
             Icon(
                 imageVector = androidx.compose.material.icons.Icons.Default.ArrowDropDown,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
 
         val menuModifier = if (useRealGlass) {
             Modifier
-                .width(260.dp)
+                .width(236.dp)
                 .drawBackdropSafe(
                     backdrop = backdrop,
                     shape = { RoundedCornerShape(12.dp) },
@@ -1322,7 +1322,7 @@ fun DropdownFilter(
                 )
         } else {
             Modifier
-                .width(260.dp)
+                .width(236.dp)
                 .background(if (theme.style == "modern") Color(0xEE141422) else SurfaceHigh)
         }
 
@@ -1344,7 +1344,7 @@ fun DropdownFilter(
                             text = option,
                             color = if (isSelected) Color.White else MutedText,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 15.sp
+                            fontSize = TvTextBody
                         )
                     },
                     onClick = {

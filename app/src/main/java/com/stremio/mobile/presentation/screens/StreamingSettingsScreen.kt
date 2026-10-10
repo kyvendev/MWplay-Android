@@ -51,7 +51,7 @@ fun StreamingSettingsScreen(
 ) {
     Column(
         modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         SettingsHeader(title = "Servidor de streaming", onBack = onBack)
 
@@ -64,13 +64,13 @@ fun StreamingSettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = "Status do servidor",
                     color = Color.White,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                 )
 
