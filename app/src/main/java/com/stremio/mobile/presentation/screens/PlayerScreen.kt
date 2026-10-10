@@ -93,6 +93,12 @@ import com.stremio.mobile.presentation.components.ThemedTextButton
 import com.stremio.mobile.presentation.components.ThemedIconButton
 import com.stremio.mobile.presentation.components.PlaybackLoadingInfo
 import com.stremio.mobile.presentation.components.PlaybackLoadingOverlay
+import com.stremio.mobile.presentation.screens.player.PictureInPictureHost
+import com.stremio.mobile.presentation.screens.player.PlayerPictureInPictureEffect
+import com.stremio.mobile.presentation.screens.player.rememberIsInPictureInPicture
+import com.stremio.mobile.presentation.screens.player.supportsPlayerPip
+import com.stremio.mobile.player.session.NowPlaying
+import com.stremio.mobile.player.session.PlaybackSessionEffect
 import com.stremio.mobile.MainApplication
 import com.stremio.mobile.cast.CastDialog
 import com.stremio.mobile.cast.CastRemotePlayer
@@ -562,6 +568,43 @@ fun PlayerScreen(
         if (runtimeState.isPlaying || firstFrameReady) hasStartedPlayback = true
     }
     val showLoadingOverlay = loadingInfo != null && !hasStartedPlayback && !showFatalPlaybackError && !isCasting
+
+    // Picture-in-Picture: the same activity and engine shrink into a window, so nothing reloads and
+    // the position is kept. Closing the window ends playback like leaving the player.
+    val isInPip = rememberIsInPictureInPicture(activity) {
+        player?.pause()
+        onBack()
+    }
+    PlayerPictureInPictureEffect(
+        activity = activity,
+        enabled = player != null && !isCasting && !showFatalPlaybackError,
+        playing = isPlaying,
+        videoWidth = runtimeState.videoWidth,
+        videoHeight = runtimeState.videoHeight,
+    )
+    LaunchedEffect(isInPip) {
+        if (isInPip) {
+            showAudioDialog = false
+            showSubtitleDialog = false
+            showCastDialog = false
+            showStatsPanel = false
+        }
+    }
+
+    // System media controls (notification, lock screen, headset buttons, PiP actions) drive whichever
+    // engine is active; Cast has its own session, so the local one goes idle while casting.
+    val nowPlaying = remember(player, isCasting, title, loadingInfo) {
+        if (player == null || isCasting) null else NowPlaying(
+            player = player,
+            title = loadingInfo?.title ?: title,
+            subtitle = listOfNotNull(loadingInfo?.episodeLabel, loadingInfo?.episodeTitle).joinToString(" · ").ifBlank { null },
+            artworkUri = loadingInfo?.backdropUrl,
+            isEpisode = loadingInfo?.episodeLabel != null,
+            onPausedChanged = onPausedChanged,
+            onSeekReported = onSeekReported,
+        )
+    }
+    PlaybackSessionEffect(nowPlaying)
     val realPlayerGlassEnabled = globalUiStyle == "modern" && glassEffectsMode != "static"
     val controlsBackdrop = if (realPlayerGlassEnabled) {
         rememberLayerBackdrop {
@@ -658,6 +701,9 @@ fun PlayerScreen(
             showCastDialog = true
             resetActivityTimer()
         },
+        onEnterPip = if (activity?.supportsPlayerPip() == true) {
+            { (activity as? PictureInPictureHost)?.enterPlayerPip() }
+        } else null,
     )
 
     val globalTheme = remember(
@@ -833,7 +879,7 @@ fun PlayerScreen(
         }
 
         // Floating Stats Overlay Panel
-        if (showStatsPanel && torrentStats != null) {
+        if (showStatsPanel && torrentStats != null && !isInPip) {
             // Full-screen backdrop detector to close the stats panel when clicking outside
             Box(
                 modifier = Modifier
@@ -922,7 +968,8 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize(),
         )
 
-        when (globalUiStyle) {
+        // A PiP window shows only the video; the system draws its own play/pause from the session.
+        if (!isInPip) when (globalUiStyle) {
             "modern" -> {
                 CompositionLocalProvider(LocalGlassAlpha provides globalGlassAlpha) {
                     ModernPlayerControls(
@@ -945,7 +992,7 @@ fun PlayerScreen(
         }
 
         // No Seeds / Too Slow Banner ΓÇö independent of showControls, opposite corner from the next-episode popup
-        if (showNoSeedsBanner) {
+        if (showNoSeedsBanner && !isInPip) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -959,7 +1006,7 @@ fun PlayerScreen(
         }
 
         // Next Episode Popup — shown near the end of an episode, independent of showControls, no animation
-        if (showNextVideoPopup && nextVideo != null) {
+        if (showNextVideoPopup && nextVideo != null && !isInPip) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)

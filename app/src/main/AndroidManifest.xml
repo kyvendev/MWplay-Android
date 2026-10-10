@@ -45,6 +45,16 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <!-- Media session for the active local playback (notification, lock screen, headset, PiP). -->
+        <service
+            android:name=".player.session.PlaybackSessionService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

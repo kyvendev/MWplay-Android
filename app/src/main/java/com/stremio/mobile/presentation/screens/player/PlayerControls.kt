@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Cast
+import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.FastRewind
@@ -118,6 +119,8 @@ class PlayerControlsActions(
     val onShowAudio: () -> Unit,
     val onToggleStats: () -> Unit,
     val onShowCast: () -> Unit,
+    /** Null when the device has no Picture-in-Picture support. */
+    val onEnterPip: (() -> Unit)? = null,
 )
 
 @Composable
@@ -184,6 +187,11 @@ fun ClassicPlayerControls(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                actions.onEnterPip?.let { enterPip ->
+                    IconButton(onClick = enterPip) {
+                        Icon(Icons.Outlined.PictureInPictureAlt, "Picture-in-Picture", tint = Color.White)
+                    }
+                }
                 IconButton(onClick = actions.onShowCast) {
                     Icon(Icons.Outlined.Cast, "Transmitir com Chromecast", tint = Color.White)
                 }
@@ -581,6 +589,12 @@ private fun ModernTopPill(
                     .weight(1f)
                     .padding(horizontal = 8.dp),
             )
+
+            actions.onEnterPip?.let { enterPip ->
+                IconButton(onClick = enterPip, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.PictureInPictureAlt, "Picture-in-Picture", tint = Color.White)
+                }
+            }
 
             IconButton(onClick = actions.onShowCast, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Outlined.Cast, "Transmitir com Chromecast", tint = Color.White)
