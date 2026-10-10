@@ -91,6 +91,8 @@ import com.stremio.mobile.presentation.components.LocalGlobalBackdrop
 import com.stremio.mobile.presentation.components.ThemedButton
 import com.stremio.mobile.presentation.components.ThemedTextButton
 import com.stremio.mobile.presentation.components.ThemedIconButton
+import com.stremio.mobile.presentation.components.PlaybackLoadingInfo
+import com.stremio.mobile.presentation.components.PlaybackLoadingOverlay
 import com.stremio.mobile.MainApplication
 import com.stremio.mobile.cast.CastDialog
 import com.stremio.mobile.cast.CastRemotePlayer
@@ -133,6 +135,7 @@ fun PlayerScreen(
     glassHapticsEnabled: Boolean = true,
     hapticsIntensity: String = "Medium",
     liquidGlassTuning: LiquidGlassTuning = LiquidGlassTuning(),
+    loadingInfo: PlaybackLoadingInfo? = null,
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onBack)
@@ -549,6 +552,16 @@ fun PlayerScreen(
     }
 
     val showFatalPlaybackError = playbackError != null && !isPlaying && !isBuffering
+    // The cinematic loading layer covers only the initial preparation of each stream; once it has
+    // played once, later rebuffering keeps using the regular spinner. Never shown while casting,
+    // because the local engine stays paused when the TV owns playback. Purely visual.
+    var hasStartedPlayback by remember(activeUri) { mutableStateOf(false) }
+    val firstFrameReady = !runtimeState.isBuffering && runtimeState.videoWidth > 0 && runtimeState.durationMs > 0
+    LaunchedEffect(activeUri, runtimeState.isPlaying, firstFrameReady) {
+        // A ready-but-paused stream must not stay hidden behind the loading layer.
+        if (runtimeState.isPlaying || firstFrameReady) hasStartedPlayback = true
+    }
+    val showLoadingOverlay = loadingInfo != null && !hasStartedPlayback && !showFatalPlaybackError && !isCasting
     val realPlayerGlassEnabled = globalUiStyle == "modern" && glassEffectsMode != "static"
     val controlsBackdrop = if (realPlayerGlassEnabled) {
         rememberLayerBackdrop {
@@ -894,7 +907,7 @@ fun PlayerScreen(
         }
 
         // Buffer Loading Overlay
-        if (isBuffering) {
+        if (isBuffering && !showLoadingOverlay) {
             CircularProgressIndicator(
                 color = AccentPurple,
                 modifier = Modifier
@@ -959,6 +972,14 @@ fun PlayerScreen(
                 )
             }
         }
+        // Cinematic preparation layer: continues the streams-screen loading state until the first
+        // frame plays, then fades out over the video.
+        PlaybackLoadingOverlay(
+            info = loadingInfo,
+            visible = showLoadingOverlay,
+            startVisible = loadingInfo != null && !isCasting,
+            modifier = Modifier.fillMaxSize(),
+        )
         if (isCasting) {
             CastRemotePlayer(castController, onBack, Modifier.fillMaxSize())
         }

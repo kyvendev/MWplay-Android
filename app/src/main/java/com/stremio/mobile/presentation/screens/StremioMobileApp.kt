@@ -284,6 +284,16 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 )
             }
 
+            // Visual layer over the existing resolving state. It sits below the player, which
+            // continues it until the first frame plays (same window, so there is no flash).
+            PlaybackLoadingOverlay(
+                info = remember(streamsState.forItem, streamsState.selectedVideoId, streamsState.selectedEpisodeLabel, streamsState.episodes) {
+                    streamsState.toPlaybackLoadingInfo()
+                },
+                visible = streamsState.isResolving && !isPlayerOpen,
+                modifier = Modifier.fillMaxSize(),
+            )
+
             if (state.showMobileDataWarning) {
                 var disableWarning by remember { mutableStateOf(false) }
                 androidx.compose.material3.AlertDialog(
@@ -580,6 +590,9 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     glassHapticsEnabled = state.glassHapticsEnabled,
                     hapticsIntensity = state.hapticsIntensity,
                     liquidGlassTuning = state.liquidGlassTuning,
+                    loadingInfo = remember(streamsState.forItem, streamsState.selectedVideoId, streamsState.selectedEpisodeLabel, streamsState.episodes) {
+                        streamsState.toPlaybackLoadingInfo()
+                    },
                 )
             }
 
