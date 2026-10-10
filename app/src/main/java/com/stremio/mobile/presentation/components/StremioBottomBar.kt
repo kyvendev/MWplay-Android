@@ -160,17 +160,9 @@ fun StremioBottomBar(
             .padding(horizontal = 10.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        StremioMark(modifier = Modifier.size(42.dp))
-        Text(
-            text = "MW PLAY",
-            color = Color.White,
-            fontSize = 11.sp,
-            letterSpacing = 2.sp,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.padding(top = 6.dp),
-        )
+        StremioMark(modifier = Modifier.size(50.dp))
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(22.dp))
 
         Row(
             modifier = Modifier

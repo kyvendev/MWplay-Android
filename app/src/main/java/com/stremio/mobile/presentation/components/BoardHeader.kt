@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -41,15 +40,7 @@ fun BoardHeader(
             .padding(start = ScreenGutter, top = 20.dp, end = ScreenGutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        StremioMark(modifier = Modifier.size(38.dp))
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            text = "MW PLAY",
-            color = Color.White,
-            fontSize = 17.sp,
-            letterSpacing = 2.5.sp,
-            fontWeight = FontWeight.ExtraBold,
-        )
+        StremioMark(modifier = Modifier.size(46.dp))
         Spacer(modifier = Modifier.weight(1f))
         Row(
             modifier = Modifier
