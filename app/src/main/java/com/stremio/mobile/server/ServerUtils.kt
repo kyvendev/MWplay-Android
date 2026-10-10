@@ -2,7 +2,7 @@ package com.stremio.mobile.server
 
 fun formatServerErrorMessage(message: String): String {
     return if (message.contains("failed to bind", ignoreCase = true) || message.contains("11470")) {
-        "Port 11470 is already in use. Please close any other Stremio or streaming apps running in the background and try again."
+        "A porta 11470 já está em uso. Feche outros apps de streaming ou o Stremio em segundo plano e tente novamente."
     } else {
         message
     }

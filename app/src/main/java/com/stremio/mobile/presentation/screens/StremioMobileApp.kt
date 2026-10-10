@@ -1020,6 +1020,7 @@ private fun BoardScreen(
                             item {
                                 StreamingSettingsScreen(
                                     serverState = state.server,
+                                    isNativeServerAvailable = state.isNativeServerAvailable,
                                     serverSettings = state.serverSettings,
                                     isSeedingEnabled = state.isSeedingEnabled,
                                     minSeedsThreshold = state.minSeedsThreshold,

@@ -10,6 +10,7 @@ import com.stremio.mobile.update.UpdateState
 
 data class MainUiState(
     val server: StreamingServerState = StreamingServerState.Stopped,
+    val isNativeServerAvailable: Boolean = true,
     val selectedFont: AppFont = AppFont.PLUS_JAKARTA_SANS,
 
     val serverPingStatus: String = "Not checked",
