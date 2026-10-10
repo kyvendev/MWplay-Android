@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -11,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
+import com.stremio.mobile.presentation.components.DpadValueKeyAction
+import com.stremio.mobile.presentation.components.dpadValueKeyAction
 import com.stremio.mobile.player.PlayerResizeMode
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -30,11 +34,11 @@ class PlayerTimelineDpadTest {
 
     @Test
     fun onlyHorizontalArrowsSeek() {
-        assertEquals(TimelineKeyAction.SEEK_BACK, timelineKeyAction(Key.DirectionLeft))
-        assertEquals(TimelineKeyAction.SEEK_FORWARD, timelineKeyAction(Key.DirectionRight))
-        assertEquals(TimelineKeyAction.FOCUS_UP, timelineKeyAction(Key.DirectionUp))
-        assertEquals(TimelineKeyAction.FOCUS_DOWN, timelineKeyAction(Key.DirectionDown))
-        assertEquals(TimelineKeyAction.PASS, timelineKeyAction(Key.DirectionCenter))
+        assertEquals(DpadValueKeyAction.DECREASE, dpadValueKeyAction(Key.DirectionLeft))
+        assertEquals(DpadValueKeyAction.INCREASE, dpadValueKeyAction(Key.DirectionRight))
+        assertEquals(DpadValueKeyAction.FOCUS_UP, dpadValueKeyAction(Key.DirectionUp))
+        assertEquals(DpadValueKeyAction.FOCUS_DOWN, dpadValueKeyAction(Key.DirectionDown))
+        assertEquals(DpadValueKeyAction.PASS, dpadValueKeyAction(Key.DirectionCenter))
     }
 
     @Test
@@ -67,6 +71,23 @@ class PlayerTimelineDpadTest {
         timeline().performKeyInput { pressKey(Key.DirectionDown) }
         composeRule.runOnIdle { assertEquals(emptyList<Long>(), seeks) }
         timeline().assertIsNotFocused()
+    }
+
+    @Test
+    fun eachVolumeActionAppearsOnceAndIsReachableWithTheDpad() {
+        showControlsAndFocusTimeline()
+        for (label in listOf("Silenciar", "Diminuir volume", "Aumentar volume")) {
+            composeRule.onAllNodesWithContentDescription(label).assertCountEquals(1)
+        }
+        composeRule.onAllNodesWithContentDescription("Ativar som").assertCountEquals(0)
+        composeRule.onNodeWithContentDescription("Silenciar").performSemanticsAction(SemanticsActions.RequestFocus)
+        composeRule.onNodeWithContentDescription("Silenciar").performKeyInput { pressKey(Key.DirectionRight) }
+        composeRule.onNodeWithContentDescription("Diminuir volume").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        composeRule.onNodeWithContentDescription("Aumentar volume").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionUp) }
+        timeline().assertIsFocused()
+        composeRule.runOnIdle { assertEquals(emptyList<Long>(), seeks) }
     }
 
     private fun timeline() = composeRule.onNodeWithContentDescription("Progresso do vídeo")

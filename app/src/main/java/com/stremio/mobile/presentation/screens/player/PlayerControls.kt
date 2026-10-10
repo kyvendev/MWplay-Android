@@ -7,16 +7,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.VolumeMute
-import androidx.compose.material.icons.automirrored.outlined.VolumeDown
+import androidx.compose.material.icons.automirrored.outlined.VolumeOff
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.FastRewind
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.SkipNext
@@ -48,6 +49,8 @@ import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.player.PlayerResizeMode
+import com.stremio.mobile.presentation.components.DpadValueKeyAction
+import com.stremio.mobile.presentation.components.dpadValueKeyAction
 import com.stremio.mobile.presentation.components.tvFocusTarget
 import kotlinx.coroutines.delay
 
@@ -133,9 +136,11 @@ private fun TvPlayerControls(state: PlayerControlsState, actions: PlayerControls
             TvTimeline(state, actions)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TvIconButton(if (state.isMuted) Icons.AutoMirrored.Outlined.VolumeMute else Icons.AutoMirrored.Outlined.VolumeUp, if (state.isMuted) "Ativar som" else "Silenciar", 50, actions.onToggleMute)
-                    TvIconButton(Icons.AutoMirrored.Outlined.VolumeDown, "Diminuir volume", 50, actions.onDecreaseVolume)
-                    TvIconButton(Icons.AutoMirrored.Outlined.VolumeUp, "Aumentar volume", 50, actions.onIncreaseVolume)
+                    // Mute shows the current state (crossed speaker when muted); the volume steps use - and + so the three
+                    // different actions never share an icon.
+                    TvIconButton(if (state.isMuted) Icons.AutoMirrored.Outlined.VolumeOff else Icons.AutoMirrored.Outlined.VolumeUp, if (state.isMuted) "Ativar som" else "Silenciar", 50, actions.onToggleMute)
+                    TvIconButton(Icons.Outlined.Remove, "Diminuir volume", 50, actions.onDecreaseVolume)
+                    TvIconButton(Icons.Outlined.Add, "Aumentar volume", 50, actions.onIncreaseVolume)
                     TvTextButton("${state.currentSpeed}x", Icons.Outlined.Speed, actions.onCycleSpeed)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -184,24 +189,24 @@ private fun TvTimeline(state: PlayerControlsState, actions: PlayerControlsAction
                     stateDescription = "${formatTime(state.positionMs)} de ${formatTime(state.durationMs)}"
                 }
                 .onPreviewKeyEvent { event ->
-                    when (val action = timelineKeyAction(event.key)) {
-                        TimelineKeyAction.SEEK_BACK, TimelineKeyAction.SEEK_FORWARD -> {
+                    when (val action = dpadValueKeyAction(event.key)) {
+                        DpadValueKeyAction.DECREASE, DpadValueKeyAction.INCREASE -> {
                             if (state.durationMs <= 0) false else {
                                 if (event.type == KeyEventType.KeyDown) {
-                                    val delta = if (action == TimelineKeyAction.SEEK_FORWARD) state.seekStepMs else -state.seekStepMs
+                                    val delta = if (action == DpadValueKeyAction.INCREASE) state.seekStepMs else -state.seekStepMs
                                     actions.onSeekTo((state.positionMs + delta).coerceIn(0L, duration))
                                 }
                                 true
                             }
                         }
                         // Consumed here so the Slider never sees them; focus moves to the row above/below instead.
-                        TimelineKeyAction.FOCUS_UP, TimelineKeyAction.FOCUS_DOWN -> {
+                        DpadValueKeyAction.FOCUS_UP, DpadValueKeyAction.FOCUS_DOWN -> {
                             if (event.type == KeyEventType.KeyDown) {
-                                focusManager.moveFocus(if (action == TimelineKeyAction.FOCUS_UP) FocusDirection.Up else FocusDirection.Down)
+                                focusManager.moveFocus(if (action == DpadValueKeyAction.FOCUS_UP) FocusDirection.Up else FocusDirection.Down)
                             }
                             true
                         }
-                        TimelineKeyAction.PASS -> false
+                        DpadValueKeyAction.PASS -> false
                     }
                 },
             colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = AccentPurple, inactiveTrackColor = Color.White.copy(alpha = .28f))

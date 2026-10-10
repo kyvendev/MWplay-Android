@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -103,3 +104,18 @@ fun Modifier.tvTextInput(): Modifier {
         }
 }
 
+
+internal enum class DpadValueKeyAction { DECREASE, INCREASE, FOCUS_UP, FOCUS_DOWN, PASS }
+
+/**
+ * Material Slider treats UP/DOWN (and Home/End/Page keys) as value changes, which turned vertical
+ * D-pad presses into seeks or setting changes and trapped focus. On any value control only
+ * LEFT/RIGHT may change the value; UP/DOWN only move focus.
+ */
+internal fun dpadValueKeyAction(key: Key): DpadValueKeyAction = when (key) {
+    Key.DirectionLeft -> DpadValueKeyAction.DECREASE
+    Key.DirectionRight -> DpadValueKeyAction.INCREASE
+    Key.DirectionUp -> DpadValueKeyAction.FOCUS_UP
+    Key.DirectionDown -> DpadValueKeyAction.FOCUS_DOWN
+    else -> DpadValueKeyAction.PASS
+}

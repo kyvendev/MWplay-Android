@@ -159,7 +159,7 @@ fun SettingsSliderRow(title:String,value:Float,onValueChange:(Float)->Unit,value
     ThemedCard(Modifier.fillMaxWidth(),cornerRadius=16.dp) {
         Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) { Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=Color.White,fontSize=TvTextBodyLarge,fontWeight=FontWeight.Bold);description?.let{Text(it,color=MutedText,fontSize=TvTextLabel)}};Text(displayValue,color=Color(0xFFC9B8FF),fontSize=TvTextBodyLarge,fontWeight=FontWeight.Bold) }
-            ThemedSlider(value,onValueChange,modifier=Modifier.fillMaxWidth().tvFocusTarget(cornerRadius=12.dp,focusedScale=1.01f),valueRange=valueRange)
+            ThemedSlider(value,onValueChange,modifier=Modifier.fillMaxWidth(),valueRange=valueRange)
         }
     }
 }

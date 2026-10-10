@@ -30,6 +30,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -511,6 +517,9 @@ private fun shouldUseRealGlass(
     }
 }
 
+/** D-pad LEFT/RIGHT presses needed to cross a slider's whole range (5% per press). */
+private const val SliderDpadSteps = 20f
+
 @Composable
 fun ThemedSlider(
     value: Float,
@@ -538,6 +547,7 @@ fun ThemedSlider(
             modifier = modifier
         )
     } else {
+        val focusManager = LocalFocusManager.current
         Slider(
             value = value,
             onValueChange = {
@@ -546,7 +556,34 @@ fun ThemedSlider(
             },
             onValueChangeFinished = onValueChangeFinished,
             valueRange = valueRange,
-            modifier = modifier.tvFocusTarget(cornerRadius = 12.dp, focusedScale = 1f),
+            modifier = modifier
+                .tvFocusTarget(cornerRadius = 12.dp, focusedScale = 1f)
+                .onPreviewKeyEvent { event ->
+                    // Handled here so the Slider's own key handling never sees the arrows:
+                    // LEFT/RIGHT step the value, UP/DOWN only move to the row above/below.
+                    when (val action = dpadValueKeyAction(event.key)) {
+                        DpadValueKeyAction.DECREASE, DpadValueKeyAction.INCREASE -> {
+                            if (event.type == KeyEventType.KeyDown) {
+                                val step = (valueRange.endInclusive - valueRange.start) / SliderDpadSteps
+                                val delta = if (action == DpadValueKeyAction.INCREASE) step else -step
+                                val next = (value + delta).coerceIn(valueRange.start, valueRange.endInclusive)
+                                if (next != value) {
+                                    triggerHaptic()
+                                    onValueChange(next)
+                                    onValueChangeFinished?.invoke()
+                                }
+                            }
+                            true
+                        }
+                        DpadValueKeyAction.FOCUS_UP, DpadValueKeyAction.FOCUS_DOWN -> {
+                            if (event.type == KeyEventType.KeyDown) {
+                                focusManager.moveFocus(if (action == DpadValueKeyAction.FOCUS_UP) FocusDirection.Up else FocusDirection.Down)
+                            }
+                            true
+                        }
+                        DpadValueKeyAction.PASS -> false
+                    }
+                },
             colors = SliderDefaults.colors(
                 thumbColor = AccentPurple,
                 activeTrackColor = AccentPurple
