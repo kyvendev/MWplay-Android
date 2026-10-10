@@ -1,5 +1,8 @@
 package com.stremio.mobile.presentation.screens
 
+import com.stremio.mobile.core.theme.SettingsMaxWidth
+import com.stremio.mobile.core.theme.ScreenGutter
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,7 +47,7 @@ fun InfoSettingsScreen(serverVersion: String, serverConfigPath: String, serverCa
     if (available != null && dismissedDialogTag != available.info.tagName) {
         UpdateAvailableDialog(info = available.info, onUpdate = { dismissedDialogTag = available.info.tagName; onDownloadAndInstallUpdate(available.info) }, onLater = { dismissedDialogTag = available.info.tagName }, onSkip = { dismissedDialogTag = available.info.tagName; onIgnoreUpdate(available.info.tagName) })
     }
-    Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsHeader(title = "Sobre o MW Play", onBack = onBack)
         SectionLabel("DIAGNÓSTICOS DO APLICATIVO")
         ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {

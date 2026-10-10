@@ -7,6 +7,7 @@ import com.stremio.mobile.server.formatServerErrorMessage
 import com.stremio.mobile.server.StreamingServerState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -772,6 +773,7 @@ private fun BoardScreen(
     }
 
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val gridColumns = rememberPosterGridColumns()
     val isAddonsSettingsPage = state.selectedSection == MainSection.Settings &&
             settingsSubScreen == SettingsSubScreen.Addons
     CompositionLocalProvider(
@@ -852,25 +854,27 @@ private fun BoardScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier
-                                .padding(horizontal = 16.dp)
+                                .padding(horizontal = ScreenGutter)
                                 .fillMaxWidth()
                         ) {
                             if (state.isDiscoverSeeAll) {
                                 ThemedIconButton(
                                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    contentDescription = "Back",
+                                    contentDescription = "Voltar",
                                     onClick = { onCloseDiscoverCatalog() },
                                     modifier = Modifier
-                                        .size(36.dp),
-                                    containerColor = GlassSurface,
+                                        .size(TouchTarget),
+                                    containerColor = SurfaceHigh,
                                 )
                             }
                             Text(
-                                text = if (state.isDiscoverSeeAll) state.discoverCatalogTitle ?: "Discover" else "Discover",
+                                text = if (state.isDiscoverSeeAll) state.discoverCatalogTitle ?: "Descobrir" else "Descobrir",
                                 color = Color.White,
-                                fontSize = 22.sp,
-                                lineHeight = 27.sp,
+                                fontSize = 26.sp,
+                                lineHeight = 32.sp,
                                 fontWeight = FontWeight.ExtraBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -887,35 +891,17 @@ private fun BoardScreen(
                         item { EmptyState(state.discoverCatalog.error) }
                     } else {
                         val items = state.discoverCatalog.items
-                        val chunks = items.chunked(3)
+                        val chunks = items.chunked(gridColumns)
                         chunks.forEach { rowItems ->
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    rowItems.forEach { item ->
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            PosterTile(
-                                                item = item,
-                                                mode = if (item.type == "series") ShelfMode.Series else ShelfMode.Movie,
-                                                onClick = { onOpenDetails(item) }
-                                            )
-                                        }
-                                    }
-                                    repeat(3 - rowItems.size) {
-                                        Box(modifier = Modifier.weight(1f))
-                                    }
-                                }
+                            item(contentType = "poster-row") {
+                                PosterGridRow(rowItems, gridColumns, onOpenDetails)
                             }
                         }
                     }
                 }
 
                 MainSection.Library -> {
-                    item { SectionTitle("Library") }
+                    item { SectionTitle("Biblioteca") }
                     item {
                         LibraryFiltersRow(
                             libraryWithFilters = state.libraryWithFilters,
@@ -925,30 +911,12 @@ private fun BoardScreen(
                     }
                     val items = state.library.items
                     if (items.isEmpty()) {
-                        item { EmptyState("Add movies and series from details to build your library.") }
+                        item { EmptyState("Adicione filmes e séries pela tela de detalhes para montar sua biblioteca.") }
                     } else {
-                        val chunks = items.chunked(3)
+                        val chunks = items.chunked(gridColumns)
                         chunks.forEach { rowItems ->
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    rowItems.forEach { item ->
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            PosterTile(
-                                                item = item,
-                                                mode = if (item.type == "series") ShelfMode.Series else ShelfMode.Movie,
-                                                onClick = { onOpenDetails(item) }
-                                            )
-                                        }
-                                    }
-                                    repeat(3 - rowItems.size) {
-                                        Box(modifier = Modifier.weight(1f))
-                                    }
-                                }
+                            item(contentType = "poster-row") {
+                                PosterGridRow(rowItems, gridColumns, onOpenDetails)
                             }
                         }
                     }
@@ -1141,14 +1109,15 @@ private fun FilterChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val backgroundColor = if (selected) AccentPurple else GlassSurface
+    val backgroundColor = if (selected) AccentPurple else SurfaceHigh
     val textColor = if (selected) Color.White else MutedText
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(99.dp))
             .background(backgroundColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .border(1.dp, HairlineBorder, RoundedCornerShape(99.dp))
+            .padding(horizontal = 16.dp, vertical = 11.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -1184,34 +1153,35 @@ fun DropdownFilter(
     val theme = LocalGlobalUiTheme.current
     val useRealGlass = theme.style == "modern" && theme.glassEffectsMode == "full" && backdrop != null
     Box(modifier = modifier) {
-        val backgroundColor = GlassSurface
+        val backgroundColor = SurfaceHigh
         val textColor = Color.White
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(99.dp))
                 .background(backgroundColor)
                 .clickable { expanded = true }
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .border(1.dp, HairlineBorder, RoundedCornerShape(99.dp))
+            .padding(horizontal = 16.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = label,
                 color = textColor,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
             Icon(
                 imageVector = androidx.compose.material.icons.Icons.Default.ArrowDropDown,
                 contentDescription = null,
-                tint = MutedText,
-                modifier = Modifier.size(16.dp)
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
             )
         }
 
         val menuModifier = if (useRealGlass) {
             Modifier
-                .width(180.dp)
+                .width(220.dp)
                 .drawBackdropSafe(
                     backdrop = backdrop,
                     shape = { RoundedCornerShape(12.dp) },
@@ -1239,8 +1209,8 @@ fun DropdownFilter(
                 )
         } else {
             Modifier
-                .width(180.dp)
-                .background(if (theme.style == "modern") Color(0xEE141422) else GlassSurface)
+                .width(220.dp)
+                .background(if (theme.style == "modern") Color(0xEE141422) else SurfaceHigh)
         }
 
         DropdownMenu(
@@ -1280,7 +1250,7 @@ private fun LibraryFiltersRow(
 
     val selectable = libraryWithFilters.selectable
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = ScreenGutter),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -1340,7 +1310,7 @@ private fun DiscoverFiltersRow(
 
     val selectable = discoverCatalogWithFilters.selectable
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = ScreenGutter),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()

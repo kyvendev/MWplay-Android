@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -63,7 +64,14 @@ import com.kyant.backdrop.shadow.Shadow
 import com.stremio.mobile.core.theme.AccentGreen
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.CardFallback
+import com.stremio.mobile.core.theme.AccentGlow
+import com.stremio.mobile.core.theme.HairlineBorder
 import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.core.theme.SubtleText
+import com.stremio.mobile.core.theme.SurfaceHigh
+import com.stremio.mobile.core.theme.SurfaceLow
+import com.stremio.mobile.core.theme.SurfaceMid
+import com.stremio.mobile.core.theme.TouchTarget
 import com.stremio.mobile.data.model.MetaDetails
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.drawBackdropSafe
@@ -80,13 +88,19 @@ fun DetailSheet(
 ) {
     val configuration = LocalConfiguration.current
     val maxSheetHeight = (configuration.screenHeightDp.dp * 0.82f).coerceAtMost(720.dp)
+    // Shorter artwork on landscape phones so the actions stay reachable without scrolling.
+    val artworkHeight = (configuration.screenHeightDp.dp * 0.28f).coerceIn(140.dp, 240.dp)
+    val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 420.dp, max = maxSheetHeight)
-            .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-            .background(Color(0xF20B0C16))
+            // Tablets and landscape: a centered sheet instead of a screen-wide slab.
+            .widthIn(max = 640.dp)
+            .heightIn(min = 420.dp.coerceAtMost(maxSheetHeight), max = maxSheetHeight)
+            .clip(sheetShape)
+            .background(SurfaceLow)
+            .border(1.dp, HairlineBorder, sheetShape)
             .pointerInput(Unit) {
                 var dragAccumulator = 0f
                 var hasTriggered = false
@@ -102,7 +116,7 @@ fun DetailSheet(
             }
             .navigationBarsPadding(),
     ) {
-        Box(modifier = Modifier.fillMaxWidth().height(152.dp).background(CardFallback)) {
+        Box(modifier = Modifier.fillMaxWidth().height(artworkHeight).background(CardFallback)) {
             AsyncImage(
                 model = details.item.background ?: details.item.poster,
                 contentDescription = details.item.name,
@@ -111,42 +125,68 @@ fun DetailSheet(
             )
             Box(
                 modifier = Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(colors = listOf(Color(0x55000000), Color(0xFF0B0C16)))
+                    Brush.verticalGradient(colorStops = arrayOf(0f to Color(0x6606070D), 0.45f to Color.Transparent, 1f to SurfaceLow))
                 )
+            )
+            // Drag handle: the sheet still opens the streams with an upward swipe.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 10.dp)
+                    .size(width = 40.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.55f)),
             )
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = "Voltar",
                 tint = Color.White,
-                modifier = Modifier.padding(14.dp).size(44.dp).clip(CircleShape)
-                    .background(Color(0x66000000)).clickable(onClick = onBack).focusable().padding(10.dp),
+                modifier = Modifier.padding(12.dp).size(TouchTarget).clip(CircleShape)
+                    .background(Color(0x8006070D)).clickable(onClick = onBack).focusable().padding(12.dp),
             )
         }
 
         Column(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(text = details.item.name, color = Color.White, fontSize = 22.sp, lineHeight = 27.sp,
+            Text(text = details.item.name, color = Color.White, fontSize = 26.sp, lineHeight = 31.sp,
                 fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(
-                text = listOfNotNull(details.year, details.runtime, details.item.imdbRating?.let { "IMDb $it" }).joinToString("  •  "),
-                color = MutedText, fontSize = 13.sp,
+            val meta = listOfNotNull(
+                details.year,
+                details.runtime,
+                when (details.item.type) { "movie" -> "Filme"; "series" -> "Série"; else -> null },
             )
-            if (details.isLoading) {
-                CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(24.dp))
-            } else if (details.error != null) {
-                Text(text = details.error, color = Color(0xFFFFC66D), fontSize = 13.sp)
-            } else {
-                Text(text = details.description ?: "Sinopse indisponível.", color = Color(0xFFE4E0EE), fontSize = 13.sp,
-                    lineHeight = 18.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
-                Text(text = (details.genres + details.cast.take(3)).joinToString("  •  "), color = MutedText,
-                    fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                details.item.imdbRating?.let { rating ->
+                    Text(
+                        text = "IMDb $rating",
+                        color = Color(0xFF1A1300),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFF5C518)).padding(horizontal = 7.dp, vertical = 2.dp),
+                    )
+                }
+                if (meta.isNotEmpty()) {
+                    Text(text = meta.joinToString("  •  "), color = Color(0xFFE2E3EE), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (details.genres.isNotEmpty()) {
+                Text(text = details.genres.take(4).joinToString("  ·  "), color = MutedText, fontSize = 13.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             ) {
+                DetailLiquidActionButton(
+                    label = "Assistir",
+                    imageVector = Icons.Outlined.PlayArrow,
+                    onClick = onOpenStreams,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    enabled = !details.isLoading,
+                    tint = AccentPurple,
+                )
                 DetailLiquidActionButton(
                     label = if (inLibrary) "Na minha lista" else "Minha lista",
                     imageVector = if (inLibrary) Icons.Outlined.Check else Icons.Outlined.Add,
@@ -155,14 +195,19 @@ fun DetailSheet(
                     tint = AccentPurple,
                     surface = true,
                 )
-                DetailLiquidActionButton(
-                    label = "Assistir",
-                    imageVector = Icons.Outlined.PlayArrow,
-                    onClick = onOpenStreams,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    enabled = !details.isLoading,
-                    tint = AccentGreen,
-                )
+            }
+            if (details.isLoading) {
+                CircularProgressIndicator(color = AccentPurple, strokeWidth = 3.dp, modifier = Modifier.size(24.dp))
+            } else if (details.error != null) {
+                Text(text = details.error, color = Color(0xFFFFC66D), fontSize = 14.sp)
+            } else {
+                Text(text = details.description ?: "Sinopse indisponível.", color = Color(0xFFDADBE6), fontSize = 15.sp,
+                    lineHeight = 22.sp, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                val credits = details.cast.take(4)
+                if (credits.isNotEmpty()) {
+                    Text(text = "Elenco: " + credits.joinToString(", "), color = SubtleText,
+                        fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
     }
@@ -191,9 +236,10 @@ private fun DetailLiquidActionButton(
         label = "detailLiquidButtonScale",
     )
     val shape = RoundedCornerShape(999.dp)
-    val contentColor = if (surface) Color(0xFF101018).copy(alpha = if (enabled) 0.92f else 0.42f)
-        else Color.White.copy(alpha = if (enabled) 0.96f else 0.42f)
     val realGlass = enabled && backdrop != null && theme.style == "modern" && theme.glassEffectsMode != "static"
+    // Dark text only sits on the light liquid-glass surface; the regular surfaces use white text.
+    val contentColor = if (surface && realGlass) Color(0xFF101018).copy(alpha = if (enabled) 0.92f else 0.42f)
+        else Color.White.copy(alpha = if (enabled) 0.96f else 0.42f)
 
     Box(
         modifier = modifier
@@ -210,10 +256,11 @@ private fun DetailLiquidActionButton(
                     )
                 } else {
                     Modifier.clip(shape).background(
-                        Brush.verticalGradient(
-                            colors = if (surface) listOf(Color.White.copy(alpha = if (enabled) 0.78f else 0.14f), Color.White.copy(alpha = if (enabled) 0.46f else 0.10f))
-                            else listOf(tint.copy(alpha = if (enabled) 0.78f else 0.12f), tint.copy(alpha = if (enabled) 0.48f else 0.10f))
-                        )
+                        if (surface) {
+                            Brush.verticalGradient(listOf(SurfaceHigh.copy(alpha = if (enabled) 1f else 0.5f), SurfaceMid.copy(alpha = if (enabled) 1f else 0.5f)))
+                        } else {
+                            Brush.verticalGradient(listOf(tint.copy(alpha = if (enabled) 1f else 0.25f), AccentGlow.copy(alpha = if (enabled) 0.92f else 0.2f)))
+                        }
                     )
                 }
             )

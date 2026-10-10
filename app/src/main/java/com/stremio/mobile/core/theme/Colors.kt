@@ -10,19 +10,33 @@ val ScreenGutter = 16.dp
 /** Space reserved at the bottom of scrollable content so the last row clears the floating bottom bar. */
 val BottomBarSpace = 96.dp
 
-// MW Play visual foundation: cinema black with purple/electric-blue accents.
-val StremioBackground = Color(0xFF070812)
-val SearchBackground = Color(0xFF171925)
-val CardFallback = Color(0xFF11131F)
-val AccentPurple = Color(0xFF825CFF)
-val MutedText = Color(0xFFB9B9C8)
-val GlassSurface = Color(0xCC171925)
+// MW Play visual foundation: deep cinema ink with a violet signature and electric-blue support.
+val StremioBackground = Color(0xFF06070D)
+val SearchBackground = Color(0xFF161925)
+val CardFallback = Color(0xFF141725)
+val AccentPurple = Color(0xFF8A63FF)
+val MutedText = Color(0xFFB3B6C7)
+val GlassSurface = Color(0xCC1A1D2B)
 val AccentGreen = Color(0xFF4E8CFF)
+
+// Layered surfaces: each step is slightly lighter so cards read on large dark panels.
+val SurfaceLow = Color(0xFF0D0F18)
+val SurfaceMid = Color(0xFF151826)
+val SurfaceHigh = Color(0xFF1E2233)
+val HairlineBorder = Color(0x1FFFFFFF)
+val SubtleText = Color(0xFF7F8399)
+val AccentGlow = Color(0xFF6F4BFF)
+
+/** Minimum comfortable touch target for icon buttons and chips. */
+val TouchTarget = 48.dp
 
 val StremioBackgroundBrush = Brush.linearGradient(
     colors = listOf(
-        Color(0xFF05060C),
-        Color(0xFF111329),
-        Color(0xFF21134A),
+        Color(0xFF0E0B1F),
+        Color(0xFF08090F),
+        Color(0xFF06070D),
     ),
 )
+
+/** Settings rows stay readable on tablets instead of stretching across the whole screen. */
+val SettingsMaxWidth = 720.dp

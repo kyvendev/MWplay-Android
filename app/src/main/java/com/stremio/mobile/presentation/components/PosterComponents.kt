@@ -1,6 +1,7 @@
 package com.stremio.mobile.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,10 +38,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -47,6 +54,10 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.CardFallback
+import com.stremio.mobile.core.theme.HairlineBorder
+import com.stremio.mobile.core.theme.SurfaceHigh
+import com.stremio.mobile.core.theme.SurfaceLow
+import com.stremio.mobile.core.theme.TouchTarget
 import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.core.theme.ScreenGutter
 import com.stremio.mobile.data.model.CatalogItem
@@ -66,19 +77,20 @@ fun PosterShelf(
     onSeeAllClick: (() -> Unit)? = null,
     onItemLongClick: ((CatalogItem) -> Unit)? = null,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    val posterWidth = rememberShelfPosterWidth()
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = ScreenGutter, end = 6.dp),
+                .padding(start = ScreenGutter, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = shelf.title,
                 modifier = Modifier.weight(1f),
                 color = Color.White,
-                fontSize = 18.sp,
-                lineHeight = 22.sp,
+                fontSize = 19.sp,
+                lineHeight = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -86,20 +98,24 @@ fun PosterShelf(
             if (onSeeAllClick != null && shelf.seeAllRequest != null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable(onClick = onSeeAllClick)
+                    modifier = Modifier
+                        .heightIn(min = TouchTarget)
+                        .clip(RoundedCornerShape(999.dp))
+                        .clickable(role = Role.Button, onClick = onSeeAllClick)
+                        .padding(start = 12.dp, end = 8.dp),
                 ) {
                     Text(
-                        text = "SEE ALL",
-                        color = MutedText,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        text = "Ver tudo",
+                        color = SeeAllColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
                     )
                     Icon(
                         imageVector = Icons.Outlined.ChevronRight,
-                        contentDescription = null,
-                        tint = MutedText,
+                        contentDescription = "Ver tudo",
+                        tint = SeeAllColor,
                         modifier = Modifier
-                            .padding(start = 5.dp, end = 0.dp)
+                            .padding(start = 2.dp)
                             .size(18.dp),
                     )
                 }
@@ -108,21 +124,21 @@ fun PosterShelf(
 
         LazyRow(
             contentPadding = PaddingValues(start = ScreenGutter, end = ScreenGutter),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(ShelfSpacing),
         ) {
             when {
                 shelf.isLoading -> {
                     items(5, contentType = { "skeleton" }) {
-                        PosterSkeleton()
+                        PosterSkeleton(posterWidth)
                     }
                 }
 
                 shelf.items.isEmpty() -> {
                     item(contentType = "empty") {
                         Text(
-                            text = shelf.error ?: "No items available",
+                            text = shelf.error ?: "Nenhum item disponível",
                             color = MutedText,
-                            modifier = Modifier.padding(start = 18.dp),
+                            modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 12.dp),
                         )
                     }
                 }
@@ -134,6 +150,7 @@ fun PosterShelf(
                             mode = mode,
                             onClick = { onItemClick(item) },
                             onLongClick = onItemLongClick?.let { { it(item) } },
+                            modifier = Modifier.width(posterWidth),
                         )
                     }
                 }
@@ -148,13 +165,14 @@ fun PosterTile(
     mode: ShelfMode,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier.width(PhonePosterWidth),
 ) {
     Box(
-        modifier = Modifier
-            .width(112.dp)
+        modifier = modifier
             .aspectRatio(0.66f)
-            .clip(RoundedCornerShape(18.dp))
-            .background(CardFallback)
+            .clip(PosterShape)
+            .background(Brush.verticalGradient(listOf(SurfaceHigh, CardFallback)))
+            .border(1.dp, HairlineBorder, PosterShape)
             .then(
                 if (onLongClick != null) {
                     Modifier.combinedClickable(
@@ -169,6 +187,19 @@ fun PosterTile(
                 },
             ),
     ) {
+        // Shown until (or instead of) the artwork, so missing posters still identify the title.
+        // Visual only: the poster image already announces the name to accessibility services.
+        Text(
+            text = item.name,
+            modifier = Modifier.align(Alignment.Center).padding(10.dp).clearAndSetSemantics {},
+            color = MutedText,
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(item.poster)
@@ -211,7 +242,7 @@ fun PosterTile(
                 ProgressBar(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 3.dp, vertical = 4.dp),
+                        .padding(horizontal = 7.dp, vertical = 7.dp),
                     progress = progress,
                 )
             }
@@ -241,17 +272,13 @@ fun PosterTile(
 }
 
 @Composable
-private fun PosterSkeleton() {
+private fun PosterSkeleton(width: Dp) {
     Box(
         modifier = Modifier
-            .width(112.dp)
+            .width(width)
             .aspectRatio(0.66f)
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF222231), Color(0xFF11111C)),
-                ),
-            ),
+            .clip(PosterShape)
+            .background(Brush.verticalGradient(colors = listOf(SurfaceHigh, SurfaceLow))),
     )
 }
 
@@ -262,7 +289,7 @@ private fun CircleBadge(
 ) {
     Box(
         modifier = modifier
-            .size(17.dp)
+            .size(20.dp)
             .clip(CircleShape)
             .background(AccentPurple),
         contentAlignment = Alignment.Center,
@@ -271,7 +298,7 @@ private fun CircleBadge(
             imageVector = imageVector,
             contentDescription = null,
             tint = Color.White,
-            modifier = Modifier.size(12.dp),
+            modifier = Modifier.size(13.dp),
         )
     }
 }
@@ -358,7 +385,7 @@ private fun CinemaBadge(modifier: Modifier = Modifier) {
             modifier = Modifier.size(10.dp),
         )
         Text(
-            text = "IN CINEMA",
+            text = "NO CINEMA",
             color = Color(0xFFE8E6F0),
             fontSize = 8.sp,
             fontWeight = FontWeight.ExtraBold,
@@ -374,14 +401,15 @@ private fun ProgressBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(3.dp)
+            .height(4.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFE8E8EE)),
+            .background(Color(0x59FFFFFF)),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth(progress)
-                .height(3.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(AccentPurple),
         )
     }
@@ -392,3 +420,55 @@ private fun progressFor(id: String): Float {
     return (bucket + 28) / 100f
 }
 
+
+private val PosterShape = RoundedCornerShape(16.dp)
+private val ShelfSpacing = 12.dp
+private val PhonePosterWidth = 112.dp
+private val SeeAllColor = Color(0xFFC9B8FF)
+
+/** Shelf posters stay phone-sized on phones and grow a little on tablets / wide landscape. */
+@Composable
+fun rememberShelfPosterWidth(): Dp {
+    val smallestWidth = LocalConfiguration.current.smallestScreenWidthDp
+    return remember(smallestWidth) { if (smallestWidth >= 600) 140.dp else PhonePosterWidth }
+}
+
+/** Grid columns from the current width: 3 on a portrait phone, more in landscape and on tablets. */
+@Composable
+fun rememberPosterGridColumns(): Int {
+    val screenWidth = LocalConfiguration.current.screenWidthDp
+    return remember(screenWidth) {
+        val available = screenWidth - ScreenGutter.value * 2
+        val minCell = if (screenWidth >= 600) 130f else 100f
+        ((available + ShelfSpacing.value) / (minCell + ShelfSpacing.value)).toInt().coerceIn(3, 8)
+    }
+}
+
+/** One row of a catalog grid; posters fill their cell so the grid always spans the screen. */
+@Composable
+fun PosterGridRow(
+    items: List<CatalogItem>,
+    columns: Int,
+    onItemClick: (CatalogItem) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = ScreenGutter),
+        horizontalArrangement = Arrangement.spacedBy(ShelfSpacing),
+    ) {
+        items.forEach { item ->
+            Box(modifier = Modifier.weight(1f)) {
+                PosterTile(
+                    item = item,
+                    mode = if (item.type == "series") ShelfMode.Series else ShelfMode.Movie,
+                    onClick = { onItemClick(item) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        repeat(columns - items.size) {
+            Box(modifier = Modifier.weight(1f))
+        }
+    }
+}

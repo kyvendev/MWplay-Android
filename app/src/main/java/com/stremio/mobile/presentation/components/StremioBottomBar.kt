@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -46,6 +47,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -55,6 +57,8 @@ import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
 import com.stremio.mobile.core.theme.AccentPurple
+import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.core.theme.SurfaceMid
 import com.stremio.mobile.presentation.navigation.AppView
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -82,7 +86,7 @@ fun StremioBottomBar(
     val barBorderAlpha = (0.14f * legibility.borderAlphaBoost).coerceIn(0.08f, 0.44f)
     val barShadowAlpha = (tuning.shadowAlpha * legibility.shadowAlphaBoost).coerceIn(0f, 0.70f)
     val selectedTabColor = if (theme.style == "modern") legibility.foreground else Color.White
-    val unselectedTabColor = if (theme.style == "modern") legibility.mutedForeground else Color(0xFF9B96A8)
+    val unselectedTabColor = if (theme.style == "modern") legibility.mutedForeground else MutedText
     val selectedIconColor = if (theme.style == "modern" && theme.adaptiveGlassContrast) {
         legibility.foreground
     } else {
@@ -116,6 +120,7 @@ fun StremioBottomBar(
     BoxWithConstraints(
         modifier = modifier
             .scale(barScale)
+            .widthIn(max = 560.dp)
             .fillMaxWidth(0.94f)
             .navigationBarsPadding()
             .padding(bottom = 10.dp)
@@ -282,7 +287,7 @@ fun StremioBottomBar(
                         if (theme.style == "modern") {
                             legibility.surfaceTint.copy(alpha = (0.82f * legibility.surfaceAlphaBoost).coerceIn(0.56f, 0.94f))
                         } else {
-                            Color(0xE0131220)
+                            SurfaceMid.copy(alpha = 0.95f)
                         }
                     )
                     .border(0.7.dp, Color.White.copy(alpha = barBorderAlpha), barShape)
@@ -349,7 +354,7 @@ fun StremioBottomBar(
                         transformOrigin = TransformOrigin.Center,
                     )
                     .clip(indicatorShape)
-                    .background(AccentPurple.copy(alpha = ((0.30f + 0.10f * lift) * legibility.surfaceAlphaBoost).coerceIn(0f, 0.62f)))
+                    .background(AccentPurple.copy(alpha = ((0.42f + 0.10f * lift) * legibility.surfaceAlphaBoost).coerceIn(0f, 0.62f)))
                     .border(0.7.dp, AccentPurple.copy(alpha = (0.38f * legibility.borderAlphaBoost).coerceIn(0f, 0.82f)), indicatorShape)
             )
         }
@@ -369,6 +374,7 @@ fun StremioBottomBar(
                     selectedColor = selectedTabColor,
                     unselectedColor = unselectedTabColor,
                     selectedIconColor = selectedIconColor,
+                    width = tabWidth,
                 )
             }
         }
@@ -383,6 +389,7 @@ private fun BottomTab(
     selectedColor: Color,
     unselectedColor: Color,
     selectedIconColor: Color,
+    width: Dp,
 ) {
     val color by animateColorAsState(
         targetValue = if (selected) selectedColor else unselectedColor,
@@ -397,9 +404,10 @@ private fun BottomTab(
 
     Column(
         modifier = Modifier
-            .width(70.dp)
+            .width(width)
             .clip(RoundedCornerShape(999.dp))
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

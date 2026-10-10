@@ -35,13 +35,16 @@ fun StremioMark(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun SectionTitle(title: String) {
+fun SectionTitle(
+    title: String,
+    modifier: Modifier = Modifier.padding(start = ScreenGutter, end = 12.dp),
+) {
     Text(
         text = title,
-        modifier = Modifier.padding(start = ScreenGutter, end = 12.dp),
+        modifier = modifier,
         color = Color.White,
-        fontSize = 22.sp,
-        lineHeight = 27.sp,
+        fontSize = 26.sp,
+        lineHeight = 32.sp,
         fontWeight = FontWeight.ExtraBold,
     )
 }
@@ -50,22 +53,23 @@ fun SectionTitle(title: String) {
 fun EmptyState(message: String) {
     Text(
         text = message,
-        modifier = Modifier.padding(horizontal = ScreenGutter),
+        modifier = Modifier.padding(horizontal = ScreenGutter, vertical = 12.dp),
         color = MutedText,
         fontSize = 15.sp,
-        lineHeight = 21.sp,
+        lineHeight = 22.sp,
     )
 }
 
 @Composable
 fun LoadingRow() {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
         horizontalArrangement = Arrangement.Center,
     ) {
         CircularProgressIndicator(
             modifier = Modifier.size(28.dp),
             color = AccentPurple,
+            strokeWidth = 3.dp,
         )
     }
 }
@@ -75,13 +79,14 @@ fun GlassPill(text: String) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(Color(0x3DFFFFFF))
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .background(AccentPurple.copy(alpha = 0.88f))
+            .padding(horizontal = 11.dp, vertical = 5.dp),
     ) {
         Text(
-            text = text,
+            text = text.uppercase(),
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
+            letterSpacing = 1.1.sp,
             fontWeight = FontWeight.ExtraBold,
         )
     }

@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -49,6 +51,8 @@ import coil3.compose.AsyncImage
 import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.GlassSurface
 import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.core.theme.SurfaceHigh
+import com.stremio.mobile.core.theme.TouchTarget
 import com.stremio.mobile.core.theme.StremioBackgroundBrush
 import com.stremio.mobile.data.model.EpisodeOption
 import com.stremio.mobile.data.model.StreamOption
@@ -73,12 +77,14 @@ fun StreamsSheet(
     onSelectSortCriterion: (StreamSortCriterion) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Edge-to-edge: keep the last row clear of the gesture/navigation bar.
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(StremioBackgroundBrush)
             .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Header
@@ -88,17 +94,17 @@ fun StreamsSheet(
         ) {
             ThemedIconButton(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = "Voltar",
                 onClick = onBack,
                 modifier = Modifier
-                    .size(40.dp),
-                containerColor = GlassSurface,
+                    .size(TouchTarget),
+                containerColor = SurfaceHigh,
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (state.showingEpisodes) "Episodes" else "Streams",
+                    text = if (state.showingEpisodes) "Episódios" else "Fontes",
                     color = Color.White,
-                    fontSize = 22.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.ExtraBold,
                 )
                 state.forItem?.let {
@@ -110,14 +116,14 @@ fun StreamsSheet(
                             }
                         },
                         color = MutedText,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
                 state.releaseDateLabel?.takeIf { it.isNotBlank() }?.let { releaseDate ->
                     Text(
-                        text = "Released $releaseDate",
+                        text = "Lançado em $releaseDate",
                         color = MutedText,
                         fontSize = 12.sp,
                         maxLines = 1,
@@ -159,7 +165,7 @@ fun StreamsSheet(
                     CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(36.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = if (state.isSeries) "Loading episodes…" else "Finding streams across your addons…",
+                        text = if (state.isSeries) "Carregando episódios…" else "Buscando fontes nos seus addons…",
                         color = MutedText,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
@@ -180,9 +186,9 @@ fun StreamsSheet(
                                 onClick = { onSelectSeason(season) },
                             ) {
                                 Text(
-                                    text = "Season $season",
+                                    text = "Temporada $season",
                                     color = if (selected) Color.White else MutedText,
-                                    fontSize = 13.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
@@ -211,7 +217,7 @@ fun StreamsSheet(
                 }
                 LazyColumn(
                     state = listState,
-                    contentPadding = PaddingValues(bottom = 24.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp + navBottom),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -238,7 +244,7 @@ fun StreamsSheet(
                         CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(36.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Finding streams across your addons…",
+                            text = "Buscando fontes nos seus addons…",
                             color = MutedText,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
@@ -264,7 +270,7 @@ fun StreamsSheet(
                             if (providers.size > 1) {
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     item {
-                                        FilterChip(label = "All", selected = state.selectedProvider == null, onClick = { onSelectProvider(null) })
+                                        FilterChip(label = "Todos", selected = state.selectedProvider == null, onClick = { onSelectProvider(null) })
                                     }
                                     items(providers) { provider ->
                                         FilterChip(label = provider, selected = state.selectedProvider == provider, onClick = { onSelectProvider(provider) })
@@ -274,7 +280,7 @@ fun StreamsSheet(
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(StreamSortCriterion.entries.toList()) { criterion ->
                                     FilterChip(
-                                        label = "Sort: ${criterion.label}",
+                                        label = "Ordenar: ${criterion.label}",
                                         selected = state.sortCriterion == criterion,
                                         onClick = { onSelectSortCriterion(criterion) },
                                     )
@@ -284,7 +290,7 @@ fun StreamsSheet(
                     }
 
                     LazyColumn(
-                        contentPadding = PaddingValues(bottom = 24.dp),
+                        contentPadding = PaddingValues(bottom = 24.dp + navBottom),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -316,17 +322,17 @@ private fun EpisodeRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (episode.isCurrent) Color(0x332A2042) else Color.Transparent)
+                .background(if (episode.isCurrent) AccentPurple.copy(alpha = 0.14f) else Color.Transparent)
                 .clickable(onClick = onClick)
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
         Box(
             modifier = Modifier
-                .width(86.dp)
-                .height(48.dp)
+                .width(112.dp)
+                .height(63.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF202033)),
+                .background(SurfaceHigh),
         ) {
             if (!episode.thumbnail.isNullOrBlank()) {
                 AsyncImage(
@@ -343,7 +349,7 @@ private fun EpisodeRow(
                     Text(
                         text = "E${episode.episode}",
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                     )
                 }
@@ -359,7 +365,7 @@ private fun EpisodeRow(
                 Text(
                     text = "E${episode.episode}",
                     color = Color.White,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -369,7 +375,7 @@ private fun EpisodeRow(
             Text(
                 text = "E${episode.episode}. ${episode.title}",
                 color = Color.White,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -378,7 +384,7 @@ private fun EpisodeRow(
                 Text(
                     text = releaseDate,
                     color = MutedText,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -387,7 +393,7 @@ private fun EpisodeRow(
             if (episode.watched) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(10.dp)
                         .clip(CircleShape)
                         .background(AccentPurple)
                 )
@@ -415,7 +421,7 @@ private fun StreamRow(
         ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(44.dp)
                 .clip(CircleShape)
                 .background(AccentPurple),
             contentAlignment = Alignment.Center,
@@ -438,13 +444,13 @@ private fun StreamRow(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFF3B3B4F))
+                            .background(Color(0xFF3B3F55))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = qual.uppercase(),
                             color = Color.White,
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -455,14 +461,14 @@ private fun StreamRow(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(AccentPurple.copy(alpha = 0.12f))
-                            .border(1.dp, AccentPurple.copy(alpha = 0.24f), RoundedCornerShape(4.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(4.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = option.addonTitle,
-                            color = AccentPurple,
-                            fontSize = 9.sp,
+                            color = Color(0xFFD3C6FF),
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -473,7 +479,7 @@ private fun StreamRow(
                 Text(
                     text = option.name,
                     color = Color.White,
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -502,7 +508,7 @@ private fun StreamRow(
                             Text(
                                 text = s,
                                 color = Color(0xFF81C784),
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -521,7 +527,7 @@ private fun StreamRow(
                             Text(
                                 text = sz,
                                 color = MutedText,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -540,7 +546,7 @@ private fun StreamRow(
                             Text(
                                 text = o,
                                 color = MutedText,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -555,7 +561,7 @@ private fun StreamRow(
                 Text(
                     text = cleanDesc,
                     color = MutedText,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -578,7 +584,7 @@ private fun FilterChip(
         Text(
             text = label,
             color = if (selected) Color.White else MutedText,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
         )
     }

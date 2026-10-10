@@ -1,5 +1,8 @@
 package com.stremio.mobile.presentation.screens
 
+import com.stremio.mobile.core.theme.SettingsMaxWidth
+import com.stremio.mobile.core.theme.ScreenGutter
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -23,7 +26,7 @@ fun InterfaceSettingsScreen(
     onSetGlassHapticsEnabled: (Boolean) -> Unit, onSetHapticsIntensity: (String) -> Unit,
     onSetSelectedFont: (AppFont) -> Unit, onNavigateToLiquidGlassLab: () -> Unit, onBack: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsHeader(title = "Configurações da interface", onBack = onBack)
         if (settings != null) {
             val languages = listOf("eng" to "Inglês", "spa" to "Espanhol", "fre" to "Francês", "ger" to "Alemão", "ita" to "Italiano", "por" to "Português", "rus" to "Russo", "zho" to "Chinês")

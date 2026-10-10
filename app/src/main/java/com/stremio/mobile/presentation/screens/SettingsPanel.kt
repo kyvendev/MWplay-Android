@@ -1,5 +1,8 @@
 package com.stremio.mobile.presentation.screens
 
+import com.stremio.mobile.core.theme.SettingsMaxWidth
+import com.stremio.mobile.core.theme.ScreenGutter
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,10 +67,10 @@ fun SettingsPanel(
     onNavigateTo: (SettingsSubScreen) -> Unit,
 ) {
     Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SectionTitle("Configurações")
+        SectionTitle("Configurações", modifier = Modifier)
 
         ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
             Column(
@@ -171,8 +174,8 @@ private fun SettingsMenuRow(icon: ImageVector, title: String, description: Strin
             ) {
                 Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    Text(text = description, color = MutedText, fontSize = 12.sp)
+                    Text(text = title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(text = description, color = MutedText, fontSize = 13.sp)
                 }
             }
             Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null, tint = MutedText, modifier = Modifier.size(24.dp))
@@ -194,7 +197,7 @@ fun SettingsHeader(title: String, onBack: () -> Unit) {
             tint = Color.White,
             modifier = Modifier.size(24.dp).clickable { triggerHaptic(); onBack() },
         )
-        Text(text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(text = title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
@@ -207,8 +210,8 @@ fun SettingsToggleRow(title: String, checked: Boolean, onCheckedChange: (Boolean
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
+                Text(text = title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                description?.let { Text(text = it, color = MutedText, fontSize = 13.sp) }
             }
             ThemedToggle(checked = checked, onCheckedChange = onCheckedChange)
         }
@@ -233,11 +236,11 @@ fun <T> SettingsDropdownRow(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
+                Text(text = title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                description?.let { Text(text = it, color = MutedText, fontSize = 13.sp) }
             }
             Box {
-                Text(text = selectedLabel, color = AccentPurple, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                Text(text = selectedLabel, color = Color(0xFFC9B8FF), fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                 ThemedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     options.forEach { (value, label) ->
                         DropdownMenuItem(
@@ -264,10 +267,10 @@ fun SettingsSliderRow(
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
+                    Text(text = title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    description?.let { Text(text = it, color = MutedText, fontSize = 13.sp) }
                 }
-                Text(text = displayValue, color = AccentPurple, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(text = displayValue, color = Color(0xFFC9B8FF), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             ThemedSlider(value = value, onValueChange = onValueChange, valueRange = valueRange, modifier = Modifier.fillMaxWidth())
         }
@@ -284,8 +287,8 @@ fun SettingsClickRow(title: String, onClick: () -> Unit, description: String? = 
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                description?.let { Text(text = it, color = MutedText, fontSize = 12.sp) }
+                Text(text = title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                description?.let { Text(text = it, color = MutedText, fontSize = 13.sp) }
             }
             Icon(imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = MutedText, modifier = Modifier.size(20.dp))
         }
