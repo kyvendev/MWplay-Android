@@ -1,5 +1,7 @@
 package com.stremio.mobile.presentation.screens.player
 
+import androidx.compose.ui.input.key.Key
+
 /** Remote shortcuts must never replace navigation or activation of a focused control. */
 internal enum class PlayerRemoteKey {
     NAVIGATION, ACTIVATE, PLAY_PAUSE, PLAY, PAUSE, REWIND, FAST_FORWARD, NEXT, OTHER,
@@ -32,4 +34,18 @@ internal fun playerRemoteAction(
             if (hasNextVideo && !isRepeat) PlayerRemoteAction.PLAY_NEXT else PlayerRemoteAction.HAND_OFF
         PlayerRemoteKey.OTHER -> PlayerRemoteAction.HAND_OFF
     }
+}
+
+internal enum class TimelineKeyAction { SEEK_BACK, SEEK_FORWARD, FOCUS_UP, FOCUS_DOWN, PASS }
+
+/**
+ * The Material Slider treats UP/DOWN (and Home/End/Page keys) as value changes, which turned
+ * vertical D-pad presses on the timeline into seeks. Only LEFT/RIGHT may seek; UP/DOWN only move focus.
+ */
+internal fun timelineKeyAction(key: Key): TimelineKeyAction = when (key) {
+    Key.DirectionLeft -> TimelineKeyAction.SEEK_BACK
+    Key.DirectionRight -> TimelineKeyAction.SEEK_FORWARD
+    Key.DirectionUp -> TimelineKeyAction.FOCUS_UP
+    Key.DirectionDown -> TimelineKeyAction.FOCUS_DOWN
+    else -> TimelineKeyAction.PASS
 }

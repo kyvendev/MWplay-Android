@@ -26,16 +26,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -169,6 +170,7 @@ private fun TvTextButton(label: String, icon: ImageVector, onClick: () -> Unit) 
 private fun TvTimeline(state: PlayerControlsState, actions: PlayerControlsActions) {
     val duration = state.durationMs.coerceAtLeast(1L)
     val progress = (state.positionMs.toFloat() / duration).coerceIn(0f, 1f)
+    val focusManager = LocalFocusManager.current
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(formatTime(state.positionMs), color = Color.White, fontSize = 14.sp, modifier = Modifier.width(62.dp), textAlign = TextAlign.Center)
         Slider(
@@ -182,17 +184,24 @@ private fun TvTimeline(state: PlayerControlsState, actions: PlayerControlsAction
                     stateDescription = "${formatTime(state.positionMs)} de ${formatTime(state.durationMs)}"
                 }
                 .onPreviewKeyEvent { event ->
-                    when (event.key) {
-                        Key.DirectionLeft, Key.DirectionRight -> {
+                    when (val action = timelineKeyAction(event.key)) {
+                        TimelineKeyAction.SEEK_BACK, TimelineKeyAction.SEEK_FORWARD -> {
                             if (state.durationMs <= 0) false else {
                                 if (event.type == KeyEventType.KeyDown) {
-                                    val delta = if (event.key == Key.DirectionRight) state.seekStepMs else -state.seekStepMs
+                                    val delta = if (action == TimelineKeyAction.SEEK_FORWARD) state.seekStepMs else -state.seekStepMs
                                     actions.onSeekTo((state.positionMs + delta).coerceIn(0L, duration))
                                 }
                                 true
                             }
                         }
-                        else -> false
+                        // Consumed here so the Slider never sees them; focus moves to the row above/below instead.
+                        TimelineKeyAction.FOCUS_UP, TimelineKeyAction.FOCUS_DOWN -> {
+                            if (event.type == KeyEventType.KeyDown) {
+                                focusManager.moveFocus(if (action == TimelineKeyAction.FOCUS_UP) FocusDirection.Up else FocusDirection.Down)
+                            }
+                            true
+                        }
+                        TimelineKeyAction.PASS -> false
                     }
                 },
             colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = AccentPurple, inactiveTrackColor = Color.White.copy(alpha = .28f))
