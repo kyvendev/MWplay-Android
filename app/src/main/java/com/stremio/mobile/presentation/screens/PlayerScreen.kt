@@ -99,6 +99,8 @@ import com.stremio.mobile.presentation.screens.player.PlayerRemoteAction
 import com.stremio.mobile.presentation.screens.player.PlayerRemoteKey
 import com.stremio.mobile.presentation.screens.player.playerRemoteAction
 import com.stremio.mobile.presentation.components.tvFocusTarget
+import com.stremio.mobile.presentation.components.PlaybackLoadingInfo
+import com.stremio.mobile.presentation.components.PlaybackLoadingOverlay
 import com.stremio.mobile.presentation.components.LocalGlassAlpha
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.GlobalUiTheme
@@ -143,6 +145,7 @@ fun PlayerScreen(
     glassHapticsEnabled: Boolean = true,
     hapticsIntensity: String = "Medium",
     liquidGlassTuning: LiquidGlassTuning = LiquidGlassTuning(),
+    loadingInfo: PlaybackLoadingInfo? = null,
     modifier: Modifier = Modifier,
 ) {
     val runtimeStateHolder = player?.runtimeState?.collectAsState()
@@ -548,6 +551,15 @@ fun PlayerScreen(
     }
 
     val showFatalPlaybackError = playbackError != null && !isPlaying && !isBuffering
+    // The cinematic loading layer covers only the initial preparation of each stream; once it has
+    // played once, later rebuffering keeps using the regular spinner. Purely visual.
+    var hasStartedPlayback by remember(activeUri) { mutableStateOf(false) }
+    val firstFrameReady = !runtimeState.isBuffering && runtimeState.videoWidth > 0 && runtimeState.durationMs > 0
+    LaunchedEffect(activeUri, runtimeState.isPlaying, firstFrameReady) {
+        // A ready-but-paused stream must not stay hidden behind the loading layer.
+        if (runtimeState.isPlaying || firstFrameReady) hasStartedPlayback = true
+    }
+    val showLoadingOverlay = loadingInfo != null && !hasStartedPlayback && !showFatalPlaybackError
     LaunchedEffect(showControls, showAudioDialog, showSubtitleDialog, showFatalPlaybackError) {
         if (!showControls && !showAudioDialog && !showSubtitleDialog && !showFatalPlaybackError) {
             videoSurfaceFocus.requestFocus()
@@ -995,7 +1007,7 @@ fun PlayerScreen(
         }
 
         // Buffer Loading Overlay
-        if (isBuffering) {
+        if (isBuffering && !showLoadingOverlay) {
             CircularProgressIndicator(
                 color = AccentPurple,
                 modifier = Modifier
@@ -1060,6 +1072,15 @@ fun PlayerScreen(
                 )
             }
         }
+
+        // Cinematic preparation layer: continues the streams-screen loading state until the
+        // first frame plays, then fades out over the video. Not focusable; input is unchanged.
+        PlaybackLoadingOverlay(
+            info = loadingInfo,
+            visible = showLoadingOverlay,
+            startVisible = loadingInfo != null,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 

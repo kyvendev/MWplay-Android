@@ -285,17 +285,27 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 }
                 BackHandler(onBack = onStreamsBack)
                 TvModalSurface(onDismissRequest = onStreamsBack) {
-                    StreamsSheet(
-                        state = streamsState,
-                        preferredQuality = state.preferredQuality,
-                        onBack = onStreamsBack,
-                        onSelect = viewModel::playStream,
-                        onSelectEpisode = viewModel::selectEpisode,
-                        onSelectSeason = viewModel::selectSeason,
-                        onSelectProvider = viewModel::selectStreamProvider,
-                        onSelectSortCriterion = viewModel::selectStreamSortCriterion,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        StreamsSheet(
+                            state = streamsState,
+                            preferredQuality = state.preferredQuality,
+                            onBack = onStreamsBack,
+                            onSelect = viewModel::playStream,
+                            onSelectEpisode = viewModel::selectEpisode,
+                            onSelectSeason = viewModel::selectSeason,
+                            onSelectProvider = viewModel::selectStreamProvider,
+                            onSelectSortCriterion = viewModel::selectStreamSortCriterion,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        // Visual layer over the existing resolving state; the player continues it.
+                        PlaybackLoadingOverlay(
+                            info = remember(streamsState.forItem, streamsState.selectedVideoId, streamsState.selectedEpisodeLabel, streamsState.episodes) {
+                                streamsState.toPlaybackLoadingInfo()
+                            },
+                            visible = streamsState.isResolving,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
 
@@ -601,6 +611,9 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         glassHapticsEnabled = state.glassHapticsEnabled,
                         hapticsIntensity = state.hapticsIntensity,
                         liquidGlassTuning = state.liquidGlassTuning,
+                        loadingInfo = remember(streamsState.forItem, streamsState.selectedVideoId, streamsState.selectedEpisodeLabel, streamsState.episodes) {
+                            streamsState.toPlaybackLoadingInfo()
+                        },
                         onRemoteBackHandlerChanged = { playerRemoteBack = it },
                     )
                 }
