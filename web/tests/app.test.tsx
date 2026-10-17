@@ -17,6 +17,8 @@ beforeEach(() => {
   window.location.hash = '#/';
   localStorage.clear();
   vi.stubGlobal('IntersectionObserver', NoopObserver);
+  // The remote session check must never reach the real API from tests.
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })));
   window.scrollTo = () => {};
   Element.prototype.scrollIntoView = () => {};
   window.matchMedia = ((query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;

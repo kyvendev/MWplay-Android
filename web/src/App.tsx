@@ -15,12 +15,15 @@ import { SettingsPage } from './features/settings/SettingsPage';
 import { installSpatialNavigation } from './features/tv/spatialNav';
 import { InstallHint } from './pwa/InstallHint';
 import { useCore, useCoreState } from './services/stremio/CoreProvider';
+import { useRemoteSessionGuard } from './services/stremio/sessionGuard';
 
 export function App() {
   const { status } = useCore();
   const route = useRoute();
   const ui = useUiMode();
   const ctx = useCoreState('ctx');
+  // Sessions ended elsewhere (Stremio website) sign this browser out too, like the apps.
+  useRemoteSessionGuard();
   const modeRef = useRef(ui.mode);
   modeRef.current = ui.mode;
 

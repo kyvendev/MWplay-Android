@@ -187,3 +187,18 @@ Ainda não testado: iPhone e iPad (Safari), TVs físicas e a instalação real d
 A interface web não lista, não identifica e não permite remover os addons da conta: as fontes e
 os catálogos aparecem sem o nome de origem. Os addons continuam sendo usados pelo core para
 catálogos, busca e fontes, e são gerenciados apenas pela conta, fora do MW Play Web.
+
+## Sessão encerrada remotamente
+
+Igual aos APKs (`MainActivity.isSessionRevoked`): o MW Play Web valida a sessão em
+`POST https://api.strem.io/api/getUser`. Ele considera a sessão revogada só com HTTP 401/403 ou
+HTTP 200 com `error.code == 1`, e então desloga pelo core (`Ctx/Logout`), voltando à tela de
+login. Falhas de rede, timeout (5 s) e outros erros nunca deslogam. A checagem roda:
+
+- ao abrir o app;
+- quando a aba volta a ficar visível;
+- quando a conexão volta;
+- a cada 5 minutos com a aba visível (abas de navegador e de TV ficam abertas por horas).
+
+Assim, encerrar a sessão pelo site do Stremio (por exemplo, "sair de todos os dispositivos")
+desconecta o MW Play Web.
