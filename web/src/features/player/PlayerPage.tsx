@@ -1,15 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import { useBackHandler } from '../../app/back';
-import { AudioIcon, BackIcon, ForwardIcon, FullscreenIcon, MuteIcon, NextIcon, PauseIcon, PlayIcon, RewindIcon, SubtitlesIcon, VolumeIcon } from '../../components/icons';
-import { Modal, OptionList } from '../../components/Modal';
+import { AspectIcon, AudioIcon, BackIcon, ForwardIcon, FullscreenIcon, MuteIcon, NextIcon, PauseIcon, PlayIcon, RewindIcon, SpeedIcon, SubtitlesIcon, VolumeIcon } from '../../components/icons';
 import { Spinner } from '../../components/States';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { srtToVtt, streamKind } from '../../services/stremio/streams';
-import type { Player, Stream, Subtitles } from '../../services/stremio/types';
+import type { Player, Stream, StreamState, Subtitles } from '../../services/stremio/types';
 import { PROGRESS_REPORT_INTERVAL_MS } from '../../shared/config';
 import { getPlaybackRequest, type PlaybackRequest } from './playbackRequest';
 import { findNext, focusElement, type Direction } from '../tv/spatialNav';
+import { AudioPanel, SubtitleOverlay, SubtitlesPanel } from './PlayerPanels';
+import {
+  ASPECT_MODES,
+  formatSpeed,
+  meaningfulTrackName,
+  nextSpeed,
+  normalizeLanguage,
+  pickAudioTrack,
+  pickSubtitle,
+  SPEEDS,
+  type AspectMode,
+  type SubtitleOption,
+} from './playerOptions';
 import { EXTERNAL_TRACK_LABEL, VideoEngine, type EngineError, type TrackOption } from './videoEngine';
 import './player.css';
 
@@ -69,13 +81,47 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
   const [externalSubtitle, setExternalSubtitle] = useState<{ id: string; src: string } | null>(null);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
   const [ended, setEnded] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [aspect, setAspect] = useState<AspectMode>('contain');
+  const [subtitleId, setSubtitleId] = useState<string | null>(null);
+  const [subtitleDelay, setSubtitleDelay] = useState(0);
+  const [subtitleSizeChoice, setSubtitleSizeChoice] = useState<number | null>(null);
+  const [subtitleOffsetChoice, setSubtitleOffsetChoice] = useState<number | null>(null);
+  const [localSubtitles, setLocalSubtitles] = useState<{ id: string; name: string }[]>([]);
   const hideTimer = useRef<number>();
   const lastReport = useRef(0);
+  const settings = useCoreState('ctx')?.profile.settings;
 
   const current = belongsTo(player, request.stream) ? player : null;
   const converted = current?.stream ?? null;
   const playableUrl = converted?.type === 'Ready' ? converted.content.url ?? null : null;
   const coreFailed = converted?.type === 'Err';
+
+  // Per-title choices (tracks, subtitle delay/size/position, speed) live in the core's stream
+  // state, as on Android. Read once when the model is ready; afterwards the local copy is the
+  // source, since StreamStateChanged replaces the whole object.
+  const streamState = useRef<StreamState | null>(null);
+  useEffect(() => {
+    if (!current || streamState.current) return;
+    const saved = current.streamState ?? {};
+    streamState.current = { ...saved };
+    if (saved.playbackSpeed && (SPEEDS as readonly number[]).includes(saved.playbackSpeed)) setSpeed(saved.playbackSpeed);
+    if (typeof saved.subtitleDelay === 'number') setSubtitleDelay(saved.subtitleDelay);
+    if (typeof saved.subtitleSize === 'number') setSubtitleSizeChoice(saved.subtitleSize);
+    if (typeof saved.subtitleOffset === 'number') setSubtitleOffsetChoice(saved.subtitleOffset);
+  }, [current]);
+
+  const saveStreamState = useCallback(
+    (patch: Partial<StreamState>) => {
+      if (!streamState.current) return;
+      streamState.current = { ...streamState.current, ...patch };
+      core.playerStreamStateChanged(streamState.current);
+    },
+    [core],
+  );
+
+  const subtitleSize = subtitleSizeChoice ?? settings?.subtitlesSize ?? 100;
+  const subtitleOffset = subtitleOffsetChoice ?? settings?.subtitlesOffset ?? 5;
 
   // Hand the stream to the core (conversion + progress tracking); release it when leaving.
   useEffect(() => {
@@ -114,6 +160,14 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
       video.current?.play().catch(() => setPaused(true));
     });
   }, [playableUrl]);
+
+  // defaultPlaybackRate survives the reset a new source causes.
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    element.defaultPlaybackRate = speed;
+    element.playbackRate = speed;
+  }, [speed, playableUrl]);
 
   const showControls = useCallback(() => {
     setControls(true);
@@ -310,41 +364,172 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
     const fromStream = request.stream.subtitles ?? [];
     const seen = new Set<string>();
     return [...fromStream, ...fromAddons].filter((item) => {
-      if (!item.url || seen.has(item.url)) return false;
-      seen.add(item.url);
+      const id = externalSubtitleId(item);
+      if (!item.url || seen.has(item.url) || seen.has(id)) return false;
+      seen.add(item.url).add(id);
       return true;
     });
   }, [current?.subtitles, request.stream.subtitles]);
 
-  useEffect(() => () => {
-    if (externalSubtitle) URL.revokeObjectURL(externalSubtitle.src);
-  }, [externalSubtitle]);
+  // Converted addon/local subtitles, kept for re-selection and released with the screen.
+  const subtitleBlobs = useRef(new Map<string, string>());
+  useEffect(() => {
+    const blobs = subtitleBlobs.current;
+    return () => {
+      blobs.forEach((src) => URL.revokeObjectURL(src));
+      blobs.clear();
+    };
+  }, []);
 
-  const chooseExternalSubtitle = async (subtitle: Subtitles, id: string) => {
-    setSubtitleError(null);
-    engine.current?.selectEmbeddedSubtitle(null);
-    try {
-      const response = await fetch(subtitle.url);
-      if (!response.ok) throw new Error(String(response.status));
-      const text = await response.text();
-      const src = URL.createObjectURL(new Blob([srtToVtt(text)], { type: 'text/vtt' }));
-      setExternalSubtitle({ id, src });
-    } catch {
-      setSubtitleError('Não foi possível carregar esta legenda no navegador (o servidor pode bloquear o acesso).');
-    }
-  };
-
-  // Show the attached external track once the browser has parsed it.
+  // Text tracks are enabled as `hidden` (cues load, nothing drawn natively); the overlay renders.
   useEffect(() => {
     const element = video.current;
     if (!element) return;
     Array.from(element.textTracks).forEach((track) => {
-      if (track.label === EXTERNAL_TRACK_LABEL) track.mode = externalSubtitle ? 'showing' : 'disabled';
+      if (track.label === EXTERNAL_TRACK_LABEL) track.mode = externalSubtitle ? 'hidden' : 'disabled';
     });
   }, [externalSubtitle, tracksVersion]);
 
   const audioTracks: TrackOption[] = useMemo(() => engine.current?.audioTracks() ?? [], [tracksVersion, started]);
   const embeddedSubtitles: TrackOption[] = useMemo(() => engine.current?.embeddedSubtitles() ?? [], [tracksVersion, started]);
+
+  // Addon variants are numbered per language instead of naming where they come from.
+  const subtitleOptions: SubtitleOption[] = useMemo(() => {
+    const perLanguage = new Map<string, number>();
+    const variantLabel = (language: string) => {
+      const key = normalizeLanguage(language) ?? 'und';
+      const count = (perLanguage.get(key) ?? 0) + 1;
+      perLanguage.set(key, count);
+      return `Opção ${count}`;
+    };
+    return [
+      ...embeddedSubtitles.map((track): SubtitleOption => ({
+        id: track.id,
+        source: 'embedded',
+        language: track.language,
+        label: meaningfulTrackName(track.label, track.language) ?? 'Do vídeo',
+        selected: track.id === subtitleId,
+      })),
+      ...externalSubtitles.map((subtitle): SubtitleOption => {
+        const id = externalSubtitleId(subtitle);
+        return { id, source: 'addon', language: subtitle.lang, label: variantLabel(subtitle.lang), selected: id === subtitleId };
+      }),
+      ...localSubtitles.map((local): SubtitleOption => ({ id: local.id, source: 'local', language: null, label: local.name, selected: local.id === subtitleId })),
+    ];
+  }, [embeddedSubtitles, externalSubtitles, localSubtitles, subtitleId]);
+
+  const subtitleRequest = useRef(0);
+  const applySubtitle = useCallback(
+    async (option: SubtitleOption | null, persist: boolean) => {
+      const token = ++subtitleRequest.current;
+      setSubtitleError(null);
+      setSubtitleId(option?.id ?? null);
+      if (persist) {
+        saveStreamState({
+          subtitleTrack: option && option.source !== 'local' ? { id: option.id, embedded: option.source === 'embedded', language: option.language } : null,
+        });
+      }
+      if (!option || option.source === 'embedded') {
+        setExternalSubtitle(null);
+        engine.current?.selectEmbeddedSubtitle(option?.id ?? null);
+        setTracksVersion((value) => value + 1);
+        return;
+      }
+      engine.current?.selectEmbeddedSubtitle(null);
+      let src = subtitleBlobs.current.get(option.id);
+      if (!src) {
+        const subtitle = externalSubtitles.find((item) => externalSubtitleId(item) === option.id);
+        if (!subtitle) return;
+        try {
+          const response = await fetch(subtitle.url);
+          if (!response.ok) throw new Error(String(response.status));
+          src = URL.createObjectURL(new Blob([srtToVtt(await response.text())], { type: 'text/vtt' }));
+          subtitleBlobs.current.set(option.id, src);
+        } catch {
+          if (token !== subtitleRequest.current) return;
+          setSubtitleId(null);
+          setExternalSubtitle(null);
+          setSubtitleError('Não foi possível carregar esta legenda no navegador (o servidor pode bloquear o acesso).');
+          return;
+        }
+      }
+      if (token === subtitleRequest.current) setExternalSubtitle({ id: option.id, src });
+    },
+    [externalSubtitles, saveStreamState],
+  );
+
+  const openLocalSubtitle = async (file: File) => {
+    try {
+      const id = `local:${localSubtitles.length + 1}`;
+      const src = URL.createObjectURL(new Blob([srtToVtt(await file.text())], { type: 'text/vtt' }));
+      subtitleBlobs.current.set(id, src);
+      autoSubtitleDone.current = true;
+      setLocalSubtitles((list) => [...list, { id, name: file.name }]);
+      subtitleRequest.current++;
+      engine.current?.selectEmbeddedSubtitle(null);
+      setSubtitleError(null);
+      setSubtitleId(id);
+      setExternalSubtitle({ id, src });
+    } catch {
+      setSubtitleError('Não foi possível abrir este arquivo de legenda.');
+    }
+  };
+
+  // Automatic choice once playback started (embedded tracks are known by then): the subtitle saved
+  // for this title, else the profile's preferred language. Retried as addon subtitles arrive, and
+  // never after the user picked one.
+  const autoSubtitleDone = useRef(false);
+  useEffect(() => {
+    if (autoSubtitleDone.current || !started || !streamState.current) return;
+    const preferred = settings?.subtitlesAutoSelect === false ? null : settings?.subtitlesLanguage;
+    const pick = pickSubtitle(subtitleOptions, streamState.current.subtitleTrack, preferred);
+    if (!pick) return;
+    autoSubtitleDone.current = true;
+    applySubtitle(pick, false);
+  }, [applySubtitle, settings, started, subtitleOptions]);
+
+  const autoAudioDone = useRef(false);
+  useEffect(() => {
+    if (autoAudioDone.current || !started || !streamState.current || audioTracks.length < 2) return;
+    autoAudioDone.current = true;
+    const pick = pickAudioTrack(audioTracks, streamState.current.audioTrack, settings?.audioLanguage);
+    if (pick && !pick.selected) {
+      engine.current?.selectAudioTrack(pick.id);
+      setTracksVersion((value) => value + 1);
+    }
+  }, [audioTracks, settings, started]);
+
+  // The text track whose cues the overlay draws.
+  const activeSubtitleTrack = useCallback((): TextTrack | null => {
+    const element = video.current;
+    if (!element || !subtitleId) return null;
+    if (externalSubtitle && externalSubtitle.id === subtitleId) {
+      return Array.from(element.textTracks).find((track) => track.label === EXTERNAL_TRACK_LABEL) ?? null;
+    }
+    return engine.current?.embeddedTrack(subtitleId) ?? null;
+    // tracksVersion: hls.js swaps text tracks when the selection changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalSubtitle, subtitleId, tracksVersion]);
+
+  // iPhone fullscreen is the native player, which only draws `showing` tracks.
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    const begin = () => {
+      const track = activeSubtitleTrack();
+      if (track) track.mode = 'showing';
+    };
+    const end = () => {
+      const track = activeSubtitleTrack();
+      if (track) track.mode = 'hidden';
+    };
+    element.addEventListener('webkitbeginfullscreen', begin);
+    element.addEventListener('webkitendfullscreen', end);
+    return () => {
+      element.removeEventListener('webkitbeginfullscreen', begin);
+      element.removeEventListener('webkitendfullscreen', end);
+    };
+  }, [activeSubtitleTrack]);
 
   const enterFullscreen = () => {
     const element = video.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
@@ -377,9 +562,11 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
         }
       }}
     >
-      <video ref={video} className="player__video" playsInline preload="auto">
-        {externalSubtitle && <track key={externalSubtitle.src} kind="subtitles" label={EXTERNAL_TRACK_LABEL} src={externalSubtitle.src} default />}
+      <video ref={video} className="player__video" style={{ objectFit: aspect }} playsInline preload="auto">
+        {externalSubtitle && <track key={externalSubtitle.src} kind="subtitles" label={EXTERNAL_TRACK_LABEL} src={externalSubtitle.src} />}
       </video>
+
+      <SubtitleOverlay video={video} track={activeSubtitleTrack} delayMs={subtitleDelay} sizePercent={subtitleSize} offsetPercent={subtitleOffset} settings={settings} />
 
       {showLoading && (
         <div className="player__loading" aria-live="polite">
@@ -489,13 +676,25 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
                 }}
               />
             )}
+            <button
+              type="button"
+              className="player__text-button focusable"
+              aria-label={`Velocidade ${formatSpeed(speed)}`}
+              onClick={() => {
+                const value = nextSpeed(speed);
+                setSpeed(value);
+                saveStreamState({ playbackSpeed: value });
+                showControls();
+              }}
+            >
+              <SpeedIcon /> {formatSpeed(speed)}
+            </button>
             <span className="top-bar__spacer" />
-            {(externalSubtitles.length > 0 || embeddedSubtitles.length > 0) && (
-              <button type="button" className="icon-button focusable" aria-label="Legendas" onClick={() => setMenu('subtitles')}>
-                <SubtitlesIcon />
-              </button>
-            )}
-            {audioTracks.length > 1 && (
+            {/* Always available, like the apps: local files and subtitle settings need no tracks. */}
+            <button type="button" className="icon-button focusable" aria-label="Legendas" onClick={() => setMenu('subtitles')}>
+              <SubtitlesIcon />
+            </button>
+            {audioTracks.length > 0 && (
               <button type="button" className="icon-button focusable" aria-label="Áudio" onClick={() => setMenu('audio')}>
                 <AudioIcon />
               </button>
@@ -513,6 +712,18 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
                 <NextIcon />
               </button>
             )}
+            <button
+              type="button"
+              className="player__text-button focusable"
+              aria-label={`Proporção: ${ASPECT_MODES.find((item) => item.mode === aspect)!.label}`}
+              onClick={() => {
+                const index = ASPECT_MODES.findIndex((item) => item.mode === aspect);
+                setAspect(ASPECT_MODES[(index + 1) % ASPECT_MODES.length].mode);
+                showControls();
+              }}
+            >
+              <AspectIcon /> {ASPECT_MODES.find((item) => item.mode === aspect)!.label}
+            </button>
             <button type="button" className="icon-button focusable" aria-label="Tela cheia" onClick={enterFullscreen}>
               <FullscreenIcon />
             </button>
@@ -533,44 +744,45 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
       )}
 
       {menu === 'audio' && (
-        <Modal title="Áudio" onClose={() => setMenu(null)}>
-          <OptionList
-            options={audioTracks.map((track) => ({ value: track.id, label: track.label }))}
-            selected={audioTracks.find((track) => track.selected)?.id ?? ''}
-            onSelect={(id) => {
-              engine.current?.selectAudioTrack(id);
-              setTracksVersion((value) => value + 1);
-              setMenu(null);
-            }}
-          />
-        </Modal>
+        <AudioPanel
+          tracks={audioTracks}
+          onClose={() => setMenu(null)}
+          onSelect={(track) => {
+            autoAudioDone.current = true;
+            engine.current?.selectAudioTrack(track.id);
+            saveStreamState({ audioTrack: { id: track.id, language: track.language } });
+            setTracksVersion((value) => value + 1);
+            setMenu(null);
+          }}
+        />
       )}
 
       {menu === 'subtitles' && (
-        <Modal title="Legendas" onClose={() => setMenu(null)}>
-          <OptionList
-            options={[
-              { value: 'off', label: 'Desativadas' },
-              ...embeddedSubtitles.map((track) => ({ value: track.id, label: `${track.label} (no vídeo)` })),
-              ...externalSubtitles.map((subtitle, index) => ({ value: `ext:${index}`, label: `${subtitle.label || subtitle.lang}` })),
-            ]}
-            selected={externalSubtitle?.id ?? embeddedSubtitles.find((track) => track.selected)?.id ?? 'off'}
-            onSelect={(value) => {
-              if (value === 'off') {
-                engine.current?.selectEmbeddedSubtitle(null);
-                setExternalSubtitle(null);
-              } else if (value.startsWith('ext:')) {
-                chooseExternalSubtitle(externalSubtitles[Number(value.slice(4))], value);
-              } else {
-                setExternalSubtitle(null);
-                engine.current?.selectEmbeddedSubtitle(value);
-              }
-              setTracksVersion((version) => version + 1);
-              setMenu(null);
-            }}
-          />
-          {subtitleError && <p className="settings__hint" style={{ color: 'var(--warning)' }}>{subtitleError}</p>}
-        </Modal>
+        <SubtitlesPanel
+          options={subtitleOptions}
+          delayMs={subtitleDelay}
+          sizePercent={subtitleSize}
+          offsetPercent={subtitleOffset}
+          error={subtitleError}
+          onClose={() => setMenu(null)}
+          onSelect={(option) => {
+            autoSubtitleDone.current = true;
+            applySubtitle(option, true);
+          }}
+          onDelay={(value) => {
+            setSubtitleDelay(value);
+            saveStreamState({ subtitleDelay: value });
+          }}
+          onSize={(value) => {
+            setSubtitleSizeChoice(value);
+            saveStreamState({ subtitleSize: value });
+          }}
+          onOffset={(value) => {
+            setSubtitleOffsetChoice(value);
+            saveStreamState({ subtitleOffset: value });
+          }}
+          onLocalFile={openLocalSubtitle}
+        />
       )}
       {subtitleError && !menu && <div className="player__toast">{subtitleError}</div>}
     </div>
@@ -602,6 +814,11 @@ export function describePlaybackError(coreFailed: boolean, error: EngineError | 
     case 'source':
       return 'A fonte não respondeu como esperado. Tente novamente ou escolha outra fonte.';
   }
+}
+
+/** Stored in the stream state, like the subtitle id the apps save. */
+function externalSubtitleId(subtitle: Subtitles): string {
+  return `ext:${subtitle.id ?? subtitle.url}`;
 }
 
 function moveFocus(from: HTMLElement, direction: Direction) {

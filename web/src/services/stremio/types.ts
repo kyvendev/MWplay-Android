@@ -197,7 +197,21 @@ export interface Player {
   nextVideo: Video | null;
   seriesInfo: { season: number; episode: number } | null;
   libraryItem: { _id: string; state: { timeOffset: number; video_id: string | null } } | null;
+  /** Per-title player choices the core keeps (and syncs) for this stream; null until something is saved. */
+  streamState?: StreamState | null;
   title: string | null;
+}
+
+/** Same fields as `Player.StreamState` on Android; StreamStateChanged replaces the whole object. */
+export interface StreamState {
+  subtitleTrack?: { id: string; embedded: boolean; language: string | null } | null;
+  subtitleDelay?: number | null;
+  subtitleSize?: number | null;
+  subtitleOffset?: number | null;
+  audioTrack?: { id: string; language: string | null } | null;
+  audioDelay?: number | null;
+  playbackSpeed?: number | null;
+  playerType?: string | null;
 }
 
 export interface ProfileSettings {
@@ -205,6 +219,13 @@ export interface ProfileSettings {
   subtitlesLanguage: string | null;
   subtitlesSize: number;
   audioLanguage: string | null;
+  subtitlesAutoSelect?: boolean;
+  subtitlesOffset?: number;
+  subtitlesTextColor?: string;
+  subtitlesBackgroundColor?: string;
+  subtitlesOutlineColor?: string;
+  subtitlesBold?: boolean;
+  subtitlesOpacity?: number;
   seekTimeDuration: number;
   bingeWatching: boolean;
   [key: string]: unknown;

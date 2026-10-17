@@ -38,14 +38,24 @@ export class VideoEngine {
     };
     this.video.addEventListener('loadedmetadata', seekOnReady, { once: true });
 
-    if (format === 'hls' && !this.video.canPlayType('application/vnd.apple.mpegurl')) {
+    // Recent Chromium also plays HLS natively, but without audio or subtitle tracks; only WebKit's
+    // native player exposes them. Elsewhere hls.js drives HLS whenever the browser supports it.
+    const nativeHls = this.video.canPlayType('application/vnd.apple.mpegurl') !== '';
+    if (format === 'hls' && !(nativeHls && 'audioTracks' in this.video)) {
       const { default: HlsClass } = await import('hls.js');
       if (generation !== this.generation) return;
       if (!HlsClass.isSupported()) {
-        this.onError({ kind: 'unsupported-format', format });
+        if (nativeHls) {
+          this.video.src = url;
+          this.video.load();
+        } else {
+          this.onError({ kind: 'unsupported-format', format });
+        }
         return;
       }
       const hls = new HlsClass({ enableWorker: true, backBufferLength: 60 });
+      // Cues still load into the text track, but the player draws them (delay, size, position).
+      hls.subtitleDisplay = false;
       this.hls = hls;
       hls.on(HlsClass.Events.MANIFEST_PARSED, () => this.onTracksChanged());
       hls.on(HlsClass.Events.AUDIO_TRACKS_UPDATED, () => this.onTracksChanged());
@@ -138,19 +148,33 @@ export class VideoEngine {
         id: `native:${index}`,
         label: track.label || track.language || `Legenda ${index + 1}`,
         language: track.language || null,
-        selected: track.mode === 'showing',
+        selected: track.mode !== 'disabled',
       }));
   }
 
-  /** Shows one embedded subtitle track (or none). */
+  /**
+   * Enables one embedded subtitle track (or none). Tracks are `hidden`, not `showing`: their cues
+   * load and the player overlay renders them.
+   */
   selectEmbeddedSubtitle(id: string | null) {
     if (this.hls) {
       this.hls.subtitleTrack = id?.startsWith('hls:') ? Number(id.slice(4)) : -1;
     }
     Array.from(this.video.textTracks).forEach((track, index) => {
       if (track.label === EXTERNAL_TRACK_LABEL) return;
-      track.mode = id === `native:${index}` ? 'showing' : 'disabled';
+      if (this.hls && !id?.startsWith('native:')) return; // hls.js manages its own tracks.
+      track.mode = id === `native:${index}` ? 'hidden' : 'disabled';
     });
+  }
+
+  /** Text track behind an embedded subtitle option, whose cues the overlay renders. */
+  embeddedTrack(id: string): TextTrack | null {
+    const tracks = Array.from(this.video.textTracks);
+    if (id.startsWith('native:')) return tracks[Number(id.slice(7))] ?? null;
+    if (!this.hls || !id.startsWith('hls:')) return null;
+    const name = this.hls.subtitleTracks[Number(id.slice(4))]?.name;
+    const enabled = tracks.filter((track) => track.label !== EXTERNAL_TRACK_LABEL && track.kind === 'subtitles' && track.mode !== 'disabled');
+    return enabled.find((track) => track.label === name) ?? enabled[0] ?? null;
   }
 
   private teardown() {

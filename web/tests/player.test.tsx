@@ -1,11 +1,12 @@
 // Player lifecycle with the video engine replaced by a test double (jsdom has no media pipeline).
 // Real playback of an authorized test stream was validated in a browser (see web/README.md).
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoreProvider } from '../src/services/stremio/CoreProvider';
 import { PlayerPage, describePlaybackError } from '../src/features/player/PlayerPage';
 import { setPlaybackRequest } from '../src/features/player/playbackRequest';
 import { createFakeCore } from './fakeCore';
+import { ctxFixture } from './fixtures/coreStates';
 
 const engines: { load: ReturnType<typeof vi.fn>; destroy: ReturnType<typeof vi.fn> }[] = [];
 
@@ -16,6 +17,9 @@ vi.mock('../src/features/player/videoEngine', () => ({
     destroy = vi.fn();
     audioTracks = () => [];
     embeddedSubtitles = () => [];
+    selectEmbeddedSubtitle = vi.fn();
+    selectAudioTrack = vi.fn();
+    embeddedTrack = () => null;
     mediaError = () => null;
     constructor() {
       engines.push(this);
@@ -105,5 +109,105 @@ describe('playback errors', () => {
     expect(describePlaybackError(false, { kind: 'unsupported-format', format: 'dash' }, stream)).toContain('DASH');
     expect(describePlaybackError(false, { kind: 'network' }, stream)).toContain('rede');
     expect(describePlaybackError(false, null, stream)).toBeNull();
+  });
+});
+
+describe('player options', () => {
+  const readyPlayer = (extra: Record<string, unknown> = {}) => ({
+    selected: { stream, streamRequest: request.streamRequest, metaRequest: request.metaRequest, subtitlesPath: null },
+    stream: { type: 'Ready', content: { url: stream.url } },
+    subtitles: [],
+    nextVideo: null,
+    libraryItem: null,
+    ...extra,
+  });
+
+  const streamStates = (fake: ReturnType<typeof createFakeCore>) =>
+    fake.dispatched
+      .map((entry) => entry.action as { action: string; args?: { action?: string; args?: { state?: unknown } } })
+      .filter((action) => action.action === 'Player' && action.args?.action === 'StreamStateChanged')
+      .map((action) => action.args!.args!.state);
+
+  const mount = (player: unknown, settings: Record<string, unknown> = {}) => {
+    setPlaybackRequest(request);
+    const ctx = ctxFixture(true);
+    ctx.profile.settings = { ...ctx.profile.settings, ...settings };
+    const fake = createFakeCore({ ctx, player });
+    const view = render(
+      <CoreProvider core={fake.core}>
+        <PlayerPage />
+      </CoreProvider>,
+    );
+    return { fake, view };
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('restores the saved speed and saves changes merged into the stream state', async () => {
+    const { fake, view } = mount(readyPlayer({ streamState: { subtitleDelay: 500, playbackSpeed: 1.5 } }));
+    await act(async () => {});
+    const videoElement = view.container.querySelector('video')!;
+    expect(videoElement.playbackRate).toBe(1.5);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Velocidade 1,5x' }));
+    await act(async () => {});
+    expect(videoElement.playbackRate).toBe(2);
+    expect(streamStates(fake).at(-1)).toEqual({ subtitleDelay: 500, playbackSpeed: 2 });
+  });
+
+  it('cycles the aspect mode like the TV player', async () => {
+    const { view } = mount(readyPlayer());
+    await act(async () => {});
+    const videoElement = view.container.querySelector('video')!;
+    expect(videoElement.style.objectFit).toBe('contain');
+    fireEvent.click(screen.getByRole('button', { name: 'Proporção: Ajustar' }));
+    expect(videoElement.style.objectFit).toBe('fill');
+    fireEvent.click(screen.getByRole('button', { name: 'Proporção: Esticar' }));
+    expect(videoElement.style.objectFit).toBe('cover');
+  });
+
+  it('turns on the preferred subtitle language, lets the user switch language and tune the subtitles', async () => {
+    const fetchImpl = vi.fn(async () => new Response('1\n00:00:01,000 --> 00:00:02,000\nOlá\n'));
+    vi.stubGlobal('fetch', fetchImpl);
+    URL.createObjectURL = vi.fn(() => 'blob:subtitle');
+    URL.revokeObjectURL = vi.fn();
+    const subtitles = [
+      { id: 'sub-en', lang: 'eng', url: 'https://subs.example/en.srt' },
+      { id: 'sub-pt', lang: 'por', url: 'https://subs.example/pt.srt' },
+    ];
+    const { fake, view } = mount(readyPlayer({ subtitles }), { subtitlesLanguage: 'por' });
+    await act(async () => {});
+    // Auto-selection waits for playback to start, then fetches the Portuguese subtitle.
+    fireEvent(view.container.querySelector('video')!, new Event('playing'));
+    await act(async () => {});
+    expect(fetchImpl).toHaveBeenCalledWith('https://subs.example/pt.srt');
+    expect(streamStates(fake)).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Legendas' }));
+    expect(screen.getByRole('radio', { name: /Português/ }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('radio', { name: 'Opção 1' }).getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(screen.getByRole('radio', { name: /Inglês/ }));
+    await act(async () => {});
+    expect(fetchImpl).toHaveBeenLastCalledWith('https://subs.example/en.srt');
+    expect(streamStates(fake).at(-1)).toEqual({ subtitleTrack: { id: 'ext:sub-en', embedded: false, language: 'eng' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aumentar atraso' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aumentar tamanho' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Diminuir posição' }));
+    await act(async () => {});
+    expect(screen.getByText('+0,25 s')).toBeTruthy();
+    expect(screen.getByText('125%')).toBeTruthy();
+    expect(screen.getByText('0%')).toBeTruthy();
+    expect(streamStates(fake).at(-1)).toEqual({
+      subtitleTrack: { id: 'ext:sub-en', embedded: false, language: 'eng' },
+      subtitleDelay: 250,
+      subtitleSize: 125,
+      subtitleOffset: 0,
+    });
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Desativadas' }));
+    await act(async () => {});
+    expect(streamStates(fake).at(-1)).toMatchObject({ subtitleTrack: null });
   });
 });

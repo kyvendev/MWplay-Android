@@ -137,7 +137,7 @@ Nenhum desses aparelhos foi testado fisicamente; veja "Próximas etapas".
 
 ## Testes
 
-`npm test` roda 38 testes (Vitest + jsdom):
+`npm test` roda 58 testes (Vitest + jsdom):
 
 - **Lógica (sem mocks):** classificação de fontes, detecção HLS/DASH, deep links do Descobrir,
   SRT→WebVTT, gêneros/elenco/IMDb, rotas, regras de setas (sliders não mudam valor com ↑/↓),
@@ -151,7 +151,10 @@ Nenhum desses aparelhos foi testado fisicamente; veja "Próximas etapas".
   busca com debounce, configurações salvas no perfil do core, modo de interface persistido.
 - **Player (motor de vídeo como dublê):** um único motor por tela, retomada na posição salva,
   nenhuma recarga em atualizações de progresso, modelo do conteúdo anterior ignorado, liberação
-  do motor e `Unload` do core ao sair, mensagens de erro.
+  do motor e `Unload` do core ao sair, mensagens de erro, velocidade e proporção, legenda
+  automática pelo idioma do perfil, troca de idioma e ajustes salvos no estado do stream.
+- **Opções do player (sem mocks):** idiomas, agrupamento e escolha automática de legendas e
+  áudio, cues ativas com atraso, limites dos ajustes.
 - **PWA (arquivos reais):** manifesto, ícones existentes, metadados do Safari, regras do
   service worker.
 
@@ -169,6 +172,9 @@ real; as fontes nelas são sintéticas. Nenhum teste automatizado acessa a rede.
 - reprodução do stream de teste público Big Buck Bunny (Mux, CC-BY), com HLS nativo e com
   hls.js, retomada de posição, troca de fonte sem pipeline duplicado e liberação de recursos;
 - navegação por setas no layout de TV, regras da timeline e voltar;
+- opções do player com o stream público de demonstração "Angel One" (Shaka, várias faixas de
+  áudio e legendas): legenda automática, troca de idioma, atraso/tamanho/posição, áudio,
+  velocidade, proporção e navegação por setas no painel de legendas;
 - build de produção com service worker ativo e cache só do shell.
 
 Ainda não testado: iPhone e iPad (Safari), TVs físicas e a instalação real da PWA.
@@ -202,3 +208,29 @@ login. Falhas de rede, timeout (5 s) e outros erros nunca deslogam. A checagem r
 
 Assim, encerrar a sessão pelo site do Stremio (por exemplo, "sair de todos os dispositivos")
 desconecta o MW Play Web.
+
+## Opções do player
+
+Mesmas opções do player do Android TV (`PlayerControls.kt` / `PlayerScreen.kt`):
+
+- **Legendas:** painel com Idiomas → Variantes → Ajustes. Lista legendas do próprio vídeo (HLS ou
+  faixas nativas), dos addons (numeradas por idioma, sem nome de origem) e arquivos locais
+  `.srt`/`.vtt` (botão oculto no modo TV, onde não há seletor de arquivos). Ajustes: atraso
+  (±10 s, passos de 0,25 s), tamanho (75–250 %) e posição (0–100 %). As cores, contorno, negrito e
+  opacidade vêm das configurações de legenda do perfil.
+- **Áudio:** troca de faixa/idioma quando o stream tem mais de uma (HLS via hls.js ou Safari).
+- **Velocidade:** 0,5x a 2x. **Proporção:** Ajustar, Esticar e Zoom.
+- **Escolha automática:** a legenda e o áudio salvos para o título; senão, os idiomas preferidos
+  do perfil (`subtitlesLanguage`, `audioLanguage`).
+- **Persistência:** como no Android, faixa de legenda, atraso, tamanho, posição, faixa de áudio e
+  velocidade ficam no estado do stream do core (`Player/StreamStateChanged`), sincronizado com a
+  conta. Arquivos locais não são salvos.
+
+As legendas são desenhadas pelo player (não pelo navegador) para que atraso, tamanho e posição
+funcionem em qualquer fonte. Exceção: na tela cheia nativa do iPhone, o iOS desenha a legenda
+escolhida sem esses ajustes.
+
+O Chromium recente também toca HLS nativamente, mas sem expor faixas de áudio e legenda. Por isso
+o hls.js é usado sempre que o navegador suporta MSE; o HLS nativo fica para o Safari (que expõe as
+faixas) e para navegadores sem MSE. No modo TV, o controle deslizante de volume fica oculto (o
+controle remoto tem volume próprio e o slider prenderia ←/→ na barra).

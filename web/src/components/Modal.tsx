@@ -5,7 +5,7 @@ import { useBackHandler } from '../app/back';
  * Bottom sheet on phones, centered dialog elsewhere. It traps arrow navigation (data-nav-scope),
  * focuses its first control, closes with back/Escape or a tap outside, and restores focus.
  */
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const panel = useRef<HTMLDivElement>(null);
   useBackHandler(() => {
     onClose();
@@ -13,7 +13,9 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   });
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    const first = panel.current?.querySelector<HTMLElement>('[aria-checked="true"], button, [href], input, select');
+    // The current choice first; a selector list alone would match in document order.
+    const first =
+      panel.current?.querySelector<HTMLElement>('[aria-checked="true"]') ?? panel.current?.querySelector<HTMLElement>('button, [href], input, select');
     first?.focus({ preventScroll: true });
     return () => previous?.focus({ preventScroll: true });
   }, []);
@@ -21,7 +23,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
     <div className="modal-backdrop" onClick={onClose}>
       <div
         ref={panel}
-        className="modal"
+        className={wide ? 'modal modal--wide' : 'modal'}
         role="dialog"
         aria-modal="true"
         aria-label={title}

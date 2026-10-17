@@ -10,6 +10,7 @@ import type {
   RuntimeEvent,
   StateByField,
   Stream,
+  StreamState,
 } from './types';
 import { APP_VERSION } from '../../shared/config';
 
@@ -212,6 +213,11 @@ export class StremioCore {
 
   playerNextVideo() {
     return this.player('NextVideo');
+  }
+
+  /** Saves audio/subtitle/speed choices for this title (StremioCore.playerStreamStateChanged). */
+  playerStreamStateChanged(state: StreamState) {
+    return this.player('StreamStateChanged', { state });
   }
 
   unload(field: CoreField) {
