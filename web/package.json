@@ -1,0 +1,34 @@
+{
+  "name": "mw-play-web",
+  "private": true,
+  "version": "1.2.0",
+  "description": "MW Play for browsers (mobile, desktop and TV), built on the official stremio-core WebAssembly runtime.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "@stremio/stremio-core-web": "0.64.0",
+    "hls.js": "1.5.20",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/react": "16.1.0",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "4.3.4",
+    "jsdom": "25.0.1",
+    "typescript": "5.6.3",
+    "vite": "5.4.21",
+    "vitest": "2.1.9"
+  },
+  "overrides": {
+    "@babel/runtime": "7.26.10"
+  }
+}

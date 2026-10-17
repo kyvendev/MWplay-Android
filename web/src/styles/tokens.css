@@ -1,0 +1,72 @@
+/* MW Play visual foundation, same values as the Android theme (core/theme/Colors.kt). */
+:root {
+  --bg: #06070d;
+  --bg-gradient: linear-gradient(160deg, #0e0b1f 0%, #08090f 45%, #06070d 100%);
+  --surface-low: #0d0f18;
+  --surface-mid: #151826;
+  --surface-high: #1e2233;
+  --hairline: rgba(255, 255, 255, 0.12);
+  --text: #ffffff;
+  --muted: #b3b6c7;
+  --subtle: #7f8399;
+  --accent: #8a63ff;
+  --accent-soft: #c9b8ff;
+  --accent-glow: #6f4bff;
+  --focus-fill: #7550f0;
+  --focus-ring: #ffffff;
+  --danger: #ff6b6b;
+  --warning: #ffc66d;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --gutter: 16px;
+  --poster-w: 112px;
+  --shelf-gap: 12px;
+  --touch: 48px;
+
+  --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  --nav-h: calc(64px + var(--safe-bottom));
+  --rail-w: 0px;
+
+  color-scheme: dark;
+}
+
+/* Tablets and desktops: wider posters and a side rail instead of the bottom bar. */
+@media (min-width: 768px) {
+  :root {
+    --gutter: 28px;
+    --poster-w: 150px;
+    --shelf-gap: 16px;
+    --nav-h: 0px;
+    --rail-w: 92px;
+  }
+}
+
+@media (min-width: 1600px) {
+  :root {
+    --poster-w: 176px;
+  }
+}
+
+/*
+ * TV: the layout is authored for a 960x540 logical canvas (Android TV's dp grid) and scales with the
+ * viewport width, so 720p, 1080p and 4K panels show the same composition at their own sharpness.
+ */
+html[data-ui='tv'] {
+  font-size: calc(100vw / 960 * 16);
+  --gutter: 1.6rem;
+  --poster-w: 7.75rem;
+  --shelf-gap: 1rem;
+  --nav-h: 0px;
+  --rail-w: 6.25rem;
+  --touch: 2.75rem;
+}
