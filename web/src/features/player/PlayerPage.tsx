@@ -581,14 +581,14 @@ export function describePlaybackError(coreFailed: boolean, error: EngineError | 
   if (coreFailed) {
     const kind = streamKind(stream);
     return kind === 'torrent' || kind === 'youtube'
-      ? 'Esta fonte precisa do servidor de streaming do Stremio, que não foi encontrado. Abra Configurações para ver como ativá-lo ou escolha uma fonte HTTP.'
+      ? 'Esta fonte só funciona no app MW Play. Escolha outra fonte.'
       : 'Não foi possível preparar esta fonte para reprodução.';
   }
   if (!error) return null;
   const kind = streamKind(stream);
   // The core still produces a streaming-server URL when no server runs; the failure shows up here.
   if (error.kind === 'network' && (kind === 'torrent' || kind === 'youtube')) {
-    return 'Esta fonte precisa do servidor de streaming do Stremio, que não respondeu. Abra Configurações para ver como ativá-lo ou escolha uma fonte HTTP.';
+    return 'Esta fonte só funciona no app MW Play. Escolha outra fonte.';
   }
   switch (error.kind) {
     case 'unsupported-format':

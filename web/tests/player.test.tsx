@@ -99,8 +99,8 @@ describe('player lifecycle', () => {
 
 describe('playback errors', () => {
   it('explains what the user can do', () => {
-    expect(describePlaybackError(true, null, { infoHash: 'a'.repeat(40) })).toContain('servidor de streaming');
-    expect(describePlaybackError(false, { kind: 'network' }, { infoHash: 'a'.repeat(40) })).toContain('servidor de streaming');
+    expect(describePlaybackError(true, null, { infoHash: 'a'.repeat(40) })).toContain('app MW Play');
+    expect(describePlaybackError(false, { kind: 'network' }, { infoHash: 'a'.repeat(40) })).toContain('app MW Play');
     expect(describePlaybackError(false, { kind: 'unsupported-format', format: 'file' }, stream)).toContain('MKV');
     expect(describePlaybackError(false, { kind: 'unsupported-format', format: 'dash' }, stream)).toContain('DASH');
     expect(describePlaybackError(false, { kind: 'network' }, stream)).toContain('rede');

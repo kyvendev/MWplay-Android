@@ -95,7 +95,11 @@ describe('details and sources', () => {
 
     const torrent = screen.getByText('Teste torrent').closest('button')!;
     expect((torrent as HTMLButtonElement).disabled).toBe(true);
-    expect(torrent.textContent).toContain('Requer o servidor de streaming');
+    expect(torrent.textContent).toContain('Disponível apenas no app MW Play');
+    // HTTP sources flagged notWebReady by their addon play fine in browsers: no warning, not blocked.
+    const http = screen.getByText('Teste HLS').closest('button')!;
+    expect((http as HTMLButtonElement).disabled).toBe(false);
+    expect(http.textContent).not.toContain('Pode não reproduzir');
     // Playable sources are listed before blocked ones.
     const titles = screen.getAllByRole('button').map((button) => button.textContent ?? '');
     expect(titles.findIndex((text) => text.includes('Teste HLS'))).toBeLessThan(titles.findIndex((text) => text.includes('Teste torrent')));
@@ -137,8 +141,8 @@ describe('modals and back', () => {
       streaming_server: { selected: { transportUrl: '' }, settings: { type: 'Err', content: 'down' }, baseUrl: null },
     });
     renderApp(fake);
-    expect(await screen.findByText('Servidor de streaming')).toBeTruthy();
-    expect(screen.getByText('Não encontrado')).toBeTruthy();
+    expect(await screen.findByText('Tamanho das legendas')).toBeTruthy();
+    expect(screen.queryByText('Servidor de streaming')).toBeNull();
     // Settings changes go to the core profile (same semantics as Android).
     fireEvent.change(screen.getByLabelText('Tamanho das legendas'), { target: { value: '150' } });
     await waitFor(() => expect(loadActions(fake)).toContain('UpdateSettings'));

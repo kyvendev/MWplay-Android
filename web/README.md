@@ -45,7 +45,7 @@ web/
       search/      busca com debounce
       library/     biblioteca da conta
       player/      player web, progresso para o core, legendas, faixas de áudio, Media Session
-      settings/    conta, modo de interface, legendas (perfil do core), servidor de streaming
+      settings/    conta, modo de interface, legendas (perfil do core)
       tv/          navegação espacial por setas
     pwa/                           registro do SW, aviso de atualização, dica de instalação
     services/stremio/              integração com o core
@@ -106,7 +106,9 @@ Nenhum desses aparelhos foi testado fisicamente; veja "Próximas etapas".
 
 ## Limitações conhecidas
 
-- **Torrents:** precisam de um servidor de streaming do Stremio acessível pelo navegador
+- **Torrents:** a versão web não tem servidor de streaming (não há tela para ele nas
+  Configurações); fontes torrent aparecem como "Disponível apenas no app MW Play". Tecnicamente
+  elas só tocariam com um servidor de streaming do Stremio acessível pelo navegador
   (`http://127.0.0.1:11470/` por padrão, por exemplo o Stremio Service no computador). Em celular
   e TV pelo navegador isso normalmente não existe. As fontes torrent aparecem desativadas, com
   explicação, e as fontes HTTP vêm primeiro. O servidor embutido no APK (`libstream_server.so`) é

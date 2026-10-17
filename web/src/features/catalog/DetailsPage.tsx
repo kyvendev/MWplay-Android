@@ -212,14 +212,12 @@ function Streams({
             kind === 'torrent' || kind === 'youtube'
               ? torrentsAvailable
                 ? null
-                : 'Requer o servidor de streaming (veja Configurações)'
+                : 'Disponível apenas no app MW Play'
               : kind === 'external'
                 ? 'Abre fora do MW Play'
                 : kind === 'unsupported'
                   ? 'Formato não suportado no navegador'
-                  : stream.behaviorHints?.notWebReady
-                    ? "Pode não reproduzir no navegador"
-                    : null;
+                  : null;
           return (
             <button
               key={`${group.addon.manifest.id}:${index}`}

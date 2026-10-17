@@ -100,7 +100,7 @@ export const detailsFixture: MetaDetails = {
   streams: [
     {
       addon: { manifest: { id: 'test.http', name: 'Teste HTTP' }, transportUrl: 'https://example.invalid/http/manifest.json' },
-      content: { type: 'Ready', content: [{ url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8', name: 'Teste HLS', description: 'Stream público de teste' }] },
+      content: { type: 'Ready', content: [{ url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8', name: 'Teste HLS', description: 'Stream público de teste', behaviorHints: { notWebReady: true } }] },
     },
     {
       addon: { manifest: { id: 'test.torrent', name: 'Teste Torrent' }, transportUrl: 'https://example.invalid/torrent/manifest.json' },

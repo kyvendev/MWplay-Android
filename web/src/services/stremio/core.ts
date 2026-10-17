@@ -218,13 +218,9 @@ export class StremioCore {
     return this.dispatch({ action: 'Unload' }, field);
   }
 
-  // region settings & streaming server ---------------------------------------------------
+  // region settings ----------------------------------------------------------------------------------
 
   updateSettings(settings: ProfileSettings) {
     return this.ctx('UpdateSettings', settings);
-  }
-
-  reloadStreamingServer() {
-    return this.dispatch({ action: 'StreamingServer', args: { action: 'Reload' } }, 'streaming_server');
   }
 }

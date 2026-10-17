@@ -17,13 +17,10 @@ const SUBTITLE_LANGUAGES: { value: string | null; label: string }[] = [
 export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: UiPreference; onUiPreference: (value: UiPreference) => void }) {
   const { core } = useCore();
   const ctx = useCoreState('ctx');
-  const server = useCoreState('streaming_server');
   const settings = ctx?.profile.settings;
   const update = (patch: Partial<NonNullable<typeof settings>>) => {
     if (settings) core.updateSettings({ ...settings, ...patch });
   };
-
-  const serverReady = server?.settings.type === 'Ready' && Boolean(server.baseUrl);
 
   return (
     <main className="page">
@@ -79,23 +76,6 @@ export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: U
             </div>
           </section>
         )}
-
-        <section className="settings__card" aria-label="Servidor de streaming">
-          <div className="settings__row">
-            <span>Servidor de streaming</span>
-            <span style={{ color: serverReady ? '#7ee2a8' : 'var(--warning)', fontWeight: 700 }}>{serverReady ? 'Conectado' : 'Não encontrado'}</span>
-          </div>
-          <p className="settings__hint">
-            {serverReady
-              ? `Em uso: ${server?.baseUrl}. Fontes torrent ficam disponíveis.`
-              : `Fontes HTTP funcionam direto no navegador. Fontes torrent precisam do servidor de streaming do Stremio rodando neste aparelho (${settings?.streamingServerUrl ?? 'http://127.0.0.1:11470/'}), como o Stremio Service no computador. No celular e na TV pelo navegador ele normalmente não está disponível; use o app MW Play para torrents.`}
-          </p>
-          <div>
-            <button type="button" className="button focusable" onClick={() => core.reloadStreamingServer()}>
-              Verificar novamente
-            </button>
-          </div>
-        </section>
 
         <section className="settings__card" aria-label="Sobre">
           <div className="settings__row">
