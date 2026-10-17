@@ -12,7 +12,6 @@ export type CoreField =
   | 'continue_watching_preview'
   | 'search'
   | 'meta_details'
-  | 'installed_addons'
   | 'streaming_server'
   | 'player';
 
@@ -219,10 +218,6 @@ export interface Ctx {
   };
 }
 
-export interface InstalledAddons {
-  catalog: { manifest: { id: string; name: string; version?: string; description?: string | null; logo?: string | null; types?: string[] }; transportUrl: string; flags?: { official?: boolean; protected?: boolean }; installed: boolean }[];
-}
-
 export interface StreamingServer {
   selected: { transportUrl: string };
   settings: Loadable<Record<string, unknown>, unknown>;
@@ -246,7 +241,6 @@ export interface StateByField {
   continue_watching_preview: ContinueWatchingPreview;
   search: CatalogsWithExtra;
   meta_details: MetaDetails;
-  installed_addons: InstalledAddons;
   streaming_server: StreamingServer;
   player: Player;
 }

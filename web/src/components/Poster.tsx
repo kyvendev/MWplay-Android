@@ -70,7 +70,7 @@ export function CatalogShelf({
         <div className="shelf__header">
           <h2 className="shelf__title">{title}</h2>
         </div>
-        <ErrorState message={`Não foi possível carregar este catálogo (${catalog.addon.manifest.name}).`} />
+        <ErrorState message="Não foi possível carregar este catálogo." />
       </section>
     );
   }

@@ -218,15 +218,7 @@ export class StremioCore {
     return this.dispatch({ action: 'Unload' }, field);
   }
 
-  // region addons, settings & streaming server ---------------------------------------------------
-
-  loadInstalledAddons() {
-    return this.load('InstalledAddonsWithFilters', { request: { type: null } }, 'installed_addons');
-  }
-
-  uninstallAddon(descriptor: unknown) {
-    return this.ctx('UninstallAddon', descriptor);
-  }
+  // region settings & streaming server ---------------------------------------------------
 
   updateSettings(settings: ProfileSettings) {
     return this.ctx('UpdateSettings', settings);

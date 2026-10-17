@@ -63,7 +63,7 @@ export function DiscoverPage() {
                   aria-pressed={catalog.selected}
                   onClick={() => select(catalog.deepLinks.discover)}
                 >
-                  {catalogs.filter((other) => other.name === catalog.name).length > 1 ? `${catalog.name} · ${catalog.addon.manifest.name}` : catalog.name}
+                  {catalogLabel(catalog, catalogs)}
                 </button>
               ))}
             </div>
@@ -91,4 +91,12 @@ export function DiscoverPage() {
       <div ref={sentinel} aria-hidden="true" style={{ height: 1 }} />
     </main>
   );
+}
+
+/** Catalogs sharing a name are numbered instead of naming their source. */
+function catalogLabel(catalog: { id: string; name: string; addon: { manifest: { id: string } } }, all: { id: string; name: string; addon: { manifest: { id: string } } }[]): string {
+  const same = all.filter((other) => other.name === catalog.name);
+  if (same.length < 2) return catalog.name;
+  const index = same.findIndex((other) => other.id === catalog.id && other.addon.manifest.id === catalog.addon.manifest.id);
+  return `${catalog.name} ${index + 1}`;
 }

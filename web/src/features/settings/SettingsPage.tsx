@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import type { UiPreference } from '../../app/uiMode';
 import { LogoutIcon } from '../../components/icons';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
@@ -19,15 +18,6 @@ export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: U
   const { core } = useCore();
   const ctx = useCoreState('ctx');
   const server = useCoreState('streaming_server');
-  const addons = useCoreState('installed_addons');
-  const requested = useRef(false);
-
-  useEffect(() => {
-    if (requested.current) return;
-    requested.current = true;
-    core.loadInstalledAddons();
-  }, [core]);
-
   const settings = ctx?.profile.settings;
   const update = (patch: Partial<NonNullable<typeof settings>>) => {
     if (settings) core.updateSettings({ ...settings, ...patch });
@@ -107,34 +97,12 @@ export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: U
           </div>
         </section>
 
-        <section className="settings__card" aria-label="Addons">
-          <span style={{ fontWeight: 800 }}>Addons instalados</span>
-          <p className="settings__hint">Os mesmos addons da sua conta, sincronizados pelo core com o app.</p>
-          {(addons?.catalog ?? []).map((addon) => {
-            const descriptor = ctx?.profile.addons.find((item) => item.transportUrl === addon.transportUrl);
-            const removable = descriptor && !descriptor.flags?.protected && !descriptor.flags?.official;
-            return (
-              <div key={addon.transportUrl} className="settings__row">
-                <span>
-                  {addon.manifest.name}
-                  {addon.manifest.version ? <span className="settings__hint"> · v{addon.manifest.version}</span> : null}
-                </span>
-                {removable && (
-                  <button type="button" className="button focusable" onClick={() => core.uninstallAddon(descriptor)}>
-                    Remover
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </section>
-
         <section className="settings__card" aria-label="Sobre">
           <div className="settings__row">
             <span>Versão do MW Play Web</span>
             <span>{APP_VERSION}</span>
           </div>
-          <p className="settings__hint">Catálogos, addons, biblioteca e progresso vêm do mesmo stremio-core usado pelos apps Android e Android TV.</p>
+          <p className="settings__hint">Catálogos, biblioteca e progresso são sincronizados com a sua conta, como nos apps Android e Android TV.</p>
         </section>
       </div>
     </main>

@@ -69,7 +69,7 @@ export function SearchPage({ initialQuery }: { initialQuery: string }) {
           onChange={(event) => setQuery(event.target.value)}
         />
       </form>
-      {!query.trim() && <EmptyState>Digite o nome de um filme ou série. A busca usa os addons instalados na sua conta.</EmptyState>}
+      {!query.trim() && <EmptyState>Digite o nome de um filme ou série.</EmptyState>}
       {catalogs.map((catalog) => (
         <CatalogShelf key={`${catalog.addon.manifest.id}:${catalog.type}:${catalog.id}`} catalog={catalog} onOpen={(item) => openDetails(item)} />
       ))}

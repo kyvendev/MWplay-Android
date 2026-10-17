@@ -134,7 +134,6 @@ describe('modals and back', () => {
     window.location.hash = '#/settings';
     const fake = createFakeCore({
       ctx: ctxFixture(true),
-      installed_addons: { catalog: [] },
       streaming_server: { selected: { transportUrl: '' }, settings: { type: 'Err', content: 'down' }, baseUrl: null },
     });
     renderApp(fake);
@@ -149,7 +148,7 @@ describe('modals and back', () => {
 
   it('persists the interface mode preference', async () => {
     window.location.hash = '#/settings';
-    const fake = createFakeCore({ ctx: ctxFixture(true), installed_addons: { catalog: [] }, streaming_server: { selected: { transportUrl: '' }, settings: { type: 'Loading' }, baseUrl: null } });
+    const fake = createFakeCore({ ctx: ctxFixture(true), streaming_server: { selected: { transportUrl: '' }, settings: { type: 'Loading' }, baseUrl: null } });
     renderApp(fake);
     fireEvent.change(await screen.findByLabelText('Modo da interface'), { target: { value: 'tv' } });
     await waitFor(() => expect(document.documentElement.dataset.ui).toBe('tv'));

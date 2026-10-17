@@ -14,7 +14,7 @@ agora compilado para WebAssembly.
 | Persistência do core | `AndroidStorage` (SharedPreferences) | `localStorage` com prefixo `mwplay.core.` |
 | Eventos | `RuntimeEvent.NewState` → flows | `NewState` → hook `useCoreState(field)` |
 | Login | `Ctx/Authenticate (Login)` na API de contas do Stremio | igual |
-| Catálogos, busca, detalhes, biblioteca, addons | modelos `board`, `discover`, `search`, `meta_details`, `library`, `continue_watching_preview`, `installed_addons` | os mesmos modelos |
+| Catálogos, busca, detalhes, biblioteca | modelos `board`, `discover`, `search`, `meta_details`, `library`, `continue_watching_preview` | os mesmos modelos |
 | Fontes de reprodução | `meta_details.streams` → `Player` → `player.stream` (URL convertida) | igual |
 | Torrents | servidor local `libstream_server.so` em `127.0.0.1:11470` | só se houver servidor de streaming acessível (veja limitações) |
 
@@ -45,7 +45,7 @@ web/
       search/      busca com debounce
       library/     biblioteca da conta
       player/      player web, progresso para o core, legendas, faixas de áudio, Media Session
-      settings/    conta, modo de interface, legendas (perfil do core), servidor, addons
+      settings/    conta, modo de interface, legendas (perfil do core), servidor de streaming
       tv/          navegação espacial por setas
     pwa/                           registro do SW, aviso de atualização, dica de instalação
     services/stremio/              integração com o core
@@ -179,3 +179,9 @@ Ainda não testado: iPhone e iPad (Safari), TVs físicas e a instalação real d
 3. Decidir a estratégia para torrents na web (servidor de streaming remoto autorizado ou apenas
    fontes HTTP).
 4. Se necessário, avaliar dash.js para fontes DASH.
+
+## Privacidade da interface
+
+A interface web não lista, não identifica e não permite remover os addons da conta: as fontes e
+os catálogos aparecem sem o nome de origem. Os addons continuam sendo usados pelo core para
+catálogos, busca e fontes, e são gerenciados apenas pela conta, fora do MW Play Web.

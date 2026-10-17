@@ -199,10 +199,10 @@ function Streams({
       <h2 className="section-label">{episode ? `Fontes · ${episodeLabel(episode.season, episode.episode) ?? episode.title}` : 'Fontes'}</h2>
       {loading && (
         <div className="settings__hint" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', margin: '0.5rem 0' }}>
-          <Spinner /> Buscando fontes nos seus addons…
+          <Spinner /> Buscando fontes…
         </div>
       )}
-      {!loading && ready.length === 0 && <EmptyState>Nenhuma fonte encontrada nos addons instalados para este título.</EmptyState>}
+      {!loading && ready.length === 0 && <EmptyState>Nenhuma fonte encontrada para este título.</EmptyState>}
       <div className="list">
         {ready.map(({ stream, group }, index) => {
           const kind = streamKind(stream);
@@ -218,7 +218,7 @@ function Streams({
                 : kind === 'unsupported'
                   ? 'Formato não suportado no navegador'
                   : stream.behaviorHints?.notWebReady
-                    ? 'O addon indica que pode não reproduzir no navegador'
+                    ? "Pode não reproduzir no navegador"
                     : null;
           return (
             <button
@@ -241,7 +241,6 @@ function Streams({
               </span>
               <span className="row-card__text">
                 <span className="row-card__title">
-                  <span className="tag">{group.addon.manifest.name}</span>
                   {label.title}
                 </span>
                 {label.detail && <span className="row-card__detail">{label.detail}</span>}
