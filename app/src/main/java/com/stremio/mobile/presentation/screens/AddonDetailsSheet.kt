@@ -71,7 +71,7 @@ fun AddonDetailsSheet(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = "Voltar",
                 tint = Color.White,
                 modifier = Modifier
                     .size(36.dp)
@@ -81,7 +81,7 @@ fun AddonDetailsSheet(
                     .padding(8.dp),
             )
             Text(
-                text = "Addon Details",
+                text = "Detalhes do addon",
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
@@ -91,7 +91,7 @@ fun AddonDetailsSheet(
         when {
             addon == null && details.isLoading -> CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(28.dp))
             addon == null -> Text(
-                text = details.error ?: "Unable to load this addon.",
+                text = details.error ?: "Não foi possível carregar este addon.",
                 color = Color(0xFFFFC66D),
                 fontSize = 13.sp,
             )
@@ -141,7 +141,7 @@ fun AddonDetailsSheet(
                 }
 
                 Text(
-                    text = addon.description ?: "No description available.",
+                    text = addon.description ?: "Sem descrição.",
                     color = Color(0xFFE4E0EE),
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -151,7 +151,7 @@ fun AddonDetailsSheet(
 
                 if (addon.types.isNotEmpty()) {
                     Text(
-                        text = "Supports: " + addon.types.joinToString(", "),
+                        text = "Suporta: " + addon.types.joinToString(", "),
                         color = MutedText,
                         fontSize = 12.sp,
                     )
@@ -159,7 +159,7 @@ fun AddonDetailsSheet(
 
                 if (addon.configurationRequired && !addon.installed) {
                     Text(
-                        text = "This addon must be configured before it can be installed.",
+                        text = "Este addon precisa ser configurado antes de ser instalado.",
                         color = Color(0xFFFFC66D),
                         fontSize = 12.sp,
                     )
@@ -168,7 +168,7 @@ fun AddonDetailsSheet(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (addon.configurable) {
                         ThemedButton(
-                            text = "Configure",
+                            text = "Configurar",
                             onClick = {
                                 val url = addon.transportUrl.replace("manifest.json", "configure")
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -179,7 +179,7 @@ fun AddonDetailsSheet(
                     if (addon.installed) {
                         if (addon.upgradeable) {
                             ThemedButton(
-                                text = "Upgrade",
+                                text = "Atualizar",
                                 onClick = { onUpgrade(addon) },
                                 containerColor = AccentPurple,
                             )
@@ -192,7 +192,7 @@ fun AddonDetailsSheet(
                         )
                     } else {
                         ThemedButton(
-                            text = "Install",
+                            text = "Instalar",
                             onClick = { onInstall(addon) },
                             enabled = addon.installable,
                             modifier = Modifier.weight(1f),

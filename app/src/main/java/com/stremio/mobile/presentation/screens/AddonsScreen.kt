@@ -59,7 +59,7 @@ fun AddonsScreen(
             state.isLoading -> LoadingRow()
             state.error != null -> EmptyState(state.error)
             state.items.isEmpty() -> EmptyState(
-                if (state.isBrowsingRemote) "No addons found in this catalog." else "No addons installed."
+                if (state.isBrowsingRemote) "Nenhum addon encontrado neste catálogo." else "Nenhum addon instalado."
             )
             else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 state.items.forEach { addon ->
@@ -105,7 +105,7 @@ fun AddonsHeaderAndControls(
                     modifier = Modifier.weight(1f),
                     placeholder = {
                         Text(
-                            text = "Paste addon manifest URL...",
+                            text = "Cole a URL do manifesto do addon…",
                             color = MutedText,
                             fontSize = 13.sp,
                             maxLines = 1,
@@ -125,7 +125,7 @@ fun AddonsHeaderAndControls(
                     ),
                 )
                 ThemedButton(
-                    text = "Add",
+                    text = "Adicionar",
                     onClick = {
                         if (onInstallByUrl(urlInput)) urlInput = "" else urlError = true
                     },
@@ -134,7 +134,7 @@ fun AddonsHeaderAndControls(
             }
             if (urlError) {
                 Text(
-                    text = "Enter a valid http(s) addon manifest URL.",
+                    text = "Informe uma URL de manifesto http(s) válida.",
                     color = Color(0xFFE57373),
                     fontSize = 12.sp,
                 )
@@ -146,7 +146,7 @@ fun AddonsHeaderAndControls(
                 if (state.selectableCatalogs.isNotEmpty()) {
                     val selectedIndex = state.selectableCatalogs.indexOfFirst { it.selected }
                     DropdownFilter(
-                        label = state.selectableCatalogs.getOrNull(selectedIndex)?.label ?: "Source",
+                        label = state.selectableCatalogs.getOrNull(selectedIndex)?.label ?: "Origem",
                         options = state.selectableCatalogs.map { it.label },
                         selectedIndex = selectedIndex,
                         onSelectIndex = { index -> onSelectFilter(state.selectableCatalogs[index].request) },
@@ -156,7 +156,7 @@ fun AddonsHeaderAndControls(
                 if (state.selectableTypes.isNotEmpty()) {
                     val selectedIndex = state.selectableTypes.indexOfFirst { it.selected }
                     DropdownFilter(
-                        label = state.selectableTypes.getOrNull(selectedIndex)?.label ?: "Type",
+                        label = state.selectableTypes.getOrNull(selectedIndex)?.label ?: "Tipo",
                         options = state.selectableTypes.map { it.label },
                         selectedIndex = selectedIndex,
                         onSelectIndex = { index -> onSelectFilter(state.selectableTypes[index].request) },

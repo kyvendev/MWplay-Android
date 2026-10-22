@@ -71,7 +71,7 @@ private fun LoginScreen(
     val autofillManager = LocalAutofillManager.current
 
     AuthFormScaffold(
-        title = "Log in",
+        title = "Entrar",
         subtitle = "Entre com o e-mail e a senha fornecidos para acessar o MW Play.",
         isLoading = isLoading,
         error = error,
@@ -90,7 +90,7 @@ private fun LoginScreen(
             modifier = Modifier.semantics { contentType = ContentType.Password },
         )
         AuthButton(
-            text = if (isLoading) "Entrando..." else "Log in",
+            text = if (isLoading) "Entrando..." else "Entrar",
             enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
         ) {
             autofillManager?.commit()

@@ -71,6 +71,8 @@ import com.stremio.mobile.presentation.components.GlobalUiTheme
 import com.stremio.mobile.presentation.components.LocalGlassAlpha
 import com.stremio.mobile.core.theme.*
 import com.stremio.mobile.data.model.CatalogItem
+import com.stremio.mobile.data.model.ContentLabels
+import com.stremio.mobile.data.model.TvCatalogPolicy
 import com.stremio.mobile.data.model.LiquidGlassTuning
 import com.stremio.mobile.presentation.components.*
 import com.stremio.mobile.presentation.navigation.AppView
@@ -304,7 +306,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     onDismissRequest = viewModel::cancelMobileDataPlayback,
                     title = {
                         Text(
-                            text = "Mobile Data Warning",
+                            text = "Aviso de dados móveis",
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
@@ -315,7 +317,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "You are currently connected to mobile data. Streaming video may consume a significant amount of data. Do you want to continue?",
+                                text = "Você está usando dados móveis. Assistir vídeos pode consumir muitos dados. Deseja continuar?",
                                 color = MutedText,
                                 fontSize = 14.sp
                             )
@@ -337,7 +339,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "Don't show this warning again",
+                                    text = "Não mostrar este aviso novamente",
                                     color = Color.White,
                                     fontSize = 14.sp
                                 )
@@ -353,14 +355,14 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                                 viewModel.confirmMobileDataPlayback()
                             }
                         ) {
-                            Text(text = "Stream Anyway", color = AccentPurple, fontWeight = FontWeight.Bold)
+                            Text(text = "Assistir mesmo assim", color = AccentPurple, fontWeight = FontWeight.Bold)
                         }
                     },
                     dismissButton = {
                         androidx.compose.material3.TextButton(
                             onClick = viewModel::cancelMobileDataPlayback
                         ) {
-                            Text(text = "Cancel", color = MutedText)
+                            Text(text = "Cancelar", color = MutedText)
                         }
                     },
                     containerColor = Color(0xFF2A2935),
@@ -376,7 +378,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     },
                     title = {
                         Text(
-                            text = "Streaming Server Error",
+                            text = "Erro no servidor de streaming",
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
@@ -393,7 +395,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         androidx.compose.material3.TextButton(
                             onClick = viewModel::startServer
                         ) {
-                            Text(text = "Retry", color = AccentPurple, fontWeight = FontWeight.Bold)
+                            Text(text = "Tentar novamente", color = AccentPurple, fontWeight = FontWeight.Bold)
                         }
                     },
                     dismissButton = {
@@ -402,7 +404,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                                 (context as? Activity)?.finish()
                             }
                         ) {
-                            Text(text = "Exit", color = MutedText)
+                            Text(text = "Sair", color = MutedText)
                         }
                     },
                     containerColor = Color(0xFF2A2935),
@@ -416,7 +418,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         onDismissRequest = viewModel::dismissUpdateDialog,
                         title = {
                             Text(
-                                text = "New Update Available",
+                                text = "Nova atualização disponível",
                                 color = Color.White,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
@@ -431,7 +433,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = update.info.releaseNotes.ifBlank { "A new version of Stremio is available." },
+                                    text = update.info.releaseNotes.ifBlank { "Uma nova versão do MW Play está disponível." },
                                     color = MutedText,
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp,
@@ -444,14 +446,14 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                             androidx.compose.material3.TextButton(
                                 onClick = { viewModel.downloadAndInstallUpdate(update.info) }
                             ) {
-                                Text(text = "Install", color = AccentPurple, fontWeight = FontWeight.Bold)
+                                Text(text = "Instalar", color = AccentPurple, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
                             androidx.compose.material3.TextButton(
                                 onClick = viewModel::dismissUpdateDialog
                             ) {
-                                Text(text = "Not Now", color = MutedText)
+                                Text(text = "Agora não", color = MutedText)
                             }
                         },
                         containerColor = Color(0xFF2A2935),
@@ -463,7 +465,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         onDismissRequest = {},
                         title = {
                             Text(
-                                text = "Downloading Update...",
+                                text = "Baixando atualização…",
                                 color = Color.White,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
@@ -511,7 +513,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         onDismissRequest = viewModel::dismissUpdateDialog,
                         title = {
                             Text(
-                                text = "Ready to Install",
+                                text = "Pronto para instalar",
                                 color = Color.White,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
@@ -520,9 +522,9 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                         text = {
                             Text(
                                 text = if (update.needsUnknownSourcesPermission) {
-                                    "Please allow installs from this source, then return and tap Install."
+                                    "Permita instalações desta fonte, volte e toque em Instalar."
                                 } else {
-                                    "The update has been downloaded. Press Install to launch the system installer."
+                                    "A atualização foi baixada. Toque em Instalar para abrir o instalador do sistema."
                                 },
                                 color = MutedText,
                                 fontSize = 14.sp
@@ -532,14 +534,14 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                             androidx.compose.material3.TextButton(
                                 onClick = { viewModel.installDownloadedUpdate(update.file) }
                             ) {
-                                Text(text = "Install", color = AccentPurple, fontWeight = FontWeight.Bold)
+                                Text(text = "Instalar", color = AccentPurple, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
                             androidx.compose.material3.TextButton(
                                 onClick = viewModel::dismissUpdateDialog
                             ) {
-                                Text(text = "Later", color = MutedText)
+                                Text(text = "Depois", color = MutedText)
                             }
                         },
                         containerColor = Color(0xFF2A2935),
@@ -563,7 +565,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     activeSelectionId = playbackState.activeSelectionId,
                     castUri = playbackState.castUri,
                     castRequiresHeaders = playbackState.castRequiresHeaders,
-                    title = playbackState.title ?: "Stream",
+                    title = playbackState.title ?: "MW Play",
                     onAttachView = viewModel::attachPlayerView,
                     onDetachView = viewModel::detachPlayerView,
                     onBack = viewModel::closePlayer,
@@ -605,7 +607,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     onDismissRequest = { /* Block clicks outside */ },
                     title = {
                         Text(
-                            text = "Privacy & Analytics Disclosure",
+                            text = "Privacidade e análise de uso",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -620,26 +622,26 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Text(
-                                    text = "To help us improve stability and resolve errors, this open-source client collects anonymous crash reports (via Firebase Crashlytics) and usage metrics (via PostHog).",
+                                    text = "Para melhorar a estabilidade e corrigir erros, este cliente de código aberto coleta relatórios de falha anônimos (via Firebase Crashlytics) e métricas de uso (via PostHog).",
                                     color = Color.White,
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp
                                 )
                                 Text(
-                                    text = "All personally identifiable info (PII) is automatically scrubbed locally on your device, and session recordings mask all text fields and image content.",
+                                    text = "Informações pessoais identificáveis são removidas automaticamente no próprio aparelho, e as gravações de sessão ocultam todos os campos de texto e imagens.",
                                     color = MutedText,
                                     fontSize = 12.sp,
                                     lineHeight = 16.sp
                                 )
                                 Text(
-                                    text = "Stremio separate analytics notice:\nNote that the official Stremio backend services, addons, or streaming server core run independently and may collect separate telemetry from this app.",
+                                    text = "Aviso sobre análises do Stremio:\nOs serviços oficiais do Stremio, os addons e o servidor de streaming funcionam de forma independente e podem coletar telemetria própria, separada deste app.",
                                     color = MutedText,
                                     fontSize = 12.sp,
                                     lineHeight = 16.sp,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "You can change your consent preferences at any time in Android Settings.",
+                                    text = "Você pode mudar suas preferências de consentimento a qualquer momento nos ajustes do Android.",
                                     color = Color.White,
                                     fontSize = 12.sp,
                                     lineHeight = 16.sp,
@@ -653,13 +655,13 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             ThemedButton(
-                                text = "Opt Out",
+                                text = "Recusar",
                                 onClick = { viewModel.acknowledgeAnalyticsDisclosure(false) },
                                 containerColor = Color(0xFFD32F2F),
                                 modifier = Modifier.weight(1f)
                             )
                             ThemedButton(
-                                text = "Accept",
+                                text = "Aceitar",
                                 onClick = { viewModel.acknowledgeAnalyticsDisclosure(true) },
                                 containerColor = AccentPurple,
                                 modifier = Modifier.weight(1f)
@@ -744,11 +746,15 @@ private fun BoardScreen(
 
     BackHandler(
         enabled = (state.selectedSection == MainSection.Settings && settingsSubScreen != SettingsSubScreen.Main) ||
-                (state.selectedSection == MainSection.Discover && state.discoverCatalogRequest != null)
+                (state.selectedSection == MainSection.Discover && state.discoverCatalogRequest != null) ||
+                state.selectedSection == MainSection.Tv
     ) {
         if (state.selectedSection == MainSection.Settings && settingsSubScreen != SettingsSubScreen.Main) {
             settingsSubScreen = SettingsSubScreen.Main
-        } else if (state.selectedSection == MainSection.Discover && state.discoverCatalogRequest != null) {
+        } else if (state.selectedSection == MainSection.Tv ||
+            (state.selectedSection == MainSection.Discover && state.discoverCatalogRequest != null)
+        ) {
+            // Back from Discover or TV returns to Início, as before.
             onCloseDiscoverCatalog()
         }
     }
@@ -836,7 +842,6 @@ private fun BoardScreen(
                         item(key = "continue-watching", contentType = "shelf") {
                             ContinueWatchingShelf(
                                 shelf = state.continueWatching,
-                                onItemClick = onOpenDetails,
                                 onContinueWatching = onOpenStreams,
                                 onOpenDetails = onOpenDetails,
                                 onRemove = onRemoveFromContinueWatching,
@@ -865,7 +870,9 @@ private fun BoardScreen(
                     }
                 }
 
-                MainSection.Discover -> {
+                MainSection.Discover, MainSection.Tv -> {
+                    val isTvTab = state.selectedSection == MainSection.Tv
+                    val sectionTitle = if (isTvTab) "TV" else "Descobrir"
                     item {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -885,7 +892,7 @@ private fun BoardScreen(
                                 )
                             }
                             Text(
-                                text = if (state.isDiscoverSeeAll) state.discoverCatalogTitle ?: "Descobrir" else "Descobrir",
+                                text = if (state.isDiscoverSeeAll) ContentLabels.catalog(state.discoverCatalogTitle ?: sectionTitle) else sectionTitle,
                                 color = Color.White,
                                 fontSize = 26.sp,
                                 lineHeight = 32.sp,
@@ -897,7 +904,12 @@ private fun BoardScreen(
                     }
                     item {
                         DiscoverFiltersRow(
-                            discoverCatalogWithFilters = state.discoverCatalogWithFilters,
+                            // The TV tab has no type filter; Discover lists every type except TV.
+                            discoverCatalogWithFilters = state.discoverCatalogWithFilters?.takeIf { filters ->
+                                val selectedTv = TvCatalogPolicy.isTv(filters.selected?.request?.path?.type)
+                                selectedTv == isTvTab
+                            },
+                            showTypes = !isTvTab,
                             backdrop = appBackdrop,
                             onSelectRequest = onSelectDiscoverFilter
                         )
@@ -966,7 +978,7 @@ private fun BoardScreen(
                                 state.addons.error != null -> item { EmptyState(state.addons.error) }
                                 state.addons.items.isEmpty() -> item {
                                     EmptyState(
-                                        if (state.addons.isBrowsingRemote) "No addons found in this catalog." else "No addons installed."
+                                        if (state.addons.isBrowsingRemote) "Nenhum addon encontrado neste catálogo." else "Nenhum addon instalado."
                                     )
                                 }
                                 else -> {
@@ -1147,16 +1159,7 @@ private fun FilterChip(
     }
 }
 
-private fun typeLabel(type: String?): String {
-    return when (val t = type?.lowercase()) {
-        null -> "All Types"
-        "movie" -> "Movies"
-        "series" -> "Series"
-        "anime" -> "Anime"
-        "channel" -> "Channels"
-        else -> t.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }
-    }
-}
+private fun typeLabel(type: String?): String = ContentLabels.type(type)
 
 @Composable
 fun DropdownFilter(
@@ -1279,7 +1282,7 @@ private fun LibraryFiltersRow(
             item {
                 val options = selectable.types.map { typeLabel(it.type) }
                 val selectedIndex = selectable.types.indexOfFirst { it.selected }
-                val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "All Types"
+                val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "Todos os tipos"
                 DropdownFilter(
                     label = selectedLabel,
                     options = options,
@@ -1295,17 +1298,17 @@ private fun LibraryFiltersRow(
             item {
                 val options = selectable.sorts.map { selectableSort ->
                     when (selectableSort.sort) {
-                        com.stremio.core.models.LibraryWithFilters.Sort.LAST_WATCHED -> "Last Watched"
-                        com.stremio.core.models.LibraryWithFilters.Sort.NAME -> "Name (A-Z)"
-                        com.stremio.core.models.LibraryWithFilters.Sort.NAME_REVERSE -> "Name (Z-A)"
-                        com.stremio.core.models.LibraryWithFilters.Sort.TIMES_WATCHED -> "Times Watched"
-                        com.stremio.core.models.LibraryWithFilters.Sort.WATCHED -> "Watched"
-                        com.stremio.core.models.LibraryWithFilters.Sort.NOT_WATCHED -> "Not Watched"
-                        else -> selectableSort.sort.name ?: "Unknown"
+                        com.stremio.core.models.LibraryWithFilters.Sort.LAST_WATCHED -> "Últimos assistidos"
+                        com.stremio.core.models.LibraryWithFilters.Sort.NAME -> "Nome (A–Z)"
+                        com.stremio.core.models.LibraryWithFilters.Sort.NAME_REVERSE -> "Nome (Z–A)"
+                        com.stremio.core.models.LibraryWithFilters.Sort.TIMES_WATCHED -> "Mais assistidos"
+                        com.stremio.core.models.LibraryWithFilters.Sort.WATCHED -> "Assistidos"
+                        com.stremio.core.models.LibraryWithFilters.Sort.NOT_WATCHED -> "Não assistidos"
+                        else -> selectableSort.sort.name ?: "Outro"
                     }
                 }
                 val selectedIndex = selectable.sorts.indexOfFirst { it.selected }
-                val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "Sort"
+                val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "Ordenar"
                 DropdownFilter(
                     label = selectedLabel,
                     options = options,
@@ -1322,11 +1325,14 @@ private fun LibraryFiltersRow(
 private fun DiscoverFiltersRow(
     discoverCatalogWithFilters: com.stremio.core.models.CatalogWithFilters?,
     backdrop: LayerBackdrop?,
-    onSelectRequest: (com.stremio.core.types.addon.ResourceRequest) -> Unit
+    onSelectRequest: (com.stremio.core.types.addon.ResourceRequest) -> Unit,
+    showTypes: Boolean = true,
 ) {
     if (discoverCatalogWithFilters == null) return
 
     val selectable = discoverCatalogWithFilters.selectable
+    // TV catalogs have their own tab.
+    val types = selectable.types.filterNot { TvCatalogPolicy.isTv(it.type) }
     LazyRow(
         contentPadding = PaddingValues(horizontal = ScreenGutter),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1335,16 +1341,16 @@ private fun DiscoverFiltersRow(
             .padding(vertical = 4.dp)
     ) {
         // Types dropdown
-        if (selectable.types.isNotEmpty()) {
+        if (showTypes && types.isNotEmpty()) {
             item {
-                val options = selectable.types.map { typeLabel(it.type) }
-                val selectedIndex = selectable.types.indexOfFirst { it.selected }
-                val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "Type"
+                val options = types.map { typeLabel(it.type) }
+                val selectedIndex = types.indexOfFirst { it.selected }
+                val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "Tipo"
                 DropdownFilter(
                     label = selectedLabel,
                     options = options,
                     selectedIndex = selectedIndex,
-                    onSelectIndex = { index -> onSelectRequest(selectable.types[index].request) },
+                    onSelectIndex = { index -> onSelectRequest(types[index].request) },
                     backdrop = backdrop
                 )
             }
@@ -1353,9 +1359,9 @@ private fun DiscoverFiltersRow(
         // Catalogs dropdown
         if (selectable.catalogs.isNotEmpty()) {
             item {
-                val options = selectable.catalogs.map { it.name }
+                val options = selectable.catalogs.map { ContentLabels.catalog(it.name) }
                 val selectedIndex = selectable.catalogs.indexOfFirst { it.selected }
-                val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "Catalog"
+                val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "Catálogo"
                 DropdownFilter(
                     label = selectedLabel,
                     options = options,
@@ -1370,9 +1376,9 @@ private fun DiscoverFiltersRow(
         selectable.extra.forEach { selectableExtra ->
             if (selectableExtra.options.isNotEmpty()) {
                 item {
-                    val options = selectableExtra.options.map { it.value ?: "All ${selectableExtra.name}s" }
+                    val options = selectableExtra.options.map { ContentLabels.extraOption(selectableExtra.name, it.value) }
                     val selectedIndex = selectableExtra.options.indexOfFirst { it.selected }
-                    val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else "All ${selectableExtra.name}s"
+                    val selectedLabel = if (selectedIndex >= 0) options[selectedIndex] else ContentLabels.extraOption(selectableExtra.name, null)
                     DropdownFilter(
                         label = selectedLabel,
                         options = options,

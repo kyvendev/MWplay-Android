@@ -171,7 +171,7 @@ fun ClassicPlayerControls(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = "Voltar",
                         tint = Color.White
                     )
                 }
@@ -212,7 +212,7 @@ fun ClassicPlayerControls(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.FastRewind,
-                            contentDescription = "Rewind 10s",
+                            contentDescription = "Voltar 10 segundos",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -228,7 +228,7 @@ fun ClassicPlayerControls(
                     ) {
                         Icon(
                             imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (state.isPlaying) "Pause" else "Play",
+                            contentDescription = if (state.isPlaying) "Pausar" else "Reproduzir",
                             tint = Color.White,
                             modifier = Modifier.size(30.dp)
                         )
@@ -243,7 +243,7 @@ fun ClassicPlayerControls(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.FastForward,
-                            contentDescription = "Forward 10s",
+                            contentDescription = "Avançar 10 segundos",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -284,7 +284,7 @@ fun ClassicPlayerControls(
                         ) {
                             Icon(
                                 imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = if (state.isPlaying) "Pause" else "Play",
+                                contentDescription = if (state.isPlaying) "Pausar" else "Reproduzir",
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -298,7 +298,7 @@ fun ClassicPlayerControls(
                         ) {
                             Icon(
                                 imageVector = volumeIcon(state),
-                                contentDescription = "Mute Toggle",
+                                contentDescription = "Ativar ou desativar som",
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -319,7 +319,7 @@ fun ClassicPlayerControls(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Info,
-                                    contentDescription = "Torrent Stats",
+                                    contentDescription = "Estatísticas do torrent",
                                     tint = Color.White,
                                     modifier = Modifier.size(22.dp)
                                 )
@@ -334,7 +334,7 @@ fun ClassicPlayerControls(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Speed,
-                                contentDescription = "Playback Speed",
+                                contentDescription = "Velocidade",
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -349,14 +349,14 @@ fun ClassicPlayerControls(
 
                         PlayerIconButton(
                             imageVector = Icons.Outlined.Subtitles,
-                            contentDescription = "Subtitles",
+                            contentDescription = "Legendas",
                             enabled = state.canSelectSubtitles,
                             onClick = actions.onShowSubtitles,
                         )
 
                         PlayerIconButton(
                             imageVector = Icons.Outlined.Audiotrack,
-                            contentDescription = "Audio Tracks",
+                            contentDescription = "Faixas de áudio",
                             enabled = state.canSelectAudio,
                             onClick = actions.onShowAudio,
                         )
@@ -369,7 +369,7 @@ fun ClassicPlayerControls(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.AspectRatio,
-                                contentDescription = "Aspect Ratio",
+                                contentDescription = "Proporção",
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -429,7 +429,7 @@ fun ModernPlayerControls(
                     ) {
                         SpringGlassIconButton(
                             imageVector = Icons.Outlined.FastRewind,
-                            contentDescription = "Rewind 10s",
+                            contentDescription = "Voltar 10 segundos",
                             backdrop = backdrop,
                             glassEffectsMode = glassEffectsMode,
                             size = 38,
@@ -484,7 +484,7 @@ fun ModernPlayerControls(
                             ) {
                                 Icon(
                                     imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                    contentDescription = if (state.isPlaying) "Pause" else "Play",
+                                    contentDescription = if (state.isPlaying) "Pausar" else "Reproduzir",
                                     tint = Color.White,
                                     modifier = Modifier.size(28.dp),
                                 )
@@ -494,7 +494,7 @@ fun ModernPlayerControls(
 
                     SpringGlassIconButton(
                         imageVector = Icons.Outlined.FastForward,
-                        contentDescription = "Forward 10s",
+                        contentDescription = "Avançar 10 segundos",
                         backdrop = backdrop,
                         glassEffectsMode = glassEffectsMode,
                         size = 38,
@@ -574,7 +574,7 @@ private fun ModernTopPill(
             IconButton(onClick = actions.onBack, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = "Voltar",
                     tint = Color.White,
                 )
             }
@@ -604,7 +604,7 @@ private fun ModernTopPill(
                 IconButton(onClick = { moreExpanded = true }, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "More",
+                        contentDescription = "Mais opções",
                         tint = Color.White,
                     )
                 }
@@ -615,7 +615,7 @@ private fun ModernTopPill(
                 ) {
                     if (state.canSelectSubtitles) {
                         DropdownMenuItem(
-                            text = { Text("Subtitles", color = Color.White) },
+                            text = { Text("Legendas", color = Color.White) },
                             leadingIcon = {
                                 Icon(Icons.Outlined.Subtitles, contentDescription = null, tint = Color.White)
                             },
@@ -627,7 +627,7 @@ private fun ModernTopPill(
                     }
                     if (state.canSelectAudio) {
                         DropdownMenuItem(
-                            text = { Text("Audio Tracks", color = Color.White) },
+                            text = { Text("Faixas de áudio", color = Color.White) },
                             leadingIcon = {
                                 Icon(Icons.Outlined.Audiotrack, contentDescription = null, tint = Color.White)
                             },
@@ -1044,8 +1044,8 @@ private fun volumeIcon(state: PlayerControlsState): ImageVector {
 }
 
 private fun resizeLabel(mode: PlayerResizeMode): String = when (mode) {
-    PlayerResizeMode.FIT -> "Fit"
-    PlayerResizeMode.STRETCH -> "Stretch"
+    PlayerResizeMode.FIT -> "Ajustar"
+    PlayerResizeMode.STRETCH -> "Esticar"
     PlayerResizeMode.ZOOM -> "Zoom"
 }
 

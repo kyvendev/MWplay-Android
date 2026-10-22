@@ -304,7 +304,7 @@ fun PlayerGestureOverlays(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Replay10,
-                    contentDescription = "Rewind 10 seconds",
+                    contentDescription = "Voltar 10 segundos",
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )
@@ -323,7 +323,7 @@ fun PlayerGestureOverlays(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Forward10,
-                    contentDescription = "Forward 10 seconds",
+                    contentDescription = "Avançar 10 segundos",
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )

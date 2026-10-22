@@ -21,11 +21,14 @@ import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.data.model.CatalogItem
 import com.stremio.mobile.data.model.CatalogShelf
 
-/** Long-press actions use the current shelf item, so refreshed episode/progress data stays current. */
+/**
+ * Tapping a card resumes on the server used last time ([onContinueWatching]); long-press offers
+ * "Excluir da lista" and "Detalhes". Actions use the current shelf item, so refreshed
+ * episode/progress data stays current.
+ */
 @Composable
 fun ContinueWatchingShelf(
     shelf: CatalogShelf,
-    onItemClick: (CatalogItem) -> Unit,
     onContinueWatching: (CatalogItem) -> Unit,
     onOpenDetails: (CatalogItem) -> Unit,
     onRemove: (CatalogItem) -> Unit,
@@ -41,7 +44,7 @@ fun ContinueWatchingShelf(
     PosterShelf(
         shelf = shelf,
         mode = ShelfMode.Continue,
-        onItemClick = onItemClick,
+        onItemClick = onContinueWatching,
         onItemLongClick = if (actionsEnabled) {
             { item -> selectedKey = item.type to item.id }
         } else {
@@ -60,27 +63,19 @@ fun ContinueWatchingShelf(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.verticalScroll(rememberScrollState()),
                     ) {
-                        Text("Opções de continuar assistindo", color = MutedText)
-                        Text("Remover apaga o ponto de retomada e mantém o item na biblioteca.", color = MutedText)
+                        Text("Excluir da lista apaga o ponto de retomada e mantém o item na biblioteca.", color = MutedText)
                         ThemedButton(
-                            text = "Continuar assistindo",
+                            text = "Detalhes",
                             onClick = {
                                 selectedKey = null
-                                onContinueWatching(selectedItem)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        ThemedButton(
-                            text = "Ver detalhes",
-                            onClick = {
-                                selectedKey = null
+                                // Details show the info and, under "Assistir", every available server.
                                 onOpenDetails(selectedItem.copy(isContinueWatching = false))
                             },
                             modifier = Modifier.fillMaxWidth(),
                             containerColor = Color(0xFF3A374D),
                         )
                         ThemedButton(
-                            text = "Remover de continuar assistindo",
+                            text = "Excluir da lista",
                             onClick = {
                                 selectedKey = null
                                 onRemove(selectedItem)

@@ -835,7 +835,7 @@ fun PlayerScreen(
                         modifier = Modifier.size(40.dp),
                     )
                     Text(
-                        text = "Couldn't play this stream",
+                        text = "Não foi possível reproduzir esta fonte",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
@@ -846,9 +846,9 @@ fun PlayerScreen(
                         fontSize = 13.sp,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ThemedButton(text = "Back", onClick = onBack)
+                        ThemedButton(text = "Voltar", onClick = onBack)
                         ThemedButton(
-                            text = "Retry",
+                            text = "Tentar novamente",
                             onClick = {
                                 playbackError = null
                                 player?.retry()
@@ -913,7 +913,7 @@ fun PlayerScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "Torrent Statistics",
+                            text = "Estatísticas do torrent",
                             color = AccentPurple,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
@@ -944,7 +944,7 @@ fun PlayerScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.width(160.dp)
                         ) {
-                            Text("Downloaded", color = Color.Gray, fontSize = 12.sp)
+                            Text("Baixado", color = Color.Gray, fontSize = 12.sp)
                             Text(formatBytes(totalDown), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                         }
                     }
@@ -999,7 +999,7 @@ fun PlayerScreen(
                     .padding(top = 80.dp)
             ) {
                 NoSeedsBanner(
-                    reason = noSeedsReason ?: "No seeds found for this stream.",
+                    reason = noSeedsReason ?: "Nenhuma seed encontrada para esta fonte.",
                     onPlayNextBestStream = onPlayNextBestStream,
                 )
             }
@@ -1153,7 +1153,7 @@ fun NoSeedsBanner(
             fontWeight = FontWeight.Medium,
         )
         ThemedButton(
-            text = "Try Next Best Stream",
+            text = "Tentar a próxima melhor fonte",
             onClick = onPlayNextBestStream,
             containerColor = AccentPurple,
         )
@@ -1197,7 +1197,7 @@ fun NextEpisodePopup(
         ) {
             val seriesInfo = video.seriesInfo
             Text(
-                text = if (seriesInfo != null) "Next: S${seriesInfo.season}E${seriesInfo.episode}" else "Next Episode",
+                text = if (seriesInfo != null) "A seguir: T${seriesInfo.season}E${seriesInfo.episode}" else "Próximo episódio",
                 color = MutedText,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -1213,13 +1213,13 @@ fun NextEpisodePopup(
         }
         ThemedIconButton(
             imageVector = Icons.Outlined.Close,
-            contentDescription = "Dismiss",
+            contentDescription = "Dispensar",
             onClick = onDismiss,
             modifier = Modifier.size(36.dp),
         )
         ThemedIconButton(
             imageVector = Icons.Filled.PlayArrow,
-            contentDescription = "Play next episode",
+            contentDescription = "Reproduzir próximo episódio",
             onClick = onPlayNext,
             modifier = Modifier
                 .size(36.dp),
@@ -1248,7 +1248,7 @@ fun AudioTracksDialog(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "Audio Tracks",
+                    text = "Faixas de áudio",
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -1267,7 +1267,7 @@ fun AudioTracksDialog(
                     }
                 }
                 ThemedTextButton(
-                    text = "Close",
+                    text = "Fechar",
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
                 )
@@ -1364,7 +1364,7 @@ fun WebSubtitlesDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Subtitles",
+                        text = "Legendas",
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
@@ -1394,14 +1394,14 @@ fun WebSubtitlesDialog(
                         modifier = Modifier.weight(0.9f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        MenuHeader("Languages")
+                        MenuHeader("Idiomas")
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.weight(1f)
                         ) {
                             item {
                                 TrackRow(
-                                    label = "Off",
+                                    label = "Desativadas",
                                     isSelected = selectedLanguage == null,
                                     onClick = { selectFirstForLanguage(null) }
                                 )
@@ -1420,7 +1420,7 @@ fun WebSubtitlesDialog(
                         modifier = Modifier.weight(1.25f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        MenuHeader("Variants")
+                        MenuHeader("Variantes")
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.weight(1f)
@@ -1428,7 +1428,7 @@ fun WebSubtitlesDialog(
                             if (variants.isEmpty()) {
                                 item {
                                     Text(
-                                        text = "Disabled",
+                                        text = "Desativadas",
                                         color = MutedText,
                                         fontSize = 13.sp,
                                         modifier = Modifier.padding(12.dp)
@@ -1444,8 +1444,8 @@ fun WebSubtitlesDialog(
                                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                             }
                                         },
-                                        onCopyUrl = { url -> copyText("Subtitle URL", url) },
-                                        onCopyId = { id -> copyText("Subtitle ID", id) },
+                                        onCopyUrl = { url -> copyText("URL da legenda", url) },
+                                        onCopyId = { id -> copyText("ID da legenda", id) },
                                     )
                                 }
                             }
@@ -1457,9 +1457,9 @@ fun WebSubtitlesDialog(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        MenuHeader("Settings")
+                        MenuHeader("Ajustes")
                         Stepper(
-                            label = "DELAY",
+                            label = "ATRASO",
                             value = subtitleStyle.delayMs / 1000f,
                             unit = "s",
                             step = 0.25f,
@@ -1469,7 +1469,7 @@ fun WebSubtitlesDialog(
                             onChange = { onSubtitleDelayChange((it * 1000).roundToLong()) }
                         )
                         Stepper(
-                            label = "SIZE",
+                            label = "TAMANHO",
                             value = subtitleStyle.sizePercent.toFloat(),
                             unit = "%",
                             step = 25f,
@@ -1479,7 +1479,7 @@ fun WebSubtitlesDialog(
                             onChange = { onSubtitleSizeChange(it.roundToInt()) }
                         )
                         Stepper(
-                            label = "POSITION",
+                            label = "POSIÇÃO",
                             value = subtitleStyle.offsetPercent.toFloat(),
                             unit = "%",
                             step = 1f,
@@ -1492,7 +1492,7 @@ fun WebSubtitlesDialog(
                 }
 
                 ThemedTextButton(
-                    text = "Close",
+                    text = "Fechar",
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
                 )
@@ -1609,13 +1609,13 @@ private fun SubtitleVariantRow(
                 if (!downloadUrl.isNullOrBlank()) {
                     ThemedIconButton(
                         imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                        contentDescription = "Open subtitle URL",
+                        contentDescription = "Abrir URL da legenda",
                         onClick = { onOpenUrl(downloadUrl) },
                         modifier = Modifier.size(32.dp)
                     )
                     ThemedIconButton(
                         imageVector = Icons.Outlined.ContentCopy,
-                        contentDescription = "Copy subtitle URL",
+                        contentDescription = "Copiar URL da legenda",
                         onClick = { onCopyUrl(downloadUrl) },
                         modifier = Modifier.size(32.dp)
                     )
@@ -1623,7 +1623,7 @@ private fun SubtitleVariantRow(
                 if (!track.addonSubtitleId.isNullOrBlank()) {
                     ThemedIconButton(
                         imageVector = Icons.Outlined.Badge,
-                        contentDescription = "Copy subtitle ID",
+                        contentDescription = "Copiar ID da legenda",
                         onClick = { onCopyId(track.addonSubtitleId) },
                         modifier = Modifier.size(32.dp)
                     )
@@ -1658,8 +1658,8 @@ private fun subtitleOriginPriority(track: PlayerTrackOption): Int = when {
 
 private fun subtitleOriginLabel(track: PlayerTrackOption): String = when {
     track.local || track.origin.equals("LOCAL", ignoreCase = true) -> "LOCAL"
-    track.embedded || track.origin.equals("EMBEDDED", ignoreCase = true) -> "EMBEDDED"
-    track.exclusive || track.origin.equals("EXCLUSIVE", ignoreCase = true) -> "EXCLUSIVE"
+    track.embedded || track.origin.equals("EMBEDDED", ignoreCase = true) -> "NO VÍDEO"
+    track.exclusive || track.origin.equals("EXCLUSIVE", ignoreCase = true) -> "EXCLUSIVA"
     else -> track.origin
 }
 
@@ -1707,7 +1707,7 @@ fun TrackSelectorDialog(
                     if (hasNoneOption) {
                         item {
                             TrackRow(
-                                label = "None",
+                                label = "Nenhuma",
                                 isSelected = isNoneSelected,
                                 onClick = onSelectNone
                             )
@@ -1724,7 +1724,7 @@ fun TrackSelectorDialog(
                 }
 
                 ThemedTextButton(
-                    text = "Close",
+                    text = "Fechar",
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
                 )
@@ -1847,7 +1847,7 @@ fun SubtitlesCustomizationDialog(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "Subtitles Settings",
+                    text = "Ajustes de legenda",
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -1863,7 +1863,7 @@ fun SubtitlesCustomizationDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Tracks",
+                            text = "Faixas",
                             color = Color.Gray,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -1876,7 +1876,7 @@ fun SubtitlesCustomizationDialog(
                         ) {
                             item {
                                 TrackRow(
-                                    label = "None",
+                                    label = "Nenhuma",
                                     isSelected = isNoneSelected,
                                     onClick = onSelectNone
                                 )
@@ -1905,7 +1905,7 @@ fun SubtitlesCustomizationDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Customize",
+                            text = "Personalizar",
                             color = Color.Gray,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -1913,7 +1913,7 @@ fun SubtitlesCustomizationDialog(
                         )
 
                         Stepper(
-                            label = "DELAY",
+                            label = "ATRASO",
                             value = subtitleDelay,
                             unit = "s",
                             step = 0.25f,
@@ -1924,7 +1924,7 @@ fun SubtitlesCustomizationDialog(
                         )
 
                         Stepper(
-                            label = "SIZE",
+                            label = "TAMANHO",
                             value = subtitleSize * 100f,
                             unit = "%",
                             step = 25f,
@@ -1935,7 +1935,7 @@ fun SubtitlesCustomizationDialog(
                         )
 
                         Stepper(
-                            label = "POSITION",
+                            label = "POSIÇÃO",
                             value = subtitleOffset * 100f,
                             unit = "%",
                             step = 1f,
@@ -1948,7 +1948,7 @@ fun SubtitlesCustomizationDialog(
                 }
 
                 ThemedTextButton(
-                    text = "Close",
+                    text = "Fechar",
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
                 )
@@ -1995,7 +1995,7 @@ fun Stepper(
         ) {
             ThemedIconButton(
                 imageVector = Icons.Outlined.Remove,
-                contentDescription = "Decrease",
+                contentDescription = "Diminuir",
                 onClick = {
                     val current = value ?: return@ThemedIconButton
                     if (!disabled && (min == null || current > min)) {
@@ -2017,7 +2017,7 @@ fun Stepper(
 
             ThemedIconButton(
                 imageVector = Icons.Outlined.Add,
-                contentDescription = "Increase",
+                contentDescription = "Aumentar",
                 onClick = {
                     val current = value ?: return@ThemedIconButton
                     if (!disabled && (max == null || current < max)) {

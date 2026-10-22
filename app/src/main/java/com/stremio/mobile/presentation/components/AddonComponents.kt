@@ -110,7 +110,7 @@ fun AddonRow(
                     }
                 }
                 Text(
-                    text = addon.description ?: addon.version?.let { "v$it" } ?: "No description available",
+                    text = addon.description ?: addon.version?.let { "v$it" } ?: "Sem descrição",
                     color = MutedText,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
@@ -157,7 +157,7 @@ private fun AddonActionButton(
         )
     } else {
         ThemedButton(
-            text = "Install",
+            text = "Instalar",
             onClick = onInstall,
             enabled = addon.installable,
             containerColor = AccentPurple,

@@ -37,45 +37,49 @@ class ContinueWatchingShelfTest {
     private val series = item("series", "series", "Série").copy(continueWatchingVideoId = "series:1:2")
 
     @Test
-    fun shortTapKeepsExistingActionWithoutOpeningMenu() {
-        var clicked: CatalogItem? = null
-        setShelf(onClick = { clicked = it })
+    fun tapResumesPlaybackWithoutOpeningTheMenu() {
+        var resumed: CatalogItem? = null
+        var details: CatalogItem? = null
+        setShelf(onContinue = { resumed = it }, onDetails = { details = it })
 
         composeRule.onNodeWithContentDescription(movie.name).performTouchInput { click() }
 
-        composeRule.runOnIdle { assertEquals(movie, clicked) }
-        composeRule.onNodeWithText("Cancelar").assertDoesNotExist()
+        composeRule.runOnIdle {
+            assertEquals(movie, resumed)
+            assertNull(details)
+        }
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
     }
 
     @Test
-    fun longPressDoesNotClickAndRemovesTheSelectedChannelOnly() {
-        var clicked: CatalogItem? = null
+    fun longPressOffersOnlyDetailsAndRemoveAndRemovesTheSelectedChannelOnly() {
+        var resumed: CatalogItem? = null
         var removed: CatalogItem? = null
-        setShelf(onClick = { clicked = it }, onRemove = { removed = it })
+        setShelf(onContinue = { resumed = it }, onRemove = { removed = it })
 
         composeRule.onNodeWithContentDescription(channel.name).performTouchInput { longClick() }
         composeRule.onNodeWithText(channel.name).assertIsDisplayed()
-        composeRule.runOnIdle { assertNull(clicked) }
-        composeRule.onNodeWithText("Remover de continuar assistindo").performClick()
+        composeRule.onNodeWithText("Detalhes").assertIsDisplayed()
+        composeRule.runOnIdle { assertNull(resumed) }
+        composeRule.onNodeWithText("Excluir da lista").performClick()
 
         composeRule.runOnIdle {
             assertEquals(channel, removed)
-            assertNull(clicked)
+            assertNull(resumed)
         }
         composeRule.onNodeWithText("Cancelar").assertDoesNotExist()
     }
 
     @Test
-    fun continueUsesTheLatestEpisodeAfterShelfRefresh() {
-        var resumed: CatalogItem? = null
-        var shelf by mutableStateOf(CatalogShelf(title = "Continue Watching", items = listOf(series), isLoading = false))
+    fun detailsUsesTheLatestEpisodeAfterShelfRefresh() {
+        var details: CatalogItem? = null
+        var shelf by mutableStateOf(CatalogShelf(title = "Continuar assistindo", items = listOf(series), isLoading = false))
         composeRule.setContent {
             MaterialTheme {
                 ContinueWatchingShelf(
                     shelf,
-                    onItemClick = {},
-                    onContinueWatching = { resumed = it },
-                    onOpenDetails = {},
+                    onContinueWatching = {},
+                    onOpenDetails = { details = it },
                     onRemove = {},
                 )
             }
@@ -84,14 +88,14 @@ class ContinueWatchingShelfTest {
         composeRule.onNodeWithContentDescription(series.name).performScrollTo().performTouchInput { longClick() }
         val nextEpisode = series.copy(continueWatchingVideoId = "series:1:3", progress = 0.2f)
         composeRule.runOnIdle { shelf = shelf.copy(items = listOf(nextEpisode)) }
-        composeRule.onNodeWithText("Continuar assistindo").performClick()
+        composeRule.onNodeWithText("Detalhes").performClick()
 
-        composeRule.runOnIdle { assertEquals(nextEpisode, resumed) }
+        composeRule.runOnIdle { assertEquals(nextEpisode.copy(isContinueWatching = false), details) }
         composeRule.onNodeWithText("Cancelar").assertDoesNotExist()
     }
 
     @Test
-    fun detailsUsesNormalDetailsWithoutResumeAndCancelRunsNoAction() {
+    fun detailsOpensNormalDetailsWithoutResumeAndCancelRunsNoAction() {
         var details: CatalogItem? = null
         var resumed: CatalogItem? = null
         var removed: CatalogItem? = null
@@ -106,7 +110,7 @@ class ContinueWatchingShelfTest {
         }
 
         composeRule.onNodeWithContentDescription(series.name).performScrollTo().performTouchInput { longClick() }
-        composeRule.onNodeWithText("Ver detalhes").performClick()
+        composeRule.onNodeWithText("Detalhes").performClick()
         composeRule.runOnIdle {
             assertEquals(series.id, details?.id)
             assertFalse(details!!.isContinueWatching)
@@ -117,18 +121,18 @@ class ContinueWatchingShelfTest {
 
     @Test
     fun externalRemovalDismissesTheMenuInsteadOfUsingAStaleItem() {
-        var shelf by mutableStateOf(CatalogShelf(title = "Continue Watching", items = listOf(movie), isLoading = false))
+        var shelf by mutableStateOf(CatalogShelf(title = "Continuar assistindo", items = listOf(movie), isLoading = false))
         composeRule.setContent {
             MaterialTheme {
-                ContinueWatchingShelf(shelf, {}, {}, {}, {})
+                ContinueWatchingShelf(shelf, {}, {}, {})
             }
         }
         composeRule.onNodeWithContentDescription(movie.name).performTouchInput { longClick() }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertIsDisplayed()
+        composeRule.onNodeWithText("Excluir da lista").assertIsDisplayed()
 
         composeRule.runOnIdle { shelf = shelf.copy(items = emptyList()) }
 
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
     }
 
     @Test
@@ -138,8 +142,7 @@ class ContinueWatchingShelfTest {
         composeRule.setContent {
             MaterialTheme {
                 ContinueWatchingShelf(
-                    shelf = CatalogShelf(title = "Continue Watching", items = listOf(movie), isLoading = false),
-                    onItemClick = {},
+                    shelf = CatalogShelf(title = "Continuar assistindo", items = listOf(movie), isLoading = false),
                     onContinueWatching = {},
                     onOpenDetails = {},
                     onRemove = { removals++ },
@@ -148,16 +151,15 @@ class ContinueWatchingShelfTest {
             }
         }
         composeRule.onNodeWithContentDescription(movie.name).performTouchInput { longClick() }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertIsDisplayed()
+        composeRule.onNodeWithText("Excluir da lista").assertIsDisplayed()
 
         composeRule.runOnIdle { enabled = false }
 
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
         composeRule.runOnIdle { assertEquals(0, removals) }
     }
 
     private fun setShelf(
-        onClick: (CatalogItem) -> Unit = {},
         onContinue: (CatalogItem) -> Unit = {},
         onDetails: (CatalogItem) -> Unit = {},
         onRemove: (CatalogItem) -> Unit = {},
@@ -168,8 +170,7 @@ class ContinueWatchingShelfTest {
                     LocalGlobalUiTheme provides GlobalUiTheme(style = "modern", hapticsEnabled = false),
                 ) {
                     ContinueWatchingShelf(
-                        shelf = CatalogShelf(title = "Continue Watching", items = listOf(movie, channel, series), isLoading = false),
-                        onItemClick = onClick,
+                        shelf = CatalogShelf(title = "Continuar assistindo", items = listOf(movie, channel, series), isLoading = false),
                         onContinueWatching = onContinue,
                         onOpenDetails = onDetails,
                         onRemove = onRemove,

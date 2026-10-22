@@ -95,7 +95,7 @@ class MpvStreamPlayer(
                         if (reachedEnd) {
                             publishState(error = null, ended = true)
                         } else {
-                            publishState(error = "Playback failed", ended = false)
+                            publishState(error = "Falha na reprodução", ended = false)
                         }
                     }
                     MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> publishState(error = null, ended = false)

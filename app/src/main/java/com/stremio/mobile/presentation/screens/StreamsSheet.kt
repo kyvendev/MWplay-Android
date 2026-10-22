@@ -520,7 +520,7 @@ private fun StreamRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Storage,
-                                contentDescription = "Size",
+                                contentDescription = "Tamanho",
                                 tint = MutedText,
                                 modifier = Modifier.size(12.dp)
                             )
@@ -539,7 +539,7 @@ private fun StreamRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Cloud,
-                                contentDescription = "Origin",
+                                contentDescription = "Origem",
                                 tint = MutedText,
                                 modifier = Modifier.size(12.dp)
                             )
