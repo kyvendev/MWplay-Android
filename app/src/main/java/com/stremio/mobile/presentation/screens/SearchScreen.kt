@@ -25,9 +25,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -71,7 +74,10 @@ fun SearchResultsScreen(
     query: String,
     results: CatalogShelf,
     shelves: List<CatalogShelf>,
+    history: List<String>,
     onQueryChange: (String) -> Unit,
+    onSubmitSearch: () -> Unit,
+    onRemoveHistory: (String) -> Unit,
     onOpenDetails: (CatalogItem) -> Unit,
     onOpenDiscoverCatalog: (com.stremio.core.types.addon.ResourceRequest, String) -> Unit,
     onBack: () -> Unit,
@@ -164,7 +170,10 @@ fun SearchResultsScreen(
                 shape = RoundedCornerShape(999.dp),
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                keyboardActions = KeyboardActions(onSearch = {
+                    keyboard?.hide()
+                    onSubmitSearch()
+                }),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = fieldContainerColor,
                     unfocusedContainerColor = fieldContainerColor,
@@ -178,6 +187,20 @@ fun SearchResultsScreen(
         }
 
         when {
+            query.isBlank() -> {
+                SearchHistoryList(
+                    history = history,
+                    bottomPadding = 24.dp + navBottom,
+                    onSelect = { entry ->
+                        localQuery = TextFieldValue(text = entry, selection = TextRange(entry.length))
+                        onQueryChange(entry)
+                        focusManager.clearFocus()
+                        keyboard?.hide()
+                    },
+                    onRemove = onRemoveHistory,
+                )
+            }
+
             results.isLoading && results.items.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(34.dp))
@@ -225,6 +248,77 @@ fun SearchResultsScreen(
 
     LaunchedEffect(Unit) {
         runCatching { focusRequester.requestFocus() }
+    }
+}
+
+/** Recent searches (most recent first), each with an X to remove it. */
+@Composable
+private fun SearchHistoryList(
+    history: List<String>,
+    bottomPadding: androidx.compose.ui.unit.Dp,
+    onSelect: (String) -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    if (history.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "Digite o nome de um filme ou série.",
+                color = MutedText,
+                fontSize = 15.sp,
+                modifier = Modifier.padding(horizontal = ScreenGutter),
+            )
+        }
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = ScreenGutter, end = ScreenGutter, top = 4.dp, bottom = bottomPadding),
+    ) {
+        item {
+            Text(
+                text = "Buscas recentes",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
+        items(history.size, key = { history[it] }) { index ->
+            val entry = history[index]
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onSelect(entry) }
+                    .padding(start = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.History,
+                    contentDescription = null,
+                    tint = MutedText,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    text = entry,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 14.dp),
+                )
+                IconButton(onClick = { onRemove(entry) }, modifier = Modifier.size(TouchTarget)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Remover \"$entry\" do histórico",
+                        tint = MutedText,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        }
     }
 }
 

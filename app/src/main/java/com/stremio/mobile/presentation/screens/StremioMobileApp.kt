@@ -191,13 +191,17 @@ fun StremioMobileApp(viewModel: MainViewModel) {
             }
 
             if (state.account.isAuthenticated && state.isSearchOpen) {
+                val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
                 SearchResultsScreen(
                     query = state.searchQuery,
                     results = state.searchResults,
                     shelves = state.searchShelves,
+                    history = searchHistory,
                     onQueryChange = viewModel::search,
-                    onOpenDetails = viewModel::openDetails,
-                    onOpenDiscoverCatalog = { request, title -> viewModel.clearSearch(); viewModel.openDiscoverCatalog(request, title) },
+                    onSubmitSearch = { viewModel.rememberSearch() },
+                    onRemoveHistory = viewModel::removeSearchFromHistory,
+                    onOpenDetails = { item -> viewModel.rememberSearch(); viewModel.openDetails(item) },
+                    onOpenDiscoverCatalog = { request, title -> viewModel.rememberSearch(); viewModel.clearSearch(); viewModel.openDiscoverCatalog(request, title) },
                     onBack = viewModel::clearSearch,
                     modifier = Modifier.fillMaxSize(),
                 )
