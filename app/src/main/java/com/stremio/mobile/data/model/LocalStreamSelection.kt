@@ -14,4 +14,15 @@ data class LocalStreamSelection(
             option.description == description &&
             option.quality == quality
     }
+
+    /**
+     * For an episode never played before: a stream from the same server (addon) as last time,
+     * preferring the same name and quality.
+     */
+    fun pickSameServer(options: List<StreamOption>): StreamOption? {
+        val sameServer = options.filter { it.addonTitle == addonTitle }
+        return sameServer.firstOrNull { it.name == name && it.quality == quality }
+            ?: sameServer.firstOrNull { quality != null && it.quality == quality }
+            ?: sameServer.firstOrNull()
+    }
 }

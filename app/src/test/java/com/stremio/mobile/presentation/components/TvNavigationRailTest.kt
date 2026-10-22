@@ -248,14 +248,13 @@ class TvNavigationRailTest {
         assertPosterFocused("Second movie")
             .performTouchInput { longClick() }
 
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused()
+        composeRule.onNodeWithText("Detalhes").assertIsFocused()
             .performKeyInput {
-                pressKey(Key.DirectionDown)
                 pressKey(Key.DirectionDown)
                 pressKey(Key.DirectionDown)
                 pressKey(Key.DirectionCenter)
             }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
         assertPosterFocused("Second movie")
         composeRule.runOnIdle { assertTrue(openedItems.isEmpty()) }
     }

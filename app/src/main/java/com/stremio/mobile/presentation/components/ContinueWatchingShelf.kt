@@ -129,7 +129,8 @@ fun ContinueWatchingShelf(
     PosterShelf(
         shelf = shelf,
         mode = ShelfMode.Continue,
-        onItemClick = onItemClick,
+        // A tap resumes on the server used last time; details live in the long-press menu.
+        onItemClick = onContinueWatching,
         onItemLongClick = if (actionsEnabled) ({ menuKey = it.posterKey() }) else null,
         focusRestoreRequest = focusRequest,
     )
@@ -137,11 +138,6 @@ fun ContinueWatchingShelf(
     menuItem?.takeIf { actionsEnabled }?.let { item ->
         ContinueWatchingMenu(
             item = item,
-            onContinue = {
-                menuKey = null
-                restorePoster(item.posterKey())
-                onContinueWatching(item)
-            },
             onDetails = {
                 menuKey = null
                 restorePoster(item.posterKey())
@@ -165,7 +161,6 @@ fun ContinueWatchingShelf(
 @Composable
 internal fun ContinueWatchingMenu(
     item: CatalogItem,
-    onContinue: () -> Unit,
     onDetails: () -> Unit,
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
@@ -205,10 +200,10 @@ internal fun ContinueWatchingMenu(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(item.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text("A remoção limpa o ponto de retomada e mantém o item na biblioteca.", color = Color(0xFFC9C8D8), fontSize = 14.sp)
-                    ThemedButton("Continuar assistindo", onContinue, modifier = Modifier.fillMaxWidth().focusRequester(initialFocus))
-                    ThemedButton("Ver detalhes", onDetails, modifier = Modifier.fillMaxWidth())
-                    ThemedButton("Remover de continuar assistindo", onRemove, modifier = Modifier.fillMaxWidth())
+                    Text("Excluir da lista apaga o ponto de retomada e mantém o item na biblioteca.", color = Color(0xFFC9C8D8), fontSize = 14.sp)
+                    // "Detalhes" shows the info and, under "Assistir", every available server.
+                    ThemedButton("Detalhes", onDetails, modifier = Modifier.fillMaxWidth().focusRequester(initialFocus))
+                    ThemedButton("Excluir da lista", onRemove, modifier = Modifier.fillMaxWidth())
                     ThemedButton("Cancelar", onDismiss, modifier = Modifier.fillMaxWidth())
                 }
             }

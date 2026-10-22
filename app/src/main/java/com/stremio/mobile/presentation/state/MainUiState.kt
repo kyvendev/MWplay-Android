@@ -13,7 +13,7 @@ data class MainUiState(
     val isNativeServerAvailable: Boolean = true,
     val selectedFont: AppFont = AppFont.PLUS_JAKARTA_SANS,
 
-    val serverPingStatus: String = "Not checked",
+    val serverPingStatus: String = "Não verificado",
     val isPingLoading: Boolean = false,
     val serverVersion: String = "0.1.8",
     val serverConfigPath: String = "",
@@ -39,7 +39,7 @@ data class MainUiState(
     val showNoSeedsBanner: Boolean = false,
     val noSeedsReason: String? = null,
     val selectedDetails: MetaDetails? = null,
-    val continueWatching: CatalogShelf = CatalogShelf(title = "Continue Watching"),
+    val continueWatching: CatalogShelf = CatalogShelf(title = "Continuar assistindo"),
     val boardShelves: List<CatalogShelf> = emptyList(),
     val discoverCatalogRequest: com.stremio.core.types.addon.ResourceRequest? = null,
     val discoverCatalogTitle: String? = null,

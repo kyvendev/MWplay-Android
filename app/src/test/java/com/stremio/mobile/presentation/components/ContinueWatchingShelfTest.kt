@@ -51,22 +51,22 @@ class ContinueWatchingShelfTest {
         composeRule.setContent {
             ContinueWatchingShelf(
                 shelf = CatalogShelf("Continue Watching", listOf(movie), false),
-                onItemClick = {},
-                onRemoveItem = {},
-                onContinueWatching = {
+                onItemClick = {
                     resumes++
                     enabled = false
                 },
+                onRemoveItem = {},
+                onContinueWatching = {},
                 actionsEnabled = enabled,
             )
         }
         poster("Movie").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
             .performTouchInput { longClick() }
-        composeRule.onNodeWithText("Continuar assistindo").performClick()
+        composeRule.onNodeWithText("Detalhes").performClick()
         composeRule.mainClock.advanceTimeBy(100)
         composeRule.waitForIdle()
         composeRule.runOnIdle { assertEquals(1, resumes) }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
     }
 
     @Test
@@ -83,7 +83,7 @@ class ContinueWatchingShelfTest {
             .performKeyInput { pressKey(Key.Enter) }
 
         composeRule.runOnIdle { assertEquals(2, clicks) }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
     }
 
     @Test
@@ -100,18 +100,18 @@ class ContinueWatchingShelfTest {
         poster("Movie").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
             .performKeyInput { keyDown(Key.DirectionCenter) }
         composeRule.mainClock.advanceTimeBy(timeoutMillis + 100)
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused()
+        composeRule.onNodeWithText("Detalhes").assertIsFocused()
 
         // Route the still-held physical key to the newly focused Android dialog window.
         dispatchToDialog(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER, repeat = 1)
         dispatchToDialog(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_CENTER)
         composeRule.runOnIdle { assertEquals(0, clicks) }
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused()
+        composeRule.onNodeWithText("Detalhes").assertIsFocused()
 
         dispatchToDialog(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER)
         dispatchToDialog(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_CENTER)
         composeRule.runOnIdle { assertEquals(1, clicks) }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
     }
 
     @Test
@@ -128,7 +128,7 @@ class ContinueWatchingShelfTest {
         composeRule.mainClock.advanceTimeBy(timeoutMillis + 100)
         dispatchToDialog(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_ENTER)
 
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused()
+        composeRule.onNodeWithText("Detalhes").assertIsFocused()
         composeRule.runOnIdle { assertEquals(0, clicks) }
     }
 
@@ -141,15 +141,14 @@ class ContinueWatchingShelfTest {
 
         poster("Movie").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
             .performTouchInput { longClick() }
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused().performKeyInput {
-            pressKey(Key.DirectionDown)
+        composeRule.onNodeWithText("Detalhes").assertIsFocused().performKeyInput {
             pressKey(Key.DirectionDown)
             pressKey(Key.DirectionDown)
             pressKey(Key.DirectionCenter)
         }
 
         poster("Movie").assertIsFocused()
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
         composeRule.runOnIdle { assertEquals(0, clicks) }
     }
 
@@ -161,11 +160,11 @@ class ContinueWatchingShelfTest {
         }
         poster("Movie").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
             .performTouchInput { longClick() }
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused()
+        composeRule.onNodeWithText("Detalhes").assertIsFocused()
         dispatchToDialog(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_BACK)
         dispatchToDialog(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_BACK)
 
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
         poster("Movie").assertIsFocused()
         composeRule.runOnIdle { assertEquals(0, removals) }
     }
@@ -185,8 +184,7 @@ class ContinueWatchingShelfTest {
 
         poster("Live channel").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
             .performTouchInput { longClick() }
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused().performKeyInput {
-            pressKey(Key.DirectionDown)
+        composeRule.onNodeWithText("Detalhes").assertIsFocused().performKeyInput {
             pressKey(Key.DirectionDown)
             pressKey(Key.DirectionCenter)
         }
@@ -205,8 +203,7 @@ class ContinueWatchingShelfTest {
         }
 
         poster("Series").performTouchInput { longClick() }
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused().performKeyInput {
-            pressKey(Key.DirectionDown)
+        composeRule.onNodeWithText("Detalhes").assertIsFocused().performKeyInput {
             pressKey(Key.DirectionCenter)
         }
 
@@ -231,9 +228,8 @@ class ContinueWatchingShelfTest {
                 onContinueWatching = { continued = it },
             )
         }
-        poster("Series").performTouchInput { longClick() }
         composeRule.runOnIdle { currentSeries = series.copy(continueWatchingVideoId = "next-episode") }
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused()
+        poster("Series").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
             .performKeyInput { pressKey(Key.DirectionCenter) }
 
         composeRule.runOnIdle {
@@ -251,14 +247,14 @@ class ContinueWatchingShelfTest {
             ContinueWatchingShelf(CatalogShelf("Continue Watching", items, false), {}, { removals++ }, actionsEnabled = enabled)
         }
         poster("Movie").performTouchInput { longClick() }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertExists()
+        composeRule.onNodeWithText("Excluir da lista").assertExists()
         composeRule.runOnIdle { items = listOf(channel) }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
 
         poster("Live channel").performTouchInput { longClick() }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertExists()
+        composeRule.onNodeWithText("Excluir da lista").assertExists()
         composeRule.runOnIdle { enabled = false }
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
         composeRule.runOnIdle { assertEquals(0, removals) }
     }
 
@@ -280,7 +276,7 @@ class ContinueWatchingShelfTest {
         composeRule.mainClock.advanceTimeBy(timeoutMillis + 100)
         poster("Live channel").performKeyInput { keyUp(Key.DirectionCenter) }
 
-        composeRule.onNodeWithText("Remover de continuar assistindo").assertDoesNotExist()
+        composeRule.onNodeWithText("Excluir da lista").assertDoesNotExist()
         composeRule.runOnIdle { assertEquals(0, clicks) }
     }
 
@@ -297,8 +293,7 @@ class ContinueWatchingShelfTest {
             )
         }
         poster("Series").performTouchInput { longClick() }
-        composeRule.onNodeWithText("Continuar assistindo").assertIsFocused().performKeyInput {
-            pressKey(Key.DirectionDown)
+        composeRule.onNodeWithText("Detalhes").assertIsFocused().performKeyInput {
             pressKey(Key.DirectionDown)
             pressKey(Key.DirectionCenter)
         }

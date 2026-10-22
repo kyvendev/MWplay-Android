@@ -86,7 +86,7 @@ class MainViewModel(
     private val showNoSeedsBanner = MutableStateFlow(false)
     private val noSeedsReason = MutableStateFlow<String?>(null)
     private val selectedDetails = MutableStateFlow<MetaDetails?>(null)
-    private val continueWatching = MutableStateFlow(CatalogShelf(title = "Continue Watching"))
+    private val continueWatching = MutableStateFlow(CatalogShelf(title = "Continuar assistindo"))
     private val pendingContinueWatchingRemovals = mutableSetOf<Pair<String, String>>()
     private val recentContinueWatchingRemovals = mutableMapOf<String, Long>()
     private val boardShelves = MutableStateFlow<List<CatalogShelf>>(emptyList())
@@ -97,7 +97,7 @@ class MainViewModel(
 
     private val discoverCatalogRequest = MutableStateFlow<com.stremio.core.types.addon.ResourceRequest?>(null)
     private val discoverCatalogTitle = MutableStateFlow<String?>(null)
-    private val discoverCatalog = MutableStateFlow(CatalogShelf(title = "Discover", isLoading = false))
+    private val discoverCatalog = MutableStateFlow(CatalogShelf(title = "Descobrir", isLoading = false))
     private val discoverCatalogWithFilters = MutableStateFlow<com.stremio.core.models.CatalogWithFilters?>(null)
     private val libraryWithFilters = MutableStateFlow<com.stremio.core.models.LibraryWithFilters?>(null)
     private val isDiscoverSeeAll = MutableStateFlow(false)
@@ -133,7 +133,7 @@ class MainViewModel(
     private val IDLE_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
     private val UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L
 
-    private val serverPingStatus = MutableStateFlow("Not checked")
+    private val serverPingStatus = MutableStateFlow("Não verificado")
     private val isPingLoading = MutableStateFlow(false)
 
     private val configPath = File(this.appContext.filesDir, "stream-server").absolutePath
@@ -687,7 +687,7 @@ class MainViewModel(
 
             _updateState.value = UpdateState.Checking
             when (val result = runCatching { updateRepository.check() }.getOrElse { error ->
-                UpdateState.Error(error.message ?: "Update check failed.")
+                UpdateState.Error(error.message ?: "Falha ao verificar atualizações.")
             }) {
                 is UpdateState.Available -> {
                     authRepository.setLastUpdateCheckMs(System.currentTimeMillis())
@@ -752,7 +752,7 @@ class MainViewModel(
                 installDownloadedUpdate(file)
             }.onFailure { error ->
                 Timber.e(error, "Failed to download update")
-                _updateState.value = UpdateState.Error(error.message ?: "Update download failed.")
+                _updateState.value = UpdateState.Error(error.message ?: "Falha ao baixar a atualização.")
             }
         }
     }
@@ -766,7 +766,7 @@ class MainViewModel(
             )
         }.onFailure { error ->
             Timber.e(error, "Failed to launch APK installer")
-            _updateState.value = UpdateState.Error(error.message ?: "Could not open the system installer.")
+            _updateState.value = UpdateState.Error(error.message ?: "Não foi possível abrir o instalador do sistema.")
         }
     }
 
@@ -1019,20 +1019,27 @@ class MainViewModel(
         viewModelScope.launch {
             catalogRepository.getDiscoverFlow().collect { discover ->
                 discoverCatalogWithFilters.value = discover
-                var req = discoverCatalogRequest.value
-                if (req == null) {
-                    val movieType = discover.selectable.types.find { it.type.lowercase() == "movie" }
-                    if (movieType != null) {
-                        req = movieType.request
-                    } else {
-                        req = discover.selected?.request
+                val onTvTab = selectedSection.value == MainSection.Tv
+                if (onTvTab) {
+                    val shown = discoverCatalogRequest.value
+                    if (shown == null || !TvCatalogPolicy.isTv(shown.path.type)) {
+                        // Opened before the addons' types were known.
+                        if (discover.selectable.types.isNotEmpty()) openTvCatalog(discover)
+                    } else if (tvTabRequest == null && discover.selected?.request == shown) {
+                        // First visit: switch to the preferred provider's TV catalog, once.
+                        val preferred = TvCatalogPolicy.preferredCatalog(
+                            discover.selectable.catalogs,
+                            name = { it.name },
+                            transportUrl = { it.request.base },
+                            addonName = ::addonNameForTransportUrl,
+                        )
+                        tvTabRequest = preferred?.request ?: shown
+                        if (preferred != null && preferred.request != shown) loadSectionCatalog(preferred.request, "TV")
                     }
-                    if (req == null && discover.selectable.types.isNotEmpty()) {
-                        req = discover.selectable.types.first().request
-                    }
-                    if (req != null) {
+                } else if (discoverCatalogRequest.value == null) {
+                    defaultDiscoverRequest(discover)?.let { req ->
                         discoverCatalogRequest.value = req
-                        discoverCatalogTitle.value = "Discover"
+                        discoverCatalogTitle.value = "Descobrir"
                         catalogRepository.loadDiscover(req)
                     }
                 }
@@ -1042,7 +1049,7 @@ class MainViewModel(
                     val items = catalogRepository.extractDiscoverItems(discover)
                     val isLoading = discover.catalog.pages.any { it.content is com.stremio.core.models.LoadablePage.Content.Loading || it.content == null }
                     discoverCatalog.value = CatalogShelf(
-                        title = discoverCatalogTitle.value ?: "Discover",
+                        title = discoverCatalogTitle.value ?: "Descobrir",
                         items = items,
                         isLoading = isLoading,
                         seeAllRequest = currentReq
@@ -1078,7 +1085,7 @@ class MainViewModel(
         isDiscoverSeeAll.value = false
         discoverCatalogRequest.value = null
         discoverCatalogTitle.value = null
-        discoverCatalog.value = CatalogShelf(title = "Discover", isLoading = false)
+        discoverCatalog.value = CatalogShelf(title = "Descobrir", isLoading = false)
         selectedSection.value = MainSection.Home
     }
 
@@ -1086,14 +1093,20 @@ class MainViewModel(
         streamsJob?.cancel()
         val rememberedSelection = localContinueWatchingStreamSelection(item)
         if (rememberedSelection != null) {
-            openRememberedContinueWatchingStream(item, rememberedSelection)
+            openRememberedContinueWatchingStream(item, rememberedSelection, exact = true)
+            return
+        }
+        // A new episode of a series watched before: resume on the same server, not the picker.
+        val lastServer = lastServerSelection(item)
+        if (lastServer != null) {
+            openRememberedContinueWatchingStream(item, lastServer, exact = false)
             return
         }
 
         streamsJob = launchStreamsMenuJob(item)
     }
 
-    private fun openRememberedContinueWatchingStream(item: CatalogItem, rememberedSelection: LocalStreamSelection) {
+    private fun openRememberedContinueWatchingStream(item: CatalogItem, rememberedSelection: LocalStreamSelection, exact: Boolean) {
         val isSeries = item.type == "series"
         streams.value = StreamsUiState(
             forItem = item,
@@ -1124,9 +1137,13 @@ class MainViewModel(
                                     )
                                 }
                             }
-                            catalogRepository.extractStreams(details)
+                            val options = catalogRepository.extractStreams(details)
                                 .mapIndexed { index, coreStream -> buildStreamOption(index, coreStream) }
-                                .firstOrNull { rememberedSelection.matches(it) }
+                            if (exact) {
+                                options.firstOrNull { rememberedSelection.matches(it) }
+                            } else {
+                                rememberedSelection.pickSameServer(options)
+                            }
                         }
                         .first { it != null }
                 }
@@ -1145,6 +1162,11 @@ class MainViewModel(
         if (!item.isContinueWatching) return null
         val videoId = continueWatchingVideoKey(item)
         return authRepository.getLocalStreamSelection(item.type, item.id, videoId)
+    }
+
+    private fun lastServerSelection(item: CatalogItem): LocalStreamSelection? {
+        if (!item.isContinueWatching || item.type != "series") return null
+        return authRepository.getLastServerSelection(item.type, item.id)
     }
 
     private fun continueWatchingVideoKey(item: CatalogItem): String {
@@ -1193,7 +1215,7 @@ class MainViewModel(
                 if (streams.value.isOpen && streams.value.isLoading) {
                     streams.value = streams.value.copy(
                         isLoading = false,
-                        error = if (streams.value.episodes.isEmpty()) "No episodes found." else null,
+                        error = if (streams.value.episodes.isEmpty()) "Nenhum episódio encontrado." else null,
                     )
                 }
             } else {
@@ -1216,7 +1238,7 @@ class MainViewModel(
                 if (streams.value.isOpen && streams.value.isLoading) {
                     streams.value = streams.value.copy(
                         isLoading = false,
-                        error = if (streams.value.streams.isEmpty()) "No streams found. Install a stream addon to watch." else null,
+                        error = if (streams.value.streams.isEmpty()) "Nenhuma fonte encontrada para este título." else null,
                     )
                 }
             }
@@ -1254,7 +1276,7 @@ class MainViewModel(
             if (streams.value.isOpen && streams.value.isLoading) {
                 streams.value = streams.value.copy(
                     isLoading = false,
-                    error = if (streams.value.streams.isEmpty()) "No streams found. Install a stream addon to watch." else null,
+                    error = if (streams.value.streams.isEmpty()) "Nenhuma fonte encontrada para este título." else null,
                 )
             }
         }
@@ -1417,7 +1439,7 @@ class MainViewModel(
             if (streamRequiresLocalServer(option)) {
                 runCatching { startServerInternal() }
                     .onFailure { error ->
-                        val errorMsg = "Streaming server failed to start: ${error.message ?: "Unknown error"}"
+                        val errorMsg = "O servidor de streaming não iniciou: ${error.message ?: "erro desconhecido"}"
                         com.posthog.PostHog.capture(
                             event = "Stream Playback Failed",
                             properties = mapOf(
@@ -1442,10 +1464,10 @@ class MainViewModel(
                     event = "Stream Playback Failed",
                     properties = mapOf(
                         "player_engine" to engine.name,
-                        "error_message" to "Could not resolve a playable stream."
+                        "error_message" to "Não foi possível preparar esta fonte para reprodução."
                     )
                 )
-                streams.value = streams.value.copy(isResolving = false, error = "Could not resolve a playable stream.")
+                streams.value = streams.value.copy(isResolving = false, error = "Não foi possível preparar esta fonte para reprodução.")
                 return@launch
             }
             com.posthog.PostHog.capture(
@@ -1533,7 +1555,7 @@ class MainViewModel(
                     if ((tooFewSeeds || tooSlow) && !isNearComplete) {
                         val since = unhealthySinceMs ?: System.currentTimeMillis().also { unhealthySinceMs = it }
                         if (System.currentTimeMillis() - since >= 20_000) {
-                            val reason = if (tooFewSeeds) "No seeds found for this stream." else "This stream is downloading too slowly."
+                            val reason = if (tooFewSeeds) "Nenhuma seed encontrada para esta fonte." else "Esta fonte está baixando muito devagar."
                             if (isAutoSwitchOnDeadStream.value && playNextBestStream()) {
                                 return@launch
                             }
@@ -1712,7 +1734,7 @@ class MainViewModel(
     fun checkServerWorking() {
         viewModelScope.launch {
             isPingLoading.value = true
-            serverPingStatus.value = "Checking..."
+            serverPingStatus.value = "Verificando…"
             val currentState = serverController.state.value
             if (currentState is StreamingServerState.Ready) {
                 val url = "${currentState.baseUrl}/heartbeat"
@@ -1736,10 +1758,10 @@ class MainViewModel(
                 if (ok) {
                     serverPingStatus.value = "Online"
                 } else {
-                    serverPingStatus.value = "Offline (no response)"
+                    serverPingStatus.value = "Offline (sem resposta)"
                 }
             } else {
-                serverPingStatus.value = "Server is not started"
+                serverPingStatus.value = "Servidor não iniciado"
             }
             isPingLoading.value = false
         }
@@ -1761,25 +1783,64 @@ class MainViewModel(
         }
         if (section == MainSection.Discover) {
             val discover = catalogRepository.getDiscover()
-            var req = discoverCatalogRequest.value
-            if (req == null) {
-                val movieType = discover.selectable.types.find { it.type.lowercase() == "movie" }
-                if (movieType != null) {
-                    req = movieType.request
-                } else {
-                    req = discover.selected?.request
-                }
-                if (req == null && discover.selectable.types.isNotEmpty()) {
-                    req = discover.selectable.types.first().request
-                }
+            // Discover and TV share the core's discover model; coming back from TV restores the
+            // catalog this tab showed before.
+            val current = discoverCatalogRequest.value
+            val req = if (current != null && !TvCatalogPolicy.isTv(current.path.type)) {
+                current
+            } else {
+                discoverTabRequest ?: defaultDiscoverRequest(discover)
             }
-            if (req != null) {
-                discoverCatalogRequest.value = req
-                discoverCatalogTitle.value = "Discover"
-                catalogRepository.loadDiscover(req)
+            if (req != null) loadSectionCatalog(req, "Descobrir")
+        }
+        if (section == MainSection.Tv) {
+            discoverCatalogRequest.value?.takeUnless { TvCatalogPolicy.isTv(it.path.type) }?.let { discoverTabRequest = it }
+            openTvCatalog(catalogRepository.getDiscover())
+        }
+    }
+
+    // Last catalog shown on each of the two tabs backed by the discover model.
+    private var discoverTabRequest: com.stremio.core.types.addon.ResourceRequest? = null
+    private var tvTabRequest: com.stremio.core.types.addon.ResourceRequest? = null
+
+    /** Movies first, like before; TV catalogs belong to the TV tab. */
+    private fun defaultDiscoverRequest(discover: com.stremio.core.models.CatalogWithFilters): com.stremio.core.types.addon.ResourceRequest? {
+        val types = discover.selectable.types.filterNot { TvCatalogPolicy.isTv(it.type) }
+        return types.find { it.type.lowercase() == "movie" }?.request
+            ?: discover.selected?.request?.takeUnless { TvCatalogPolicy.isTv(it.path.type) }
+            ?: types.firstOrNull()?.request
+    }
+
+    private fun loadSectionCatalog(request: com.stremio.core.types.addon.ResourceRequest, title: String) {
+        val changed = discoverCatalogRequest.value != request
+        discoverCatalogRequest.value = request
+        discoverCatalogTitle.value = title
+        if (changed) discoverCatalog.value = CatalogShelf(title = title, isLoading = true, seeAllRequest = request)
+        catalogRepository.loadDiscover(request)
+    }
+
+    /**
+     * Opens the TV tab's catalog: the one used last, otherwise the addons' "tv" type, which
+     * [observeDiscover] then narrows to the preferred provider (Best Cine).
+     */
+    private fun openTvCatalog(discover: com.stremio.core.models.CatalogWithFilters) {
+        val req = tvTabRequest ?: discover.selectable.types.firstOrNull { TvCatalogPolicy.isTv(it.type) }?.request
+        when {
+            req != null -> loadSectionCatalog(req, "TV")
+            discover.selectable.types.isEmpty() -> discoverCatalog.value = CatalogShelf(title = "TV", isLoading = true)
+            else -> {
+                discoverCatalogRequest.value = null
+                discoverCatalog.value = CatalogShelf(
+                    title = "TV",
+                    isLoading = false,
+                    error = "Nenhum canal de TV disponível. Os canais aparecem aqui quando um addon da sua conta oferece catálogos de TV.",
+                )
             }
         }
     }
+
+    private fun addonNameForTransportUrl(transportUrl: String): String? =
+        addons.value.items.firstOrNull { it.transportUrl == transportUrl }?.name
 
     fun search(query: String) {
         searchQuery.value = query
@@ -1819,7 +1880,7 @@ class MainViewModel(
             if (searchResults.value.isLoading) {
                 searchResults.value = searchResults.value.copy(
                     isLoading = false,
-                    error = if (searchShelves.value.isEmpty()) "No results for \"$trimmed\"." else null,
+                    error = if (searchShelves.value.isEmpty()) "Nenhum resultado para \"$trimmed\"." else null,
                 )
             }
             com.posthog.PostHog.capture(
@@ -1896,7 +1957,7 @@ class MainViewModel(
                             )
                             val genres = meta.links.filter {
                                 it.category.equals("genre", ignoreCase = true) || it.category.equals("genres", ignoreCase = true)
-                            }.map { it.name }
+                            }.map { ContentLabels.genre(it.name) }
                             val cast = meta.links.filter {
                                 it.category.equals("cast", ignoreCase = true) || it.category.equals("actor", ignoreCase = true)
                             }.map { it.name }.take(8)
@@ -2048,7 +2109,7 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { authRepository.login(email, password) }.onFailure {
                 authInFlight = false
-                account.value = account.value.copy(isLoading = false, error = it.message ?: "Login failed")
+                account.value = account.value.copy(isLoading = false, error = it.message ?: "Falha ao entrar")
             }
         }
     }
@@ -2059,7 +2120,7 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { authRepository.loginWithFacebook(token) }.onFailure {
                 authInFlight = false
-                account.value = account.value.copy(isLoading = false, error = it.message ?: "Facebook login failed")
+                account.value = account.value.copy(isLoading = false, error = it.message ?: "Falha ao entrar com o Facebook")
             }
         }
     }
@@ -2070,7 +2131,7 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { authRepository.register(email, password, marketingConsent) }.onFailure {
                 authInFlight = false
-                account.value = account.value.copy(isLoading = false, error = it.message ?: "Sign up failed")
+                account.value = account.value.copy(isLoading = false, error = it.message ?: "Falha ao criar a conta")
             }
         }
     }
@@ -2115,6 +2176,10 @@ class MainViewModel(
 
     fun selectDiscoverFilter(request: com.stremio.core.types.addon.ResourceRequest) {
         discoverCatalogRequest.value = request
+        when {
+            selectedSection.value == MainSection.Tv -> tvTabRequest = request
+            selectedSection.value == MainSection.Discover && !isDiscoverSeeAll.value -> discoverTabRequest = request
+        }
         discoverCatalog.value = discoverCatalog.value.copy(isLoading = true, seeAllRequest = request)
         viewModelScope.launch {
             try {

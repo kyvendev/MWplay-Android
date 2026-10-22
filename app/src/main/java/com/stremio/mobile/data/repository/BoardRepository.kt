@@ -3,6 +3,7 @@ package com.stremio.mobile.data.repository
 import com.stremio.mobile.core.StremioCore
 import com.stremio.mobile.data.model.CatalogItem
 import com.stremio.mobile.data.model.CatalogShelf
+import com.stremio.mobile.data.model.ContentLabels
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -53,17 +54,7 @@ class BoardRepository(private val core: StremioCore) {
                     is com.stremio.core.models.LoadablePage.Content.Error -> content.value.message
                     else -> null
                 }
-                val rawTitle = page.catalogName ?: page.title
-                val typeSuffix = when (page.catalogType) {
-                    "movie" -> "Movies"
-                    "series" -> "Series"
-                    else -> ""
-                }
-                val title = if (typeSuffix.isNotEmpty() && (rawTitle.equals("Popular", ignoreCase = true) || rawTitle.equals("Featured", ignoreCase = true))) {
-                    "$rawTitle $typeSuffix"
-                } else {
-                    rawTitle
-                }
+                val title = ContentLabels.shelfTitle(page.catalogName ?: page.title, page.catalogType)
                 CatalogShelf(
                     title = title,
                     items = items,
@@ -87,7 +78,7 @@ class BoardRepository(private val core: StremioCore) {
                 name = item.name,
                 poster = item.poster,
                 background = null,
-                releaseInfo = item.state.videoId?.let { "Episode" },
+                releaseInfo = item.state.videoId?.let { "Episódio" },
                 imdbRating = null,
                 progress = progressVal,
                 watched = item.watched,
@@ -97,7 +88,7 @@ class BoardRepository(private val core: StremioCore) {
             )
         }
         return CatalogShelf(
-            title = "Continue Watching",
+            title = "Continuar assistindo",
             items = items,
             isLoading = false
         )

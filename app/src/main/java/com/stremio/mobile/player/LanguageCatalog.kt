@@ -99,7 +99,7 @@ object LanguageCatalog {
     fun label(context: Context, code: String?): String {
         val normalized = toCode(code)
         if (normalized == LOCAL_SUBTITLES_LANGUAGE) return "Local"
-        return normalized?.let { names(context)[it] } ?: code?.uppercase(Locale.ROOT) ?: "Unknown"
+        return normalized?.let { names(context)[it] } ?: code?.uppercase(Locale.ROOT) ?: "Desconhecido"
     }
 
     fun options(context: Context): List<Pair<String, String>> {

@@ -87,7 +87,7 @@ class JniStreamingServerController(
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Error starting native server")
                 dumpServerLogsToLogcat("start exception")
-                mutableState.value = StreamingServerState.Failed(e.message ?: "Unknown native error")
+                mutableState.value = StreamingServerState.Failed(e.message ?: "erro nativo desconhecido")
                 stopNativeServer()
             }
         }

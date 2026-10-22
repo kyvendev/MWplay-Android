@@ -97,7 +97,7 @@ private fun LoginScreen(
     }
 
     AuthFormScaffold(
-        title = "Log in",
+        title = "Entrar",
         subtitle = "Entre com o e-mail e a senha fornecidos para acessar o MW Play.",
         isLoading = isLoading,
         error = error,
@@ -120,7 +120,7 @@ private fun LoginScreen(
             keyboardActions = KeyboardActions(onDone = { submit() }),
         )
         AuthButton(
-            text = if (isLoading) "Entrando..." else "Log in",
+            text = if (isLoading) "Entrando..." else "Entrar",
             enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
             onClick = submit,
         )
