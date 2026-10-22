@@ -1836,6 +1836,20 @@ class MainViewModel(
         isSearchOpen.value = true
     }
 
+    private val searchHistoryRepository = SearchHistoryRepository(appContext)
+
+    /** Recent searches shown while the search field is empty. */
+    val searchHistory: StateFlow<List<String>> = searchHistoryRepository.history
+
+    /** Saves the current search: called when it is submitted or one of its results is opened. */
+    fun rememberSearch(query: String = searchQuery.value) {
+        searchHistoryRepository.add(query)
+    }
+
+    fun removeSearchFromHistory(query: String) {
+        searchHistoryRepository.remove(query)
+    }
+
     fun clearSearch() {
         searchJob?.cancel()
         searchJob = null

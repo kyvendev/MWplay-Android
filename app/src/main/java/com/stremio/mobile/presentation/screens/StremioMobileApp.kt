@@ -209,14 +209,19 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
             }
 
             if (state.account.isAuthenticated && state.isSearchOpen) {
+                val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
                 TvModalSurface(onDismissRequest = viewModel::clearSearch) {
                     SearchResultsScreen(
                         query = state.searchQuery,
                         results = state.searchResults,
                         shelves = state.searchShelves,
+                        history = searchHistory,
                         onQueryChange = viewModel::search,
-                        onOpenDetails = viewModel::openDetails,
+                        onSubmitSearch = { viewModel.rememberSearch() },
+                        onRemoveHistory = viewModel::removeSearchFromHistory,
+                        onOpenDetails = { item -> viewModel.rememberSearch(); viewModel.openDetails(item) },
                         onOpenDiscoverCatalog = { request, title ->
+                            viewModel.rememberSearch()
                             viewModel.clearSearch()
                             viewModel.openDiscoverCatalog(request, title)
                         },
