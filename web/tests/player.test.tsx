@@ -143,6 +143,28 @@ describe('player options', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
+  it('sends the video to a TV with the browser picker when it can', async () => {
+    const { view } = mount(readyPlayer());
+    await act(async () => {});
+    const prompt = vi.fn(() => Promise.resolve());
+    Object.defineProperty(view.container.querySelector('video')!, 'remote', { value: { prompt }, configurable: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Transmitir ou espelhar na TV' }));
+    await act(async () => {});
+    expect(prompt).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: 'Espelhar na TV' })).toBeNull();
+  });
+
+  it('explains how to mirror the screen when the browser cannot send the video', async () => {
+    mount(readyPlayer());
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Transmitir ou espelhar na TV' }));
+    await act(async () => {});
+    const dialog = screen.getByRole('dialog', { name: 'Espelhar na TV' });
+    expect(dialog.textContent).toContain('Transmitir');
+    fireEvent.click(screen.getByRole('button', { name: 'Entendi' }));
+    expect(screen.queryByRole('dialog', { name: 'Espelhar na TV' })).toBeNull();
+  });
+
   it('restores the saved speed and saves changes merged into the stream state', async () => {
     const { fake, view } = mount(readyPlayer({ streamState: { subtitleDelay: 500, playbackSpeed: 1.5 } }));
     await act(async () => {});

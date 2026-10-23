@@ -31,5 +31,6 @@ export const AudioIcon = base('M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z
 export const SpeedIcon = base('M4.2 17a9 9 0 1 1 15.6 0M12 13l4-5');
 export const AspectIcon = base('M3 5h18v14H3zM7 12V9h3m7 3v3h-3');
 export const FileIcon = base('M14 3H6v18h12V7zm0 0v4h4M9 13h6m-6 4h4');
+export const CastIcon = base('M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6M2 20h.01');
 export const NextIcon =base('M5 5l9 7-9 7zM18 5v14');
 export const LogoutIcon = base('M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11');

@@ -981,3 +981,28 @@ html[data-ui='tv'] .home-logo {
   width: 100%;
   height: 100%;
 }
+
+/* Mirror-to-TV help (player). */
+.mirror__intro {
+  color: var(--muted);
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+.mirror__guide h3 {
+  font-size: 1rem;
+  margin: 0.75rem 0 0.5rem;
+}
+.mirror__guide ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.6;
+}
+.mirror__more {
+  margin: 1rem 0;
+  color: var(--muted);
+}
+.mirror__more summary {
+  cursor: pointer;
+  padding: 0.5rem 0;
+  border-radius: var(--radius-sm);
+}

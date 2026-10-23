@@ -15,6 +15,7 @@ import {
   SUBTITLE_SIZE,
   type SubtitleOption,
 } from './playerOptions';
+import type { MirrorGuide } from './screenMirror';
 import type { TrackOption } from './videoEngine';
 
 const CUE_POLL_MS = 100;
@@ -234,6 +235,46 @@ export function AudioPanel({ tracks, onSelect, onClose }: { tracks: TrackOption[
           if (track) onSelect(track);
         }}
       />
+    </Modal>
+  );
+}
+
+/** How to mirror the whole screen when the browser cannot hand the video to a TV itself. */
+export function MirrorPanel({ guides, onClose }: { guides: MirrorGuide[]; onClose: () => void }) {
+  const [current, ...others] = guides;
+  return (
+    <Modal title="Espelhar na TV" onClose={onClose} wide>
+      <p className="mirror__intro">
+        Este navegador não envia o vídeo direto para a TV. Use o espelhamento do seu aparelho: a TV mostra a tela inteira, e o vídeo continua tocando aqui.
+      </p>
+      {current && (
+        <section className="mirror__guide">
+          <h3>{current.title}</h3>
+          <ol>
+            {current.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {others.length > 0 && (
+        <details className="mirror__more">
+          <summary className="focusable">Outros aparelhos</summary>
+          {others.map((guide) => (
+            <section key={guide.title} className="mirror__guide">
+              <h3>{guide.title}</h3>
+              <ol>
+                {guide.steps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </section>
+          ))}
+        </details>
+      )}
+      <button type="button" className="button button--primary focusable" onClick={onClose}>
+        Entendi
+      </button>
     </Modal>
   );
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import { useBackHandler } from '../../app/back';
-import { AspectIcon, AudioIcon, BackIcon, ForwardIcon, FullscreenIcon, MuteIcon, NextIcon, PauseIcon, PlayIcon, RewindIcon, SpeedIcon, SubtitlesIcon, VolumeIcon } from '../../components/icons';
+import { AspectIcon, AudioIcon, BackIcon, CastIcon, ForwardIcon, FullscreenIcon, MuteIcon, NextIcon, PauseIcon, PlayIcon, RewindIcon, SpeedIcon, SubtitlesIcon, VolumeIcon } from '../../components/icons';
 import { Spinner } from '../../components/States';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { srtToVtt, streamKind } from '../../services/stremio/streams';
@@ -9,7 +9,8 @@ import type { Player, Stream, StreamState, Subtitles } from '../../services/stre
 import { PROGRESS_REPORT_INTERVAL_MS } from '../../shared/config';
 import { getPlaybackRequest, type PlaybackRequest } from './playbackRequest';
 import { findNext, focusElement, type Direction } from '../tv/spatialNav';
-import { AudioPanel, SubtitleOverlay, SubtitlesPanel } from './PlayerPanels';
+import { AudioPanel, MirrorPanel, SubtitleOverlay, SubtitlesPanel } from './PlayerPanels';
+import { detectMirrorPlatform, mirrorGuides, startMirroring, type MirrorVideo } from './screenMirror';
 import {
   ASPECT_MODES,
   formatSpeed,
@@ -76,7 +77,7 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
   const [volume, setVolume] = useState(1);
   const [controls, setControls] = useState(true);
   const [error, setError] = useState<EngineError | null>(null);
-  const [menu, setMenu] = useState<'audio' | 'subtitles' | null>(null);
+  const [menu, setMenu] = useState<'audio' | 'subtitles' | 'mirror' | null>(null);
   const [tracksVersion, setTracksVersion] = useState(0);
   const [externalSubtitle, setExternalSubtitle] = useState<{ id: string; src: string } | null>(null);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
@@ -531,6 +532,14 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
     };
   }, [activeSubtitleTrack]);
 
+  // Hands the video to a TV with the browser's own picker, or explains how to mirror the screen.
+  const mirror = () => {
+    showControls();
+    startMirroring(video.current as MirrorVideo | null).then((result) => {
+      if (result === 'instructions') setMenu('mirror');
+    });
+  };
+
   const enterFullscreen = () => {
     const element = video.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
     if (document.fullscreenElement) {
@@ -724,6 +733,9 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
             >
               <AspectIcon /> {ASPECT_MODES.find((item) => item.mode === aspect)!.label}
             </button>
+            <button type="button" className="icon-button focusable" aria-label="Transmitir ou espelhar na TV" title="Transmitir ou espelhar na TV" onClick={mirror}>
+              <CastIcon />
+            </button>
             <button type="button" className="icon-button focusable" aria-label="Tela cheia" onClick={enterFullscreen}>
               <FullscreenIcon />
             </button>
@@ -742,6 +754,8 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
           </button>
         </div>
       )}
+
+      {menu === 'mirror' && <MirrorPanel guides={mirrorGuides(detectMirrorPlatform(navigator.userAgent))} onClose={() => setMenu(null)} />}
 
       {menu === 'audio' && (
         <AudioPanel
