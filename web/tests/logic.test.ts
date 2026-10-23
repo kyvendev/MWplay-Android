@@ -64,6 +64,8 @@ describe('routes', () => {
       { name: 'search', query: 'o garoto' },
       { name: 'detail', type: 'series', id: 'tt1', videoId: 'tt1:1:2' },
       { name: 'detail', type: 'movie', id: 'tt2', videoId: null },
+      { name: 'detail', type: 'series', id: 'tt1', videoId: 'tt1:1:3', resume: true },
+      { name: 'tv' },
       { name: 'player' },
       { name: 'settings' },
     ] as const;

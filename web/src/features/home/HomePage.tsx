@@ -4,9 +4,12 @@ import { CatalogShelf, Poster, Shelf } from '../../components/Poster';
 import { Logo } from '../../components/Logo';
 import { PlayIcon, SearchIcon } from '../../components/icons';
 import { LoadingState } from '../../components/States';
+import { Modal } from '../../components/Modal';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { parseDiscoverDeepLink } from '../../services/stremio/streams';
-import type { MetaItemPreview } from '../../services/stremio/types';
+import { openCatalogTab } from '../catalog/DiscoverPage';
+import type { ContinueWatchingPreview, MetaItemPreview } from '../../services/stremio/types';
+import { recallStream } from '../../shared/streamMemory';
 
 /** Shelves requested per step; more load as the user reaches the end (BoardRepository on Android). */
 const RANGE_STEP = 6;
@@ -22,6 +25,7 @@ export function HomePage() {
   const [rangeEnd, setRangeEnd] = useState(RANGE_STEP);
   const sentinel = useRef<HTMLDivElement>(null);
   const requested = useRef(false);
+  const [menuItem, setMenuItem] = useState<ContinueItem | null>(null);
 
   // Load the board once; the core keeps it while the app runs, like the native apps.
   useEffect(() => {
@@ -84,10 +88,46 @@ export function HomePage() {
               poster={item.poster}
               shape={item.posterShape}
               progress={item.progress}
-              onSelect={() => openDetails({ type: item.type, id: item._id }, item.state?.videoId ?? item.state?.video_id ?? null)}
+              onSelect={() => resumeItem(item)}
+              onLongPress={() => setMenuItem(item)}
             />
           ))}
         </Shelf>
+      )}
+      {menuItem && (
+        <Modal title={menuItem.name} onClose={() => setMenuItem(null)}>
+          <p className="settings__hint" style={{ margin: '0 0 0.5rem' }}>
+            Excluir da lista apaga o ponto de retomada e mantém o item na biblioteca.
+          </p>
+          <div className="list">
+            <button
+              type="button"
+              className="button button--primary focusable"
+              onClick={() => {
+                const item = menuItem;
+                setMenuItem(null);
+                // Details show the info and every available server.
+                openDetails({ type: item.type, id: item._id }, videoIdOf(item));
+              }}
+            >
+              Detalhes
+            </button>
+            <button
+              type="button"
+              className="button focusable"
+              onClick={() => {
+                const item = menuItem;
+                setMenuItem(null);
+                core.removeFromContinueWatching(item._id);
+              }}
+            >
+              Excluir da lista
+            </button>
+            <button type="button" className="button focusable" onClick={() => setMenuItem(null)}>
+              Cancelar
+            </button>
+          </div>
+        </Modal>
       )}
 
       {!board && <LoadingState label="Carregando catálogos…" />}
@@ -100,13 +140,29 @@ export function HomePage() {
             const request = parseDiscoverDeepLink(catalog.deepLinks.discover);
             if (!request) return;
             core.loadDiscover(request);
-            navigate({ name: 'discover' });
+            openCatalogTab(request);
           }}
         />
       ))}
       <div ref={sentinel} aria-hidden="true" style={{ height: 1 }} />
     </main>
   );
+}
+
+type ContinueItem = ContinueWatchingPreview['items'][number];
+
+function videoIdOf(item: ContinueItem): string | null {
+  return item.state?.videoId ?? item.state?.video_id ?? null;
+}
+
+/**
+ * A tap resumes on the server used last time (for a new episode, the same server as before); the
+ * server list only shows when nothing is remembered or that server no longer has the video.
+ */
+function resumeItem(item: ContinueItem) {
+  const videoId = videoIdOf(item);
+  const memory = recallStream(item.type, item._id, videoId ?? item._id);
+  navigate({ name: 'detail', type: item.type, id: item._id, videoId, resume: memory !== null });
 }
 
 function findHero(contents: (import('../../services/stremio/types').Loadable<MetaItemPreview[], string> | null)[]): MetaItemPreview | null {

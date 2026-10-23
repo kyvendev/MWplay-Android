@@ -7,7 +7,7 @@ import { ErrorState, LoadingState } from './components/States';
 import { LoginScreen } from './features/auth/LoginScreen';
 import { DetailsPage } from './features/catalog/DetailsPage';
 import { OrbitalIntro } from './features/intro/OrbitalIntro';
-import { DiscoverPage } from './features/catalog/DiscoverPage';
+import { DiscoverPage, TvPage } from './features/catalog/DiscoverPage';
 import { HomePage } from './features/home/HomePage';
 import { LibraryPage } from './features/library/LibraryPage';
 import { PlayerPage } from './features/player/PlayerPage';
@@ -84,9 +84,10 @@ export function App({ showIntro = false }: { showIntro?: boolean } = {}) {
       <Nav current={route.name === 'detail' || route.name === 'search' ? 'home' : route.name} />
       {route.name === 'home' && <HomePage />}
       {route.name === 'discover' && <DiscoverPage />}
+      {route.name === 'tv' && <TvPage />}
       {route.name === 'library' && <LibraryPage />}
       {route.name === 'search' && <SearchPage initialQuery={route.query} />}
-      {route.name === 'detail' && <DetailsPage key={`${route.type}:${route.id}`} type={route.type} id={route.id} videoId={route.videoId} />}
+      {route.name === 'detail' && <DetailsPage key={`${route.type}:${route.id}`} type={route.type} id={route.id} videoId={route.videoId} resume={route.resume ?? false} />}
       {route.name === 'settings' && <SettingsPage uiPreference={ui.preference} onUiPreference={ui.setPreference} />}
       <InstallHint />
     </div>

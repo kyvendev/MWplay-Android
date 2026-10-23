@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import { useBackHandler } from '../../app/back';
 import { CatalogShelf } from '../../components/Poster';
-import { BackIcon } from '../../components/icons';
+import { BackIcon, CloseIcon, HistoryIcon } from '../../components/icons';
 import { EmptyState } from '../../components/States';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
+import { useSearchHistory } from '../../shared/searchHistory';
 import { openDetails } from '../home/HomePage';
 
 const DEBOUNCE_MS = 450;
@@ -17,6 +18,7 @@ export function SearchPage({ initialQuery }: { initialQuery: string }) {
   const [query, setQuery] = useState(initialQuery);
   const input = useRef<HTMLInputElement>(null);
   const lastSearched = useRef<string | null>(null);
+  const { history, remember, remove } = useSearchHistory();
 
   useBackHandler(() => {
     navigate({ name: 'home' });
@@ -52,6 +54,7 @@ export function SearchPage({ initialQuery }: { initialQuery: string }) {
         role="search"
         onSubmit={(event) => {
           event.preventDefault();
+          remember(query);
           input.current?.blur();
         }}
       >
@@ -69,9 +72,37 @@ export function SearchPage({ initialQuery }: { initialQuery: string }) {
           onChange={(event) => setQuery(event.target.value)}
         />
       </form>
-      {!query.trim() && <EmptyState>Digite o nome de um filme ou série.</EmptyState>}
+      {!query.trim() &&
+        (history.length === 0 ? (
+          <EmptyState>Digite o nome de um filme ou série.</EmptyState>
+        ) : (
+          <section className="search-history" aria-label="Buscas recentes">
+            <h2 className="section-label">Buscas recentes</h2>
+            <ul className="list">
+              {history.map((entry) => (
+                <li key={entry} className="search-history__row">
+                  <button type="button" className="search-history__entry focusable" onClick={() => setQuery(entry)}>
+                    <HistoryIcon width={20} height={20} aria-hidden="true" />
+                    <span>{entry}</span>
+                  </button>
+                  <button type="button" className="icon-button focusable" aria-label={`Remover "${entry}" do histórico`} onClick={() => remove(entry)}>
+                    <CloseIcon />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       {catalogs.map((catalog) => (
-        <CatalogShelf key={`${catalog.addon.manifest.id}:${catalog.type}:${catalog.id}`} catalog={catalog} onOpen={(item) => openDetails(item)} />
+        <CatalogShelf
+          key={`${catalog.addon.manifest.id}:${catalog.type}:${catalog.id}`}
+          catalog={catalog}
+          onOpen={(item) => {
+            // Opening a result saves the search, like submitting it.
+            remember(query);
+            openDetails(item);
+          }}
+        />
       ))}
       {showResults && allSettled && !anyResults && <EmptyState>Nenhum resultado para “{query.trim()}”.</EmptyState>}
     </main>

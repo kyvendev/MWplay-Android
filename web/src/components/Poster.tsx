@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import type { CatalogResource, Loadable, MetaItemPreview, PosterShape } from '../services/stremio/types';
 import { ChevronRightIcon } from './icons';
 import { ErrorState } from './States';
+import { shelfTitle, typeName } from '../shared/contentLabels';
 
 interface PosterProps {
   name: string;
@@ -9,14 +10,25 @@ interface PosterProps {
   shape?: PosterShape;
   progress?: number | null;
   onSelect: () => void;
+  /** Hold (touch), right-click (mouse) or hold OK/Enter (TV remote, keyboard). */
+  onLongPress?: () => void;
 }
 
+const LONG_PRESS_MS = 550;
+
 /** Artwork tile; the title stays visible until (or instead of) the image, like the native posters. */
-export function Poster({ name, poster, shape = 'poster', progress, onSelect }: PosterProps) {
+export function Poster({ name, poster, shape = 'poster', progress, onSelect, onLongPress }: PosterProps) {
   const [failed, setFailed] = useState(false);
   const showImage = Boolean(poster) && !failed;
+  const press = useLongPress(onSelect, onLongPress);
   return (
-    <button type="button" className={`poster focusable ${shape !== 'poster' ? `poster--${shape}` : ''}`} onClick={onSelect} aria-label={name}>
+    <button
+      type="button"
+      className={`poster focusable ${shape !== 'poster' ? `poster--${shape}` : ''} ${onLongPress ? 'poster--menu' : ''}`}
+      aria-label={name}
+      aria-haspopup={onLongPress ? 'dialog' : undefined}
+      {...press}
+    >
       <span className="poster__fallback" aria-hidden="true">
         {name}
       </span>
@@ -63,7 +75,7 @@ export function CatalogShelf({
   onSeeAll?: () => void;
 }) {
   const content: Loadable<MetaItemPreview[], string> | null = catalog.content;
-  const title = catalog.type ? `${catalog.name} · ${typeLabel(catalog.type)}` : catalog.name;
+  const title = shelfTitle(catalog.name, catalog.type);
   if (content?.type === 'Err') {
     return (
       <section className="shelf" aria-label={title}>
@@ -95,19 +107,69 @@ export function CatalogShelf({
   );
 }
 
+/** Content type in Portuguese ("Filmes", "Séries", "TV"…). */
 export function typeLabel(type: string): string {
-  switch (type) {
-    case 'movie':
-      return 'Filmes';
-    case 'series':
-      return 'Séries';
-    case 'channel':
-      return 'Canais';
-    case 'tv':
-      return 'TV';
-    case 'anime':
-      return 'Anime';
-    default:
-      return type;
-  }
+  return typeName(type);
+}
+
+/**
+ * Short press selects, long press opens the menu. Keys are handled here (not by the browser's
+ * click on Enter) so a held remote OK never selects as well.
+ */
+function useLongPress(onSelect: () => void, onLongPress?: () => void) {
+  const timer = useRef<number>();
+  const fired = useRef(false);
+  const keyHeld = useRef(false);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  if (!onLongPress) return { onClick: onSelect };
+  const fire = () => {
+    if (fired.current) return;
+    fired.current = true;
+    onLongPress();
+  };
+  const start = () => {
+    fired.current = false;
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(fire, LONG_PRESS_MS);
+  };
+  const cancel = () => window.clearTimeout(timer.current);
+  const isSelectKey = (key: string) => key === 'Enter' || key === ' ';
+  return {
+    onPointerDown: (event: ReactPointerEvent) => {
+      if (event.button === 0) start();
+    },
+    onPointerUp: cancel,
+    onPointerLeave: cancel,
+    onPointerCancel: cancel,
+    onContextMenu: (event: ReactMouseEvent) => {
+      event.preventDefault();
+      cancel();
+      fire();
+    },
+    onKeyDown: (event: ReactKeyboardEvent) => {
+      if (!isSelectKey(event.key)) return;
+      event.preventDefault();
+      if (!event.repeat && !keyHeld.current) {
+        keyHeld.current = true;
+        start();
+      }
+    },
+    onKeyUp: (event: ReactKeyboardEvent) => {
+      if (!isSelectKey(event.key) || !keyHeld.current) return;
+      event.preventDefault();
+      keyHeld.current = false;
+      cancel();
+      if (!fired.current) onSelect();
+      fired.current = false;
+    },
+    onClick: (event: ReactMouseEvent) => {
+      // Keyboard activation is handled above; a click after a long press is swallowed.
+      if (event.detail === 0) return;
+      if (fired.current) {
+        fired.current = false;
+        return;
+      }
+      onSelect();
+    },
+  };
 }

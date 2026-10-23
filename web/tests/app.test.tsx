@@ -66,7 +66,7 @@ describe('home', () => {
     await waitFor(() => expect(loadActions(fake)).toEqual(['CatalogsWithExtra', 'LoadRange']));
     act(() => fake.setState('board', boardFixture));
     expect(await screen.findByRole('button', { name: 'Unabomber' })).toBeTruthy();
-    expect(screen.getByText('Popular · Séries')).toBeTruthy(); // still loading: skeletons
+    expect(screen.getByText('Séries populares')).toBeTruthy(); // still loading: skeletons
     expect(screen.getByText(/Não foi possível carregar este catálogo/)).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /Spider-Man/ })[0]).toBeTruthy();
     // No duplicate board loads when the state updates.
@@ -91,7 +91,7 @@ describe('details and sources', () => {
     });
     renderApp(fake);
     expect(await screen.findByText('IMDb 8.2')).toBeTruthy();
-    expect(screen.getByText('Comedy · Drama')).toBeTruthy();
+    expect(screen.getByText('Comédia · Drama')).toBeTruthy();
     // Same meta already loaded: no reload.
     expect(loadActions(fake)).not.toContain('MetaDetails');
 

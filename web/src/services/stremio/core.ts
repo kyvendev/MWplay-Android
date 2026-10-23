@@ -173,6 +173,15 @@ export class StremioCore {
     return this.ctx('RemoveFromLibrary', id);
   }
 
+  /**
+   * "Excluir da lista" on Continuar assistindo: clears the resume point and dismisses episode
+   * notifications, keeping the title in the library (continueWatchingRemovalActions on Android).
+   */
+  async removeFromContinueWatching(id: string) {
+    await this.ctx('RewindLibraryItem', id);
+    await this.ctx('DismissNotificationItem', id);
+  }
+
   // region details & playback --------------------------------------------------------------------
 
   /**

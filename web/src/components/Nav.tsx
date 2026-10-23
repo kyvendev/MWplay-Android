@@ -1,16 +1,18 @@
 import type { ComponentType, SVGProps } from 'react';
 import { routeHref, type Route } from '../app/router';
-import { CompassIcon, HomeIcon, LibraryIcon, SettingsIcon } from './icons';
+import { CompassIcon, HomeIcon, LibraryIcon, SettingsIcon, TvIcon } from './icons';
 import { Logo } from './Logo';
 
 const SECTIONS: { route: Route; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { route: { name: 'home' }, label: 'Início', icon: HomeIcon },
   { route: { name: 'discover' }, label: 'Descobrir', icon: CompassIcon },
+  { route: { name: 'tv' }, label: 'TV', icon: TvIcon },
   { route: { name: 'library' }, label: 'Biblioteca', icon: LibraryIcon },
-  { route: { name: 'settings' }, label: 'Configurações', icon: SettingsIcon },
+  // "Ajustes", as in the apps: "Configurações" does not fit five tabs on a phone.
+  { route: { name: 'settings' }, label: 'Ajustes', icon: SettingsIcon },
 ];
 
-/** Same four sections as the apps: bottom bar on phones, side rail on tablets, desktop and TV. */
+/** Same five sections as the apps: bottom bar on phones, side rail on tablets, desktop and TV. */
 export function Nav({ current }: { current: Route['name'] }) {
   return (
     <nav className="nav" aria-label="Navegação principal">

@@ -1006,3 +1006,53 @@ html[data-ui='tv'] .home-logo {
   padding: 0.5rem 0;
   border-radius: var(--radius-sm);
 }
+
+/* ---------- Search history ---------- */
+
+.search-history {
+  max-width: 44rem;
+}
+
+.search-history .list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.search-history__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search-history__entry {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: var(--touch);
+  padding: 0 0.85rem;
+  border-radius: var(--radius-md);
+  text-align: left;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.search-history__entry svg {
+  flex: none;
+  color: var(--muted);
+}
+
+.search-history__entry span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Posters with a long-press menu: no system callout/selection while holding. */
+.poster--menu {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}

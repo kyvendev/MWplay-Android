@@ -6,15 +6,19 @@ import { EmptyState, ErrorState, LoadingState, Spinner } from '../../components/
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { episodeLabel, metaLinks, streamKind, streamLabel } from '../../services/stremio/streams';
 import type { MetaItem, MetaItemPreview, Stream, StreamsGroup, Video } from '../../services/stremio/types';
+import { genreName } from '../../shared/contentLabels';
+import { pickRemembered, recallStream, rememberStream, selectionOf } from '../../shared/streamMemory';
 import { setPlaybackRequest } from '../player/playbackRequest';
 
 interface Props {
   type: string;
   id: string;
   videoId: string | null;
+  /** From Continuar assistindo: play the remembered server as soon as its stream arrives. */
+  resume?: boolean;
 }
 
-export function DetailsPage({ type, id, videoId }: Props) {
+export function DetailsPage({ type, id, videoId, resume = false }: Props) {
   const { core } = useCore();
   const details = useCoreState('meta_details');
   const server = useCoreState('streaming_server');
@@ -34,9 +38,21 @@ export function DetailsPage({ type, id, videoId }: Props) {
     if (!sameMeta || !sameStream) core.loadMetaDetails(type, id, videoId);
   }, [core, type, id, videoId, details === null]);
 
+  const [resumeDone, setResumeDone] = useState(false);
   const metaContent = details?.metaItem?.content;
   const meta: MetaItem | null = metaContent?.type === 'Ready' ? metaContent.content : null;
   const isCurrent = details?.selected?.metaPath.id === id;
+
+  // Resume: once streams load, play the remembered source/server; otherwise show the list.
+  const expectedStreamId = videoId ?? (type === 'movie' ? id : null);
+  const streamsForThis = details?.selected?.streamPath?.id === expectedStreamId && isCurrent ? details?.streams ?? [] : [];
+  const resumeState = useResume(resume && !resumeDone, type, id, expectedStreamId ?? id, streamsForThis);
+  useEffect(() => {
+    if (!resumeState || resumeDone || !meta || !details) return;
+    setResumeDone(true);
+    if (resumeState.kind === 'play') play(resumeState.stream, resumeState.group);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeState]);
 
   if (!details || !isCurrent || !details.metaItem || metaContent?.type === 'Loading') {
     return (
@@ -59,9 +75,11 @@ export function DetailsPage({ type, id, videoId }: Props) {
   const isSeries = meta.videos.length > 0 && type !== 'movie';
   const torrentsAvailable = Boolean(server?.baseUrl) && server?.settings.type === 'Ready';
 
-  const play = (stream: Stream, group: StreamsGroup) => {
+  function play(stream: Stream, group: StreamsGroup) {
+    if (!details || !meta) return;
     const streamPath = details.selected?.streamPath ?? null;
     const video = meta.videos.find((item) => item.id === streamPath?.id);
+    if (group.addon.transportUrl) rememberStream(type, id, streamPath?.id ?? id, selectionOf(stream, group.addon.transportUrl));
     setPlaybackRequest({
       stream,
       streamRequest: streamPath && group.addon.transportUrl ? { base: group.addon.transportUrl, path: streamPath } : null,
@@ -72,7 +90,7 @@ export function DetailsPage({ type, id, videoId }: Props) {
       returnTo: { type, id, videoId },
     });
     navigate({ name: 'player' });
-  };
+  }
 
   return (
     <main className="details">
@@ -89,7 +107,7 @@ export function DetailsPage({ type, id, videoId }: Props) {
           {links.imdbRating && <span className="imdb">IMDb {links.imdbRating}</span>}
           {[meta.releaseInfo, meta.runtime, type === 'movie' ? 'Filme' : type === 'series' ? 'Série' : null].filter(Boolean).join('  •  ')}
         </div>
-        {links.genres.length > 0 && <div className="settings__hint">{links.genres.slice(0, 4).join('  ·  ')}</div>}
+        {links.genres.length > 0 && <div className="settings__hint">{links.genres.slice(0, 4).map(genreName).join('  ·  ')}</div>}
         {meta.description && <p className="details__description">{meta.description}</p>}
         <div className="details__actions">
           <LibraryButton meta={meta} />
@@ -98,6 +116,11 @@ export function DetailsPage({ type, id, videoId }: Props) {
 
         {isSeries && <Episodes videos={meta.videos} selectedVideoId={details.selected?.streamPath?.id ?? null} onSelect={(video) => navigate({ name: 'detail', type, id, videoId: video.id }, { replace: true })} />}
 
+        {resume && !resumeDone && (
+          <div className="settings__hint" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', margin: '0.75rem 0' }}>
+            <Spinner /> Retomando no último servidor…
+          </div>
+        )}
         {(!isSeries || details.selected?.streamPath) && (
           <Streams groups={details.streams} torrentsAvailable={torrentsAvailable} onPlay={play} episode={isSeries ? meta.videos.find((video) => video.id === details.selected?.streamPath?.id) ?? null : null} />
         )}
@@ -250,4 +273,28 @@ function Streams({
       </div>
     </section>
   );
+}
+
+type ResumeState = { kind: 'play'; stream: Stream; group: StreamsGroup } | { kind: 'list' };
+
+/**
+ * Watches the streams of the title being resumed and decides once: the remembered source (or, for
+ * a new episode, the same server) when it appears, or the normal list when every addon answered
+ * without it.
+ */
+function useResume(active: boolean, type: string, id: string, videoId: string, groups: StreamsGroup[]): ResumeState | null {
+  return useMemo(() => {
+    if (!active || groups.length === 0) return null;
+    const memory = recallStream(type, id, videoId);
+    if (!memory) return { kind: 'list' };
+    const candidates = groups.flatMap((group) =>
+      group.content.type === 'Ready' && group.addon.transportUrl
+        ? group.content.content.map((stream) => ({ stream, group, server: group.addon.transportUrl! }))
+        : [],
+    );
+    const match = pickRemembered(candidates, memory);
+    if (match) return { kind: 'play', stream: match.stream, group: match.group };
+    const settled = groups.every((group) => group.content.type !== 'Loading');
+    return settled ? { kind: 'list' } : null;
+  }, [active, groups, id, type, videoId]);
 }
