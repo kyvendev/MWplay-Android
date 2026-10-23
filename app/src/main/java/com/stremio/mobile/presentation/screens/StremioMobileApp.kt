@@ -55,6 +55,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
@@ -93,11 +95,15 @@ import java.io.File
 import kotlin.math.roundToInt
 
 @Composable
-fun StremioMobileApp(viewModel: MainViewModel) {
+fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val streamsState by viewModel.streamsState.collectAsStateWithLifecycle()
     val isPlayerOpen by viewModel.isPlayerOpen.collectAsStateWithLifecycle()
     val isTv = rememberIsTelevision()
+    // Saveable so rotation / process restore never replays the opening.
+    var introVisible by rememberSaveable { mutableStateOf(showIntro) }
+    var introSkipRequests by remember { mutableIntStateOf(0) }
+    val sessionRestoring by viewModel.sessionRestoring.collectAsStateWithLifecycle()
     val rootGlobalTheme = remember(
         state.globalUiStyle,
         state.glassEffectsMode,
@@ -126,7 +132,10 @@ fun StremioMobileApp(viewModel: MainViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(StremioBackgroundBrush),
+                    .background(StremioBackgroundBrush)
+                    // While the opening is on screen the remote must not move focus underneath it:
+                    // OK skips, other keys are swallowed, Back keeps its normal behaviour.
+                    .onPreviewKeyEvent { event -> introVisible && interceptIntroKey(event) { introSkipRequests++ } },
             ) {
             if (state.account.isAuthenticated) {
                 BoardScreen(
@@ -386,7 +395,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 )
             }
 
-            if (state.server is StreamingServerState.Failed) {
+            if (!introVisible && state.server is StreamingServerState.Failed) {
                 val context = LocalContext.current
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = {
@@ -430,7 +439,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 )
             }
 
-            when (val update = state.updateState) {
+            when (val update = state.updateState.takeUnless { introVisible }) {
                 is UpdateState.Available -> {
                     androidx.compose.material3.AlertDialog(
                         onDismissRequest = viewModel::dismissUpdateDialog,
@@ -619,7 +628,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 }
             }
 
-            if (state.showAnalyticsDisclosure) {
+            if (!introVisible && state.showAnalyticsDisclosure) {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = { /* Block clicks outside */ },
                     title = {
@@ -688,6 +697,16 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     containerColor = Color(0xFF171A20),
                     shape = RoundedCornerShape(28.dp),
                     modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            // Opening animation on top of everything; the app keeps starting underneath.
+            if (introVisible) {
+                OrbitalIntro(
+                    ready = !sessionRestoring,
+                    onFinished = { introVisible = false },
+                    modifier = Modifier.fillMaxSize(),
+                    skipRequests = introSkipRequests,
                 )
             }
         }
