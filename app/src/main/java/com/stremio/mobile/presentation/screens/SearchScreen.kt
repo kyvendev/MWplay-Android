@@ -139,7 +139,7 @@ fun SearchResultsScreen(
         ) {
             ThemedIconButton(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = "Voltar",
                 onClick = onBack,
                 modifier = Modifier
                     .size(42.dp),

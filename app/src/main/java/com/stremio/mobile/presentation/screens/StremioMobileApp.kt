@@ -1001,7 +1001,7 @@ private fun BoardScreen(
                             if (state.isDiscoverSeeAll) {
                                 ThemedIconButton(
                                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    contentDescription = "Back",
+                                    contentDescription = "Voltar",
                                     onClick = { onCloseDiscoverCatalog() },
                                     modifier = Modifier
                                         .size(40.dp),
