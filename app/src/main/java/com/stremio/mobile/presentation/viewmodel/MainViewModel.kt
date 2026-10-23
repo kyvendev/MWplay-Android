@@ -14,6 +14,8 @@ import com.stremio.mobile.core.StremioCore
 import com.stremio.mobile.core.utils.parseStreamDescription
 import com.stremio.mobile.data.model.*
 import com.stremio.mobile.data.repository.*
+import com.stremio.mobile.data.settings.FirstRunDefaults
+import com.stremio.mobile.data.settings.serverSettingsPayload
 import com.stremio.mobile.player.intro.EpisodeRef
 import com.stremio.mobile.player.intro.IntroSkipSettings
 import com.stremio.mobile.player.intro.IntroSource
@@ -141,6 +143,7 @@ class MainViewModel(
 
     private val configPath = File(this.appContext.filesDir, "stream-server").absolutePath
     private val cachePath = File(this.appContext.cacheDir, "stream-server").absolutePath
+    private val firstRunDefaults = FirstRunDefaults.create(this.appContext)
 
     private val streams = MutableStateFlow(StreamsUiState())
     val streamsState: StateFlow<StreamsUiState> = streams
@@ -335,6 +338,11 @@ class MainViewModel(
         viewModelScope.launch {
             authRepository.getProfileSettingsFlow().collect { settings ->
                 profileSettings.value = settings
+                // Fresh install: Portuguese defaults once, on the first signed-in profile.
+                if (settings != null && firstRunDefaults.profilePending && authRepository.isAuthenticated()) {
+                    firstRunDefaults.markProfileApplied()
+                    authRepository.updateSettings(firstRunDefaults.applyTo(settings))
+                }
             }
         }
         viewModelScope.launch {
@@ -448,6 +456,7 @@ class MainViewModel(
                     serverSettings.value = newSettings
                     isSeedingEnabled.value = settingsObj.optBoolean("seedingEnabled", true)
                     core.updateStreamingServerSettings(newSettings)
+                    if (firstRunDefaults.serverPending) applyFirstRunServerDefaults(currentState.baseUrl, newSettings)
                 }
             }
         }
@@ -531,49 +540,58 @@ class MainViewModel(
 
             val currentState = serverController.state.value
             if (currentState is StreamingServerState.Ready) {
-                val url = "${currentState.baseUrl}/settings"
-                withContext(Dispatchers.IO) {
-                    try {
-                        val payloadObj = JSONObject().apply {
-                            put("appPath", newSettings.appPath)
-                            put("cacheRoot", newSettings.cacheRoot)
-                            put("serverVersion", newSettings.serverVersion)
-                            put("remoteHttps", newSettings.remoteHttps ?: JSONObject.NULL)
-                            put("transcodeProfile", newSettings.transcodeProfile ?: JSONObject.NULL)
-                            put("cacheSize", newSettings.cacheSize ?: JSONObject.NULL)
-                            put("proxyStreamsEnabled", newSettings.proxyStreamsEnabled)
-                            put("btMaxConnections", newSettings.btMaxConnections)
-                            put("btHandshakeTimeout", newSettings.btHandshakeTimeout)
-                            put("btRequestTimeout", newSettings.btRequestTimeout)
-                            put("btDownloadSpeedSoftLimit", newSettings.btDownloadSpeedSoftLimit)
-                            put("btDownloadSpeedHardLimit", newSettings.btDownloadSpeedHardLimit)
-                            put("btMinPeersForStable", newSettings.btMinPeersForStable)
-                            put("seedingEnabled", isSeedingEnabled.value)
-                        }
-
-                        val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                        connection.requestMethod = "POST"
-                        connection.connectTimeout = 3000
-                        connection.readTimeout = 3000
-                        connection.doOutput = true
-                        connection.setRequestProperty("Content-Type", "application/json")
-                        connection.setRequestProperty("Accept", "application/json")
-
-                        connection.outputStream.use { os ->
-                            os.write(payloadObj.toString().toByteArray(Charsets.UTF_8))
-                        }
-
-                        val responseCode = connection.responseCode
-                        if (responseCode == 200) {
-                            Timber.d("Successfully updated settings directly on server")
-                        } else {
-                            Timber.e("Failed to update settings directly on server: response code %d", responseCode)
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Error posting settings to server")
-                    }
-                }
+                postServerSettings(currentState.baseUrl, newSettings, isSeedingEnabled.value)
             }
+        }
+    }
+
+    /** Fresh install: 5 GB cache, "Ultra rápido" connections and seeding off, saved by the server itself. */
+    private suspend fun applyFirstRunServerDefaults(baseUrl: String, current: com.stremio.core.models.StreamingServer.Settings) {
+        val defaults = firstRunDefaults.applyTo(current)
+        if (postServerSettings(baseUrl, defaults, FirstRunDefaults.SEEDING_ENABLED)) {
+            serverSettings.value = defaults
+            isSeedingEnabled.value = FirstRunDefaults.SEEDING_ENABLED
+            core.updateStreamingServerSettings(defaults)
+            firstRunDefaults.markServerApplied()
+        }
+    }
+
+    /** POSTs the full settings to the streaming server, which applies and persists them. */
+    private suspend fun postServerSettings(
+        baseUrl: String,
+        newSettings: com.stremio.core.models.StreamingServer.Settings,
+        seedingEnabled: Boolean,
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val payloadObj = serverSettingsPayload(newSettings, seedingEnabled)
+
+            val connection = java.net.URL("$baseUrl/settings").openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 3000
+            connection.readTimeout = 3000
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Accept", "application/json")
+
+            connection.outputStream.use { os ->
+                os.write(payloadObj.toString().toByteArray(Charsets.UTF_8))
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode == 200) {
+                // The server answers 200 with {"success": false} when it could not save.
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val saved = runCatching { JSONObject(body).optBoolean("success", true) }.getOrDefault(true)
+                if (saved) Timber.d("Successfully updated settings directly on server")
+                else Timber.e("Server rejected settings: %s", body)
+                saved
+            } else {
+                Timber.e("Failed to update settings directly on server: response code %d", responseCode)
+                false
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error posting settings to server")
+            false
         }
     }
 
