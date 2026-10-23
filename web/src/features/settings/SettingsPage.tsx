@@ -5,6 +5,7 @@ import { APP_VERSION } from '../../shared/config';
 
 const SUBTITLE_LANGUAGES: { value: string | null; label: string }[] = [
   { value: null, label: 'Nenhum' },
+  { value: 'pob', label: 'Português (Brasil)' },
   { value: 'por', label: 'Português' },
   { value: 'eng', label: 'Inglês' },
   { value: 'spa', label: 'Espanhol' },

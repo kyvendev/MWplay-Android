@@ -967,3 +967,17 @@ html[data-ui='tv'] .hero {
 html[data-ui='tv'] .home-logo {
   display: none;
 }
+
+/* Opening animation (features/intro). Covers everything, including the safe areas. */
+.orbital-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #05040a;
+  cursor: pointer;
+}
+.orbital-intro__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
