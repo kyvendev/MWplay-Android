@@ -144,6 +144,8 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     onSelectLibraryFilter = viewModel::selectLibraryFilter,
                     onSelectDiscoverFilter = viewModel::selectDiscoverFilter,
                     onUpdateProfileSettings = viewModel::updateProfileSettings,
+                    introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
+                    onUpdateIntroSkipSettings = viewModel::updateIntroSkipSettings,
                     onUpdateServerSettings = viewModel::updateStreamingServerSettings,
                     onAuthenticateTrakt = viewModel::authenticateTrakt,
                     onLogoutTrakt = viewModel::logoutTrakt,
@@ -599,6 +601,10 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     loadingInfo = remember(streamsState.forItem, streamsState.selectedVideoId, streamsState.selectedEpisodeLabel, streamsState.episodes) {
                         streamsState.toPlaybackLoadingInfo()
                     },
+                    playbackIntro = viewModel.playbackIntro.collectAsStateWithLifecycle().value,
+                    introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
+                    onSaveManualIntro = viewModel::saveManualIntro,
+                    onClearManualIntro = viewModel::clearManualIntro,
                 )
             }
 
@@ -700,6 +706,8 @@ private fun BoardScreen(
     onSelectLibraryFilter: (com.stremio.core.models.LibraryWithFilters.LibraryRequest) -> Unit,
     onSelectDiscoverFilter: (com.stremio.core.types.addon.ResourceRequest) -> Unit,
     onUpdateProfileSettings: (com.stremio.core.types.profile.Profile.Settings) -> Unit,
+    introSkipSettings: com.stremio.mobile.player.intro.IntroSkipSettings,
+    onUpdateIntroSkipSettings: (com.stremio.mobile.player.intro.IntroSkipSettings) -> Unit,
     onUpdateServerSettings: (com.stremio.core.models.StreamingServer.Settings) -> Unit,
     onAuthenticateTrakt: (Context) -> Unit,
     onLogoutTrakt: () -> Unit,
@@ -1041,6 +1049,8 @@ private fun BoardScreen(
                                     playerUiStyle = state.playerUiStyle,
                                     onSetPlayerUiStyle = onSetPlayerUiStyle,
                                     onUpdateSettings = onUpdateProfileSettings,
+                                    introSkipSettings = introSkipSettings,
+                                    onUpdateIntroSkipSettings = onUpdateIntroSkipSettings,
                                     onBack = { settingsSubScreen = SettingsSubScreen.Main }
                                 )
                             }

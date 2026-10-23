@@ -17,9 +17,18 @@ import androidx.compose.ui.unit.sp
 import com.stremio.mobile.core.theme.MutedText
 import com.stremio.mobile.player.LanguageCatalog
 import com.stremio.mobile.player.PlayerEngine
+import com.stremio.mobile.player.intro.IntroSkipSettings
 
 @Composable
-fun PlayerSettingsScreen(settings: com.stremio.core.types.profile.Profile.Settings?, playerUiStyle: String, onSetPlayerUiStyle: (String) -> Unit, onUpdateSettings: (com.stremio.core.types.profile.Profile.Settings) -> Unit, onBack: () -> Unit) {
+fun PlayerSettingsScreen(
+    settings: com.stremio.core.types.profile.Profile.Settings?,
+    playerUiStyle: String,
+    onSetPlayerUiStyle: (String) -> Unit,
+    onUpdateSettings: (com.stremio.core.types.profile.Profile.Settings) -> Unit,
+    onBack: () -> Unit,
+    introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
+    onUpdateIntroSkipSettings: (IntroSkipSettings) -> Unit = {},
+) {
     Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsHeader(title = "Configurações do player", onBack = onBack)
         if (settings != null) {
@@ -62,6 +71,37 @@ fun PlayerSettingsScreen(settings: com.stremio.core.types.profile.Profile.Settin
             SettingsDropdownRow(title = "Tempo de avanço/retrocesso", selectedValue = settings.seekTimeDuration, options = seekDurations, onSelect = { onUpdateSettings(settings.copy(seekTimeDuration = it)) }, description = "Tempo usado pelos botões de avançar e voltar")
             SettingsToggleRow(title = "Reproduzir próximo episódio automaticamente", checked = settings.bingeWatching, onCheckedChange = { onUpdateSettings(settings.copy(bingeWatching = it)) })
             SettingsDropdownRow(title = "Aviso do próximo vídeo", selectedValue = settings.nextVideoNotificationDuration, options = nextVideoDurations, onSelect = { onUpdateSettings(settings.copy(nextVideoNotificationDuration = it)) }, description = "Duração do aviso para reproduzir o próximo episódio")
+        }
+        IntroSkipSettingsSection(introSkipSettings, onUpdateIntroSkipSettings)
+    }
+}
+
+/** Device-only preferences (not synced with the account): they work for any engine. */
+@Composable
+private fun IntroSkipSettingsSection(settings: IntroSkipSettings, onUpdate: (IntroSkipSettings) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(text = "PULAR ABERTURA", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+        SettingsToggleRow(
+            title = "Pular abertura",
+            checked = settings.enabled,
+            onCheckedChange = { onUpdate(settings.copy(enabled = it)) },
+            description = "Em séries e animes com o tempo da abertura conhecido (AniSkip ou marcado por você no player)",
+        )
+        if (settings.enabled) {
+            val modes = listOf(false to "Manual (botão)", true to "Automático")
+            SettingsDropdownRow(
+                title = "Como pular",
+                selectedValue = settings.autoSkip,
+                options = modes,
+                onSelect = { onUpdate(settings.copy(autoSkip = it)) },
+                description = "No automático, a abertura é pulada uma vez por episódio, só quando o tempo é confiável",
+            )
+            SettingsToggleRow(
+                title = "Exibir botão durante a abertura",
+                checked = settings.showButton,
+                onCheckedChange = { onUpdate(settings.copy(showButton = it)) },
+                description = "Mostra \"Pular abertura\" enquanto a abertura estiver passando",
+            )
         }
     }
 }

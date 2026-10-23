@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Cast
+import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.FastForward
@@ -121,6 +122,8 @@ class PlayerControlsActions(
     val onShowCast: () -> Unit,
     /** Null when the device has no Picture-in-Picture support. */
     val onEnterPip: (() -> Unit)? = null,
+    /** Opens "Marcar abertura"; null for movies. */
+    val onMarkIntro: (() -> Unit)? = null,
 )
 
 @Composable
@@ -360,6 +363,15 @@ fun ClassicPlayerControls(
                             enabled = state.canSelectAudio,
                             onClick = actions.onShowAudio,
                         )
+
+                        actions.onMarkIntro?.let { markIntro ->
+                            PlayerIconButton(
+                                imageVector = Icons.Outlined.SkipNext,
+                                contentDescription = "Marcar abertura",
+                                enabled = true,
+                                onClick = markIntro,
+                            )
+                        }
 
                         TextButton(
                             onClick = actions.onCycleAspect,
@@ -637,8 +649,20 @@ private fun ModernTopPill(
                             },
                         )
                     }
+                    actions.onMarkIntro?.let { markIntro ->
+                        DropdownMenuItem(
+                            text = { Text("Marcar abertura", color = Color.White) },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.SkipNext, contentDescription = null, tint = Color.White)
+                            },
+                            onClick = {
+                                moreExpanded = false
+                                markIntro()
+                            },
+                        )
+                    }
                     DropdownMenuItem(
-                        text = { Text("Speed: ${state.currentSpeed}x", color = Color.White) },
+                        text = { Text("Velocidade: ${state.currentSpeed}x", color = Color.White) },
                         leadingIcon = {
                             Icon(Icons.Outlined.Speed, contentDescription = null, tint = Color.White)
                         },
@@ -648,7 +672,7 @@ private fun ModernTopPill(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Aspect: ${resizeLabel(state.resizeMode)}", color = Color.White) },
+                        text = { Text("Proporção: ${resizeLabel(state.resizeMode)}", color = Color.White) },
                         leadingIcon = {
                             Icon(Icons.Outlined.AspectRatio, contentDescription = null, tint = Color.White)
                         },
@@ -658,7 +682,7 @@ private fun ModernTopPill(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text(if (state.isMuted) "Unmute" else "Mute", color = Color.White) },
+                        text = { Text(if (state.isMuted) "Ativar som" else "Silenciar", color = Color.White) },
                         leadingIcon = {
                             Icon(volumeIcon(state), contentDescription = null, tint = Color.White)
                         },
@@ -671,7 +695,7 @@ private fun ModernTopPill(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    text = if (state.isStatsVisible) "Hide statistics" else "Show statistics",
+                                    text = if (state.isStatsVisible) "Ocultar estatísticas" else "Mostrar estatísticas",
                                     color = Color.White,
                                 )
                             },

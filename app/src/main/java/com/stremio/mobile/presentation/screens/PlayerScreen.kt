@@ -13,6 +13,7 @@ import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -77,6 +78,13 @@ import com.stremio.mobile.player.PlayerResizeMode
 import com.stremio.mobile.player.PlayerRuntimeState
 import com.stremio.mobile.player.PlayerSubtitleStyle
 import com.stremio.mobile.player.PlayerTrackOption
+import com.stremio.mobile.player.intro.IntroInterval
+import com.stremio.mobile.player.intro.IntroSkipDecision
+import com.stremio.mobile.player.intro.IntroSkipPolicy
+import com.stremio.mobile.player.intro.IntroSkipSettings
+import com.stremio.mobile.player.intro.IntroSkipTracker
+import com.stremio.mobile.player.intro.IntroSource
+import com.stremio.mobile.player.intro.PlaybackIntro
 import com.stremio.mobile.presentation.screens.player.ClassicPlayerControls
 import com.stremio.mobile.presentation.screens.player.ModernPlayerControls
 import com.stremio.mobile.presentation.screens.player.PlayerControlsActions
@@ -94,6 +102,8 @@ import com.stremio.mobile.presentation.components.ThemedIconButton
 import com.stremio.mobile.presentation.components.PlaybackLoadingInfo
 import com.stremio.mobile.presentation.components.PlaybackLoadingOverlay
 import com.stremio.mobile.presentation.screens.player.PictureInPictureHost
+import com.stremio.mobile.presentation.screens.player.IntroMarkDialog
+import com.stremio.mobile.presentation.screens.player.SkipIntroButton
 import com.stremio.mobile.presentation.screens.player.PlayerPictureInPictureEffect
 import com.stremio.mobile.presentation.screens.player.rememberIsInPictureInPicture
 import com.stremio.mobile.presentation.screens.player.supportsPlayerPip
@@ -142,6 +152,10 @@ fun PlayerScreen(
     hapticsIntensity: String = "Medium",
     liquidGlassTuning: LiquidGlassTuning = LiquidGlassTuning(),
     loadingInfo: PlaybackLoadingInfo? = null,
+    playbackIntro: PlaybackIntro? = null,
+    introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
+    onSaveManualIntro: (startMs: Long, endMs: Long, wholeSeries: Boolean) -> Unit = { _, _, _ -> },
+    onClearManualIntro: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onBack)
@@ -311,6 +325,30 @@ fun PlayerScreen(
         player?.seekTo(pos)
         onSeekReported(pos, durationMs)
         lastSilentSeekMs = System.currentTimeMillis()
+    }
+
+    // Skip intro: decided from the position updates this screen already receives. Skipping is a
+    // seek on the same player, so tracks, subtitles and the EXO -> VLC -> MPV fallback are untouched.
+    val introTracker = remember { IntroSkipTracker() }
+    introTracker.bind(playbackIntro?.ref?.episodeKey)
+    var introSkipVersion by remember { mutableIntStateOf(0) }
+    var showIntroDialog by remember { mutableStateOf(false) }
+    val selectedIntro = remember(playbackIntro, durationMs) {
+        playbackIntro?.let { IntroSkipPolicy.select(it.candidates, durationMs) }
+    }
+    val introDecision = remember(positionMs, durationMs, selectedIntro, introSkipSettings, introSkipVersion, isCasting) {
+        if (isCasting) IntroSkipDecision.None
+        else introTracker.decide(positionMs, durationMs, selectedIntro, introSkipSettings)
+    }
+
+    fun skipIntro(toMs: Long, automatic: Boolean) {
+        if (!introTracker.markSkipped(automatic)) return
+        introSkipVersion++
+        if (automatic) seekToSilently(toMs) else seekTo(toMs)
+    }
+
+    LaunchedEffect(introDecision) {
+        (introDecision as? IntroSkipDecision.AutoSkip)?.let { skipIntro(it.skipToMs, automatic = true) }
     }
 
     LaunchedEffect(player, activeUri) {
@@ -704,6 +742,13 @@ fun PlayerScreen(
         onEnterPip = if (activity?.supportsPlayerPip() == true) {
             { (activity as? PictureInPictureHost)?.enterPlayerPip() }
         } else null,
+        // Episodes only: lets the user mark the opening where no automatic data exists.
+        onMarkIntro = if (playbackIntro != null && !isCasting) {
+            {
+                showIntroDialog = true
+                resetActivityTimer()
+            }
+        } else null,
     )
 
     val globalTheme = remember(
@@ -1005,6 +1050,22 @@ fun PlayerScreen(
             }
         }
 
+        // Skip intro — only inside a reliable opening interval. It sits above the bottom controls
+        // while they are visible and slides down when they hide, never covering the timeline.
+        val skipButtonBottom by animateDpAsState(
+            targetValue = if (showControls) 128.dp else 36.dp,
+            label = "skipIntroBottom",
+        )
+        val skipDecision = introDecision as? IntroSkipDecision.ShowButton
+        if (skipDecision != null && !isInPip) {
+            SkipIntroButton(
+                onClick = { skipIntro(skipDecision.skipToMs, automatic = false) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 24.dp, bottom = skipButtonBottom),
+            )
+        }
+
         // Next Episode Popup — shown near the end of an episode, independent of showControls, no animation
         if (showNextVideoPopup && nextVideo != null && !isInPip) {
             Box(
@@ -1065,6 +1126,23 @@ fun PlayerScreen(
                 }
             },
             onDismiss = { showCastDialog = false },
+        )
+    }
+
+    if (showIntroDialog && playbackIntro != null) {
+        IntroMarkDialog(
+            currentPositionMs = positionMs,
+            durationMs = durationMs,
+            existing = playbackIntro.candidates.firstOrNull { it.source != IntroSource.ANISKIP },
+            onSave = { start, end, wholeSeries ->
+                onSaveManualIntro(start, end, wholeSeries)
+                showIntroDialog = false
+            },
+            onClear = {
+                onClearManualIntro()
+                showIntroDialog = false
+            },
+            onDismiss = { showIntroDialog = false },
         )
     }
 
