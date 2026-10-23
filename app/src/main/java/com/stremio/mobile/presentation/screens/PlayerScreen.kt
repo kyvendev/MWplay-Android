@@ -88,6 +88,14 @@ import com.stremio.mobile.player.PlayerResizeMode
 import com.stremio.mobile.player.PlayerRuntimeState
 import com.stremio.mobile.player.PlayerSubtitleStyle
 import com.stremio.mobile.player.PlayerTrackOption
+import com.stremio.mobile.player.intro.IntroSkipDecision
+import com.stremio.mobile.player.intro.IntroSkipPolicy
+import com.stremio.mobile.player.intro.IntroSkipSettings
+import com.stremio.mobile.player.intro.IntroSkipTracker
+import com.stremio.mobile.player.intro.IntroSource
+import com.stremio.mobile.player.intro.PlaybackIntro
+import com.stremio.mobile.presentation.screens.player.IntroMarkDialog
+import com.stremio.mobile.presentation.screens.player.SkipIntroButton
 import com.stremio.mobile.presentation.screens.player.ClassicPlayerControls
 import com.stremio.mobile.presentation.screens.player.ModernPlayerControls
 import com.stremio.mobile.presentation.screens.player.PlayerControlsActions
@@ -146,6 +154,10 @@ fun PlayerScreen(
     hapticsIntensity: String = "Medium",
     liquidGlassTuning: LiquidGlassTuning = LiquidGlassTuning(),
     loadingInfo: PlaybackLoadingInfo? = null,
+    playbackIntro: PlaybackIntro? = null,
+    introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
+    onSaveManualIntro: (startMs: Long, endMs: Long, wholeSeries: Boolean) -> Unit = { _, _, _ -> },
+    onClearManualIntro: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val runtimeStateHolder = player?.runtimeState?.collectAsState()
@@ -307,6 +319,29 @@ fun PlayerScreen(
         player?.seekTo(pos)
         onSeekReported(pos, durationMs)
         lastSilentSeekMs = System.currentTimeMillis()
+    }
+
+    // Skip intro: decided from the position updates this screen already receives. Skipping is a
+    // seek on the same player, so tracks, subtitles and the EXO -> VLC -> MPV fallback are untouched.
+    val introTracker = remember { IntroSkipTracker() }
+    introTracker.bind(playbackIntro?.ref?.episodeKey)
+    var introSkipVersion by remember { mutableIntStateOf(0) }
+    var showIntroDialog by remember { mutableStateOf(false) }
+    val selectedIntro = remember(playbackIntro, durationMs) {
+        playbackIntro?.let { IntroSkipPolicy.select(it.candidates, durationMs) }
+    }
+    val introDecision = remember(positionMs, durationMs, selectedIntro, introSkipSettings, introSkipVersion) {
+        introTracker.decide(positionMs, durationMs, selectedIntro, introSkipSettings)
+    }
+
+    fun skipIntro(toMs: Long, automatic: Boolean) {
+        if (!introTracker.markSkipped(automatic)) return
+        introSkipVersion++
+        if (automatic) seekToSilently(toMs) else seekTo(toMs)
+    }
+
+    LaunchedEffect(introDecision) {
+        (introDecision as? IntroSkipDecision.AutoSkip)?.let { skipIntro(it.skipToMs, automatic = true) }
     }
 
     LaunchedEffect(player, activeUri) {
@@ -680,6 +715,13 @@ fun PlayerScreen(
             resetActivityTimer()
         },
         onPlayNext = onPlayNext,
+        // Episodes only: lets the user mark the opening where no automatic data exists.
+        onMarkIntro = if (playbackIntro != null) {
+            {
+                showIntroDialog = true
+                resetActivityTimer()
+            }
+        } else null,
     )
 
     val globalTheme = remember(
@@ -737,10 +779,20 @@ fun PlayerScreen(
                         android.view.KeyEvent.KEYCODE_MEDIA_NEXT -> PlayerRemoteKey.NEXT
                         else -> PlayerRemoteKey.OTHER
                     }
+                    // While "Pular abertura" shows over hidden controls, OK skips (like streaming apps).
+                    val skipOffer = introDecision as? IntroSkipDecision.ShowButton
+                    if (skipOffer != null && !showControls && remoteKey == PlayerRemoteKey.ACTIVATE &&
+                        event.type == KeyEventType.KeyDown && nativeEvent.repeatCount == 0 &&
+                        !showAudioDialog && !showSubtitleDialog && !showIntroDialog
+                    ) {
+                        consumedWakeKey = nativeEvent.keyCode
+                        skipIntro(skipOffer.skipToMs, automatic = false)
+                        return@onPreviewKeyEvent true
+                    }
                     when (playerRemoteAction(
                         key = remoteKey,
                         controlsVisible = showControls,
-                        overlayVisible = showAudioDialog || showSubtitleDialog || showFatalPlaybackError,
+                        overlayVisible = showAudioDialog || showSubtitleDialog || showIntroDialog || showFatalPlaybackError,
                         isKeyDown = event.type == KeyEventType.KeyDown,
                         isRepeat = nativeEvent.repeatCount > 0,
                         hasNextVideo = nextVideo != null,
@@ -1058,6 +1110,19 @@ fun PlayerScreen(
             }
         }
 
+        // Skip intro — only inside a reliable opening interval. Above the controls while they are
+        // visible (reachable with the D-pad there), lower when they hide; OK skips then.
+        val skipDecision = introDecision as? IntroSkipDecision.ShowButton
+        if (skipDecision != null) {
+            SkipIntroButton(
+                onClick = { skipIntro(skipDecision.skipToMs, automatic = false) },
+                showOkHint = !showControls,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 38.dp, bottom = if (showControls) 150.dp else 48.dp),
+            )
+        }
+
         // Next Episode Popup — shown near the end of an episode, independent of showControls, no animation
         if (showNextVideoPopup && nextVideo != null) {
             Box(
@@ -1083,6 +1148,23 @@ fun PlayerScreen(
         )
     }
 }
+
+    if (showIntroDialog && playbackIntro != null) {
+        IntroMarkDialog(
+            currentPositionMs = positionMs,
+            durationMs = durationMs,
+            existing = playbackIntro.candidates.firstOrNull { it.source != IntroSource.ANISKIP },
+            onSave = { start, end, wholeSeries ->
+                onSaveManualIntro(start, end, wholeSeries)
+                showIntroDialog = false
+            },
+            onClear = {
+                onClearManualIntro()
+                showIntroDialog = false
+            },
+            onDismiss = { showIntroDialog = false },
+        )
+    }
 
     // Audio Tracks Dialogue
     if (showAudioDialog) {

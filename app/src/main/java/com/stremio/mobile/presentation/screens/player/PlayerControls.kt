@@ -89,6 +89,8 @@ class PlayerControlsActions(
     val onDecreaseVolume: () -> Unit = {},
     val onIncreaseVolume: () -> Unit = {},
     val onPlayNext: () -> Unit = {},
+    /** Opens "Marcar abertura"; null for movies. */
+    val onMarkIntro: (() -> Unit)? = null,
 )
 
 @Composable
@@ -146,6 +148,7 @@ private fun TvPlayerControls(state: PlayerControlsState, actions: PlayerControls
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (state.canSelectSubtitles) TvIconButton(Icons.Outlined.Subtitles, "Legendas", 50, actions.onShowSubtitles)
                     if (state.canSelectAudio) TvIconButton(Icons.Outlined.Audiotrack, "Áudio", 50, actions.onShowAudio)
+                    actions.onMarkIntro?.let { TvIconButton(Icons.Outlined.SkipNext, "Marcar abertura", 50, it) }
                     if (state.canPlayNext) TvIconButton(Icons.Outlined.SkipNext, "Próximo episódio", 50, actions.onPlayNext)
                     TvTextButton(resizeLabel(state.resizeMode), Icons.Outlined.AspectRatio, actions.onCycleAspect)
                     if (state.hasInfoHash) TvIconButton(Icons.Outlined.Info, "Informações", 50, actions.onToggleStats)

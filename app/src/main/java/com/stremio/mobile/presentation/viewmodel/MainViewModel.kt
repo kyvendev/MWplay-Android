@@ -16,6 +16,11 @@ import com.stremio.mobile.data.model.*
 import com.stremio.mobile.data.repository.*
 import com.stremio.mobile.data.settings.FirstRunDefaults
 import com.stremio.mobile.data.settings.serverSettingsPayload
+import com.stremio.mobile.player.intro.EpisodeRef
+import com.stremio.mobile.player.intro.IntroSkipSettings
+import com.stremio.mobile.player.intro.IntroSource
+import com.stremio.mobile.player.intro.IntroTimestampRepository
+import com.stremio.mobile.player.intro.PlaybackIntro
 import com.stremio.mobile.player.PlaybackState
 import com.stremio.mobile.player.ExternalSubtitle
 import com.stremio.mobile.player.LanguageCatalog
@@ -1491,7 +1496,54 @@ class MainViewModel(
             playerOpen.value = true
             observeAddonSubtitlesForPlayback()
             startHealthWatch(option)
+            loadIntroForCurrentEpisode()
         }
+    }
+
+    // region skip intro ---------------------------------------------------------------------
+
+    private val introRepository = IntroTimestampRepository(appContext)
+    private var introJob: Job? = null
+
+    /** "Pular abertura" preferences, shown in Ajustes > Player. */
+    val introSkipSettings: StateFlow<IntroSkipSettings> = introRepository.settings
+
+    private val _playbackIntro = MutableStateFlow<PlaybackIntro?>(null)
+
+    /** Opening candidates for the episode on screen; null for movies or before lookup. */
+    val playbackIntro: StateFlow<PlaybackIntro?> = _playbackIntro
+
+    fun updateIntroSkipSettings(settings: IntroSkipSettings) = introRepository.updateSettings(settings)
+
+    private fun currentEpisodeRef(): EpisodeRef? {
+        val current = streams.value
+        val item = current.forItem ?: return null
+        return EpisodeRef.of(item.type, item.id, current.selectedVideoId ?: item.continueWatchingVideoId)
+    }
+
+    /** Each playback starts clean, so a previous episode's opening never carries over. */
+    private fun loadIntroForCurrentEpisode() {
+        introJob?.cancel()
+        val ref = currentEpisodeRef()
+        _playbackIntro.value = ref?.let { PlaybackIntro(it, emptyList()) }
+        if (ref == null) return
+        introJob = viewModelScope.launch {
+            val candidates = runCatching { introRepository.candidates(ref) }.getOrDefault(emptyList())
+            if (_playbackIntro.value?.ref == ref) _playbackIntro.value = PlaybackIntro(ref, candidates)
+        }
+    }
+
+    /** Saves an opening marked by the user in the player. */
+    fun saveManualIntro(startMs: Long, endMs: Long, wholeSeries: Boolean) {
+        val ref = _playbackIntro.value?.ref ?: return
+        introRepository.saveManual(ref, startMs, endMs, wholeSeries)
+        _playbackIntro.value = PlaybackIntro(ref, introRepository.manual(ref) + _playbackIntro.value!!.candidates.filter { it.source == IntroSource.ANISKIP })
+    }
+
+    fun clearManualIntro() {
+        val ref = _playbackIntro.value?.ref ?: return
+        introRepository.clearManual(ref)
+        _playbackIntro.value = PlaybackIntro(ref, _playbackIntro.value!!.candidates.filter { it.source == IntroSource.ANISKIP })
     }
 
     private fun streamRequiresLocalServer(option: StreamOption): Boolean {
@@ -1521,6 +1573,8 @@ class MainViewModel(
         noSeedsPollJob?.cancel()
         noSeedsPollJob = null
         playbackRepository.release()
+        introJob?.cancel()
+        _playbackIntro.value = null
         playerOpen.value = false
         nextVideo.value = null
         showNextVideoPopup.value = false
