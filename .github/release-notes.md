@@ -1,11 +1,10 @@
-MW Play **TV 1.2.0**, desenvolvido para Android TV e Google TV.
+MW Play **TV 1.3.0**, desenvolvido para Android TV e Google TV.
 
 ## Novidades
 
-- Configurações com controle remoto: nos ajustes de valor, como a transparência do vidro, ↑ e ↓ agora apenas navegam entre as opções e não alteram mais o valor.
-- Nesses ajustes, ← e → diminuem e aumentam o valor em passos de 5%, sem prender o foco.
-- Player: os controles de áudio passaram a ter ícones distintos para Silenciar/Ativar som, Diminuir volume (−) e Aumentar volume (+), em vez de três alto-falantes parecidos.
-- O botão de silenciar mostra o estado atual do som: alto-falante normal ou cortado quando está mudo.
+- **Nova abertura animada:** ao abrir o app, uma esfera de luz violeta desenha um anel, revela o símbolo de play e apresenta o logo MW Play. Ela não atrasa o carregamento e aparece só ao abrir o app.
+- Durante a abertura, o controle remoto não mexe na tela que está carregando por baixo. O botão **OK** pula a abertura, e ao terminar o foco fica na tela inicial normalmente.
+- **Configurações padrão na primeira instalação:** idioma da interface e do áudio em português, legendas em português do Brasil, cache do servidor de 5 GB, conexões no modo "Ultra rápido" e seeding desativado. Quem já usa o MW Play mantém as próprias configurações.
 
 ## Instalação
 
@@ -13,4 +12,4 @@ Baixe um APK **MW-Play-TV** compatível com seu aparelho. Use o arquivo **univer
 
 Os APKs são assinados com a chave original do projeto. O arquivo SHA256SUMS acompanha os downloads.
 
-A versão para celulares e tablets é distribuída separadamente como **MW Play Mobile 1.2.0**.
+A versão para celulares e tablets é distribuída separadamente como **MW Play Mobile 1.3.0**.
