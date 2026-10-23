@@ -137,7 +137,7 @@ Nenhum desses aparelhos foi testado fisicamente; veja "Próximas etapas".
 
 ## Testes
 
-`npm test` roda 58 testes (Vitest + jsdom):
+`npm test` roda 103 testes (Vitest + jsdom):
 
 - **Lógica (sem mocks):** classificação de fontes, detecção HLS/DASH, deep links do Descobrir,
   SRT→WebVTT, gêneros/elenco/IMDb, rotas, regras de setas (sliders não mudam valor com ↑/↓),
@@ -234,3 +234,12 @@ O Chromium recente também toca HLS nativamente, mas sem expor faixas de áudio 
 o hls.js é usado sempre que o navegador suporta MSE; o HLS nativo fica para o Safari (que expõe as
 faixas) e para navegadores sem MSE. No modo TV, o controle deslizante de volume fica oculto (o
 controle remoto tem volume próprio e o slider prenderia ←/→ na barra).
+
+## Paridade com os apps (MW Play 1.3)
+
+- **Histórico de buscas:** a busca vazia mostra as buscas recentes (até 20, só neste navegador), com um X para remover cada uma.
+- **Aba TV:** catálogos de tipo "tv" dos addons, abrindo no catálogo do Best Cine quando existir; outros addons de TV aparecem no filtro de catálogo. "TV" saiu dos tipos do Descobrir.
+- **Continuar assistindo:** clicar retoma no servidor usado da última vez (num episódio novo, no mesmo servidor do anterior); segurar, clique direito ou segurar o OK abre "Detalhes" e "Excluir da lista". Só dados que identificam a fonte são lembrados, nunca a URL do vídeo.
+- **Pular abertura:** mesmas regras dos apps. Tempos marcados por você ("Marcar abertura" no player, para o episódio ou a série) ou da AniSkip para animes com IDs Kitsu/MAL, aceitos só quando a duração bate com o vídeo. Ajustes > Pular abertura: ativar, manual ou automático, exibir botão. No modo TV, com os controles escondidos, o OK pula.
+- **Transmitir:** Chromecast/Smart TV (Chrome/Edge) ou AirPlay (Safari) pelo seletor do navegador; no Android, "Web Video Caster" ou outro app (VLC, MX Player…) por intent; "Copiar link do vídeo"; e as instruções de espelhamento. Endereços locais e fontes que exigem cabeçalhos próprios não são enviados para outros apps.
+- **Traduções:** tipos, nomes de catálogos, títulos das prateleiras e gêneros em português.

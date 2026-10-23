@@ -2,6 +2,7 @@ import type { UiPreference } from '../../app/uiMode';
 import { LogoutIcon } from '../../components/icons';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { APP_VERSION } from '../../shared/config';
+import { useIntroSettings } from '../player/introSkip';
 
 const SUBTITLE_LANGUAGES: { value: string | null; label: string }[] = [
   { value: null, label: 'Nenhum' },
@@ -19,13 +20,14 @@ export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: U
   const { core } = useCore();
   const ctx = useCoreState('ctx');
   const settings = ctx?.profile.settings;
+  const [intro, setIntro] = useIntroSettings();
   const update = (patch: Partial<NonNullable<typeof settings>>) => {
     if (settings) core.updateSettings({ ...settings, ...patch });
   };
 
   return (
     <main className="page">
-      <h1 className="page-title">Configurações</h1>
+      <h1 className="page-title">Ajustes</h1>
       <div className="settings">
         <section className="settings__card" aria-label="Conta">
           <div className="settings__row">
@@ -77,6 +79,49 @@ export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: U
             </div>
           </section>
         )}
+
+        <section className="settings__card" aria-label="Pular abertura">
+          <div className="settings__row">
+            <label htmlFor="intro-enabled">Pular abertura</label>
+            <input
+              id="intro-enabled"
+              type="checkbox"
+              className="toggle focusable"
+              checked={intro.enabled}
+              onChange={(event) => setIntro({ ...intro, enabled: event.target.checked })}
+            />
+          </div>
+          {intro.enabled && (
+            <>
+              <div className="settings__row">
+                <label htmlFor="intro-mode">Como pular</label>
+                <select
+                  id="intro-mode"
+                  className="select focusable"
+                  value={intro.autoSkip ? 'auto' : 'manual'}
+                  onChange={(event) => setIntro({ ...intro, autoSkip: event.target.value === 'auto' })}
+                >
+                  <option value="manual">Manual (botão)</option>
+                  <option value="auto">Automático</option>
+                </select>
+              </div>
+              <div className="settings__row">
+                <label htmlFor="intro-button">Exibir botão durante a abertura</label>
+                <input
+                  id="intro-button"
+                  type="checkbox"
+                  className="toggle focusable"
+                  checked={intro.showButton}
+                  onChange={(event) => setIntro({ ...intro, showButton: event.target.checked })}
+                />
+              </div>
+            </>
+          )}
+          <p className="settings__hint">
+            Em séries e animes com o tempo da abertura conhecido (AniSkip ou marcado por você no player, em "Marcar abertura"). No automático, a abertura é pulada uma vez
+            por episódio, só quando o tempo é confiável.
+          </p>
+        </section>
 
         <section className="settings__card" aria-label="Sobre">
           <div className="settings__row">

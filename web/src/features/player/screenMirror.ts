@@ -100,3 +100,62 @@ export function mirrorGuides(platform: MirrorPlatform): MirrorGuide[] {
   const first = platform === 'other' ? [] : [platform];
   return [...first, ...order.filter((item) => item !== platform)].map((item) => GUIDES[item]);
 }
+
+// region other apps (Web Video Caster, VLC…) ---------------------------------------------------
+
+export const WEB_VIDEO_CASTER_PACKAGE = 'com.instantbits.cast.webvideo';
+
+/**
+ * Only remote http(s) URLs may go to another app or device: never local addresses, files or
+ * torrents (same rule as the Android Cast integration).
+ */
+export function isCastableUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+  const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  return !(host === 'localhost' || host === '::1' || host.endsWith('.localhost') || /^127\./.test(host) || host === '0.0.0.0');
+}
+
+function mimeFor(url: string): string {
+  const path = url.split(/[?#]/)[0].toLowerCase();
+  if (path.endsWith('.m3u8')) return 'application/x-mpegURL';
+  if (path.endsWith('.mpd')) return 'application/dash+xml';
+  return 'video/*';
+}
+
+/**
+ * Android Chrome intent that opens the video in another app: a specific one (Web Video Caster,
+ * with the Play Store as fallback) or the system chooser.
+ */
+export function androidIntentUrl(url: string, title: string, packageName?: string): string {
+  const parsed = new URL(url);
+  const scheme = parsed.protocol.replace(':', '');
+  const rest = url.slice(url.indexOf('://') + 3);
+  const parts = [`intent://${rest}#Intent`, `scheme=${scheme}`, 'action=android.intent.action.VIEW', `type=${mimeFor(url)}`, `S.title=${encodeURIComponent(title)}`];
+  if (packageName) {
+    parts.push(`package=${packageName}`, `S.browser_fallback_url=${encodeURIComponent(`https://play.google.com/store/apps/details?id=${packageName}`)}`);
+  }
+  return `${parts.join(';')};end`;
+}
+
+export interface CastOptions {
+  /** Browser picker: Chromecast / Google TV (Remote Playback) or AirPlay. */
+  picker: 'remote' | 'airplay' | null;
+  /** Android apps through intents. */
+  androidApps: boolean;
+  /** Copying the link for any casting app. */
+  copyLink: boolean;
+}
+
+export function castOptions(video: MirrorVideo | null, platform: MirrorPlatform, url: string | null, needsHeaders: boolean): CastOptions {
+  const picker = typeof video?.webkitShowPlaybackTargetPicker === 'function' ? 'airplay' : video?.remote && typeof video.remote.prompt === 'function' ? 'remote' : null;
+  // Sources that need the addon's own HTTP headers only play inside MW Play.
+  const external = isCastableUrl(url) && !needsHeaders;
+  return { picker, androidApps: external && platform === 'android', copyLink: external };
+}

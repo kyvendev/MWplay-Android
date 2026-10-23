@@ -462,3 +462,79 @@ html[data-ui='tv'] .subs-panel__local {
 html[data-ui='tv'] .player__volume {
   display: none;
 }
+
+/* ---------- Skip intro ---------- */
+
+.player__skip {
+  position: absolute;
+  z-index: 3;
+  right: calc(var(--safe-right) + 1.5rem);
+  bottom: calc(var(--safe-bottom) + 2.25rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 3rem;
+  padding: 0 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(20, 20, 34, 0.9);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  transition: bottom 180ms ease;
+}
+
+.player__skip svg {
+  width: 1.3rem;
+  height: 1.3rem;
+  color: var(--accent, #8a63ff);
+  fill: currentColor;
+}
+
+/* Above the bottom controls while they are visible; never over the timeline. */
+.player__skip--raised {
+  bottom: calc(var(--safe-bottom) + 8.5rem);
+}
+
+.player__skip-ok {
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  background: #fff;
+  color: #141422;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.intro-mark__series {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: var(--touch);
+  padding: 0 0.25rem;
+  border-radius: var(--radius-md);
+}
+
+.intro-mark__series input {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: #8a63ff;
+}
+
+.intro-mark__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.cast-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cast-option svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}

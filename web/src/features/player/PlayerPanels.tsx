@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { FileIcon } from '../../components/icons';
+import { CastIcon, FileIcon, SkipIntroIcon } from '../../components/icons';
 import { Modal, OptionList } from '../../components/Modal';
 import type { ProfileSettings } from '../../services/stremio/types';
 import {
@@ -15,7 +15,8 @@ import {
   SUBTITLE_SIZE,
   type SubtitleOption,
 } from './playerOptions';
-import type { MirrorGuide } from './screenMirror';
+import { isReliable, type IntroInterval } from './introSkip';
+import type { CastOptions, MirrorGuide } from './screenMirror';
 import type { TrackOption } from './videoEngine';
 
 const CUE_POLL_MS = 100;
@@ -275,6 +276,140 @@ export function MirrorPanel({ guides, onClose }: { guides: MirrorGuide[]; onClos
       <button type="button" className="button button--primary focusable" onClick={onClose}>
         Entendi
       </button>
+    </Modal>
+  );
+}
+
+/** Dark pill with a purple skip icon; on TV mode an "OK" badge shows OK skips directly. */
+export function SkipIntroButton({ onSkip, showOkHint, raised }: { onSkip: () => void; showOkHint: boolean; raised: boolean }) {
+  return (
+    <button type="button" className={`player__skip focusable ${raised ? 'player__skip--raised' : ''}`} onClick={onSkip}>
+      <SkipIntroIcon aria-hidden="true" />
+      Pular abertura
+      {showOkHint && <span className="player__skip-ok" aria-hidden="true">OK</span>}
+    </button>
+  );
+}
+
+function formatClock(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+  const seconds = String(total % 60).padStart(2, '0');
+  return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
+}
+
+/** Marks the opening with the current playback position, for this episode or the whole series. */
+export function IntroMarkPanel({
+  positionMs,
+  durationMs,
+  existing,
+  onSave,
+  onClear,
+  onClose,
+}: {
+  positionMs: number;
+  durationMs: number;
+  existing: IntroInterval | null;
+  onSave: (startMs: number, endMs: number, wholeSeries: boolean) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const [startMs, setStartMs] = useState<number | null>(existing?.startMs ?? null);
+  const [endMs, setEndMs] = useState<number | null>(existing?.endMs ?? null);
+  const [wholeSeries, setWholeSeries] = useState(existing?.source === 'manual-series');
+  const candidate = startMs !== null && endMs !== null ? { startMs, endMs, source: 'manual-episode' as const } : null;
+  const valid = candidate !== null && isReliable(candidate, durationMs);
+  return (
+    <Modal title="Marcar abertura" onClose={onClose}>
+      <p className="settings__hint" style={{ margin: 0 }}>Use a posição atual do vídeo para marcar o início e o fim da abertura.</p>
+      <button type="button" className="button focusable" onClick={() => setStartMs(positionMs)}>
+        Início: {startMs !== null ? formatClock(startMs) : '—'} · marcar em {formatClock(positionMs)}
+      </button>
+      <button type="button" className="button focusable" onClick={() => setEndMs(positionMs)}>
+        Fim: {endMs !== null ? formatClock(endMs) : '—'} · marcar em {formatClock(positionMs)}
+      </button>
+      <label className="intro-mark__series focusable">
+        <input type="checkbox" checked={wholeSeries} onChange={(event) => setWholeSeries(event.target.checked)} />
+        Usar em todos os episódios desta série
+      </label>
+      {candidate && !valid && <p className="subs-panel__error">A abertura precisa ter entre 5 segundos e 4 minutos, com o fim depois do início.</p>}
+      <div className="intro-mark__actions">
+        {existing && (
+          <button type="button" className="button focusable" onClick={onClear}>
+            Remover marcação
+          </button>
+        )}
+        <button type="button" className="button focusable" onClick={onClose}>
+          Cancelar
+        </button>
+        <button type="button" className="button button--primary focusable" disabled={!valid} onClick={() => candidate && onSave(candidate.startMs, candidate.endMs, wholeSeries)}>
+          Salvar
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Ways to watch on another screen: browser picker, other apps (Android), link, mirroring. */
+export function CastPanel({
+  options,
+  onPicker,
+  onWebVideoCaster,
+  onOtherApp,
+  onCopyLink,
+  onMirror,
+  onClose,
+}: {
+  options: CastOptions;
+  onPicker: () => void;
+  onWebVideoCaster: () => void;
+  onOtherApp: () => void;
+  onCopyLink: () => Promise<boolean>;
+  onMirror: () => void;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null);
+  return (
+    <Modal title="Transmitir" onClose={onClose}>
+      <div className="list">
+        {options.picker && (
+          <button type="button" className="option focusable" onClick={onPicker}>
+            <span className="cast-option">
+              <CastIcon aria-hidden="true" />
+              {options.picker === 'airplay' ? 'AirPlay (Apple TV e TVs compatíveis)' : 'Chromecast ou Smart TV'}
+            </span>
+          </button>
+        )}
+        {options.androidApps && (
+          <>
+            <button type="button" className="option focusable" onClick={onWebVideoCaster}>
+              <span className="cast-option">Web Video Caster</span>
+              <span className="option__meta">abre o app</span>
+            </button>
+            <button type="button" className="option focusable" onClick={onOtherApp}>
+              <span className="cast-option">Outro app (VLC, MX Player…)</span>
+            </button>
+          </>
+        )}
+        {options.copyLink && (
+          <button
+            type="button"
+            className="option focusable"
+            onClick={() => {
+              onCopyLink().then((ok) => setCopied(ok ? 'ok' : 'failed'));
+            }}
+          >
+            <span className="cast-option">Copiar link do vídeo</span>
+          </button>
+        )}
+        <button type="button" className="option focusable" onClick={onMirror}>
+          <span className="cast-option">Espelhar a tela inteira</span>
+        </button>
+      </div>
+      {copied === 'ok' && <p className="settings__hint">Link copiado. Cole no Web Video Caster ou em outro app de transmissão.</p>}
+      {copied === 'failed' && <p className="subs-panel__error">Não foi possível copiar o link neste navegador.</p>}
+      {!options.copyLink && <p className="settings__hint">Esta fonte só toca dentro do MW Play; use o espelhamento da tela.</p>}
     </Modal>
   );
 }

@@ -148,7 +148,8 @@ describe('player options', () => {
     await act(async () => {});
     const prompt = vi.fn(() => Promise.resolve());
     Object.defineProperty(view.container.querySelector('video')!, 'remote', { value: { prompt }, configurable: true });
-    fireEvent.click(screen.getByRole('button', { name: 'Transmitir ou espelhar na TV' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Transmitir' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chromecast ou Smart TV' }));
     await act(async () => {});
     expect(prompt).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog', { name: 'Espelhar na TV' })).toBeNull();
@@ -157,12 +158,66 @@ describe('player options', () => {
   it('explains how to mirror the screen when the browser cannot send the video', async () => {
     mount(readyPlayer());
     await act(async () => {});
-    fireEvent.click(screen.getByRole('button', { name: 'Transmitir ou espelhar na TV' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Transmitir' }));
+    // No picker in this browser: the options are another app (Android only), the link or mirroring.
+    expect(screen.queryByRole('button', { name: 'Chromecast ou Smart TV' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Espelhar a tela inteira' }));
     await act(async () => {});
     const dialog = screen.getByRole('dialog', { name: 'Espelhar na TV' });
     expect(dialog.textContent).toContain('Transmitir');
     fireEvent.click(screen.getByRole('button', { name: 'Entendi' }));
     expect(screen.queryByRole('dialog', { name: 'Espelhar na TV' })).toBeNull();
+  });
+
+  it('offers Web Video Caster and other apps on Android, and copies the video link', async () => {
+    const userAgent = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent')!;
+    Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/130', configurable: true });
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    try {
+      mount(readyPlayer());
+      await act(async () => {});
+      fireEvent.click(screen.getByRole('button', { name: 'Transmitir' }));
+      expect(screen.getByRole('button', { name: /Web Video Caster/ })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Outro app/ })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Copiar link do vídeo' }));
+      await act(async () => {});
+      expect(writeText).toHaveBeenCalledWith(stream.url);
+      expect(screen.getByText(/Link copiado/)).toBeTruthy();
+    } finally {
+      delete (navigator as unknown as Record<string, unknown>).userAgent;
+      Object.defineProperty(Navigator.prototype, 'userAgent', userAgent);
+    }
+  });
+
+  it('shows "Pular abertura" only inside a marked opening and skips to its end', async () => {
+    const episodeRequest = { ...request, streamRequest: { ...request.streamRequest, path: { ...request.streamRequest.path, type: 'series', id: 'tt1:1:1' } }, returnTo: { type: 'series', id: 'tt1', videoId: 'tt1:1:1' } };
+    localStorage.setItem('mwplay.web.introMarks', JSON.stringify({ 'e:series|tt1|tt1:1:1': [60_000, 150_000] }));
+    setPlaybackRequest(episodeRequest);
+    const fake = createFakeCore({ ctx: ctxFixture(true), player: { ...readyPlayer(), selected: { stream, streamRequest: episodeRequest.streamRequest, metaRequest: request.metaRequest, subtitlesPath: null } } });
+    const view = render(
+      <CoreProvider core={fake.core}>
+        <PlayerPage />
+      </CoreProvider>,
+    );
+    await act(async () => {});
+    const videoElement = view.container.querySelector('video')!;
+    let current = 30;
+    Object.defineProperty(videoElement, 'duration', { value: 1440, configurable: true });
+    Object.defineProperty(videoElement, 'currentTime', { get: () => current, set: (value: number) => (current = value), configurable: true });
+    fireEvent(videoElement, new Event('durationchange'));
+    fireEvent(videoElement, new Event('timeupdate'));
+    expect(screen.queryByRole('button', { name: /Pular abertura/ })).toBeNull();
+
+    current = 70;
+    fireEvent(videoElement, new Event('timeupdate'));
+    fireEvent.click(await screen.findByRole('button', { name: /Pular abertura/ }));
+    expect(current).toBe(150);
+    expect(screen.queryByRole('button', { name: /Pular abertura/ })).toBeNull();
+    await act(async () => {});
+    const seeks = fake.dispatched.map((entry) => entry.action as { action: string; args?: { action?: string; args?: { time?: number } } }).filter((action) => action.args?.action === 'Seek');
+    expect(seeks.at(-1)?.args?.args?.time).toBe(150_000);
+    localStorage.clear();
   });
 
   it('restores the saved speed and saves changes merged into the stream state', async () => {

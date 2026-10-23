@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import { useBackHandler } from '../../app/back';
-import { AspectIcon, AudioIcon, BackIcon, CastIcon, ForwardIcon, FullscreenIcon, MuteIcon, NextIcon, PauseIcon, PlayIcon, RewindIcon, SpeedIcon, SubtitlesIcon, VolumeIcon } from '../../components/icons';
+import { AspectIcon, AudioIcon, BackIcon, CastIcon, ForwardIcon, FullscreenIcon, MuteIcon, NextIcon, PauseIcon, PlayIcon, RewindIcon, SkipIntroIcon, SpeedIcon, SubtitlesIcon, VolumeIcon } from '../../components/icons';
 import { Spinner } from '../../components/States';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { srtToVtt, streamKind } from '../../services/stremio/streams';
@@ -9,8 +9,20 @@ import type { Player, Stream, StreamState, Subtitles } from '../../services/stre
 import { PROGRESS_REPORT_INTERVAL_MS } from '../../shared/config';
 import { getPlaybackRequest, type PlaybackRequest } from './playbackRequest';
 import { findNext, focusElement, type Direction } from '../tv/spatialNav';
-import { AudioPanel, MirrorPanel, SubtitleOverlay, SubtitlesPanel } from './PlayerPanels';
-import { detectMirrorPlatform, mirrorGuides, startMirroring, type MirrorVideo } from './screenMirror';
+import { AudioPanel, CastPanel, IntroMarkPanel, MirrorPanel, SkipIntroButton, SubtitleOverlay, SubtitlesPanel } from './PlayerPanels';
+import { androidIntentUrl, castOptions, detectMirrorPlatform, mirrorGuides, startMirroring, WEB_VIDEO_CASTER_PACKAGE, type MirrorVideo } from './screenMirror';
+import {
+  clearManualIntervals,
+  episodeRef,
+  introCandidates,
+  IntroSkipTracker,
+  manualIntervals,
+  saveManualInterval,
+  selectInterval,
+  useIntroSettings,
+  type IntroDecision,
+  type IntroInterval,
+} from './introSkip';
 import {
   ASPECT_MODES,
   formatSpeed,
@@ -77,7 +89,7 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
   const [volume, setVolume] = useState(1);
   const [controls, setControls] = useState(true);
   const [error, setError] = useState<EngineError | null>(null);
-  const [menu, setMenu] = useState<'audio' | 'subtitles' | 'mirror' | null>(null);
+  const [menu, setMenu] = useState<'audio' | 'subtitles' | 'mirror' | 'cast' | 'intro' | null>(null);
   const [tracksVersion, setTracksVersion] = useState(0);
   const [externalSubtitle, setExternalSubtitle] = useState<{ id: string; src: string } | null>(null);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
@@ -220,6 +232,56 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
     navigate({ name: 'detail', type: back.type, id: back.id, videoId: back.videoId }, { replace: true });
   }, [request]);
 
+  // Skip intro: decided from the time updates this screen already receives; skipping is a seek
+  // on the same <video>, so tracks and subtitles stay as they are.
+  const episode = useMemo(
+    () => episodeRef(request.returnTo.type, request.returnTo.id, request.streamRequest?.path.id ?? request.returnTo.videoId),
+    [request],
+  );
+  const [introSettings] = useIntroSettings();
+  const [introList, setIntroList] = useState<IntroInterval[]>([]);
+  const introTracker = useRef(new IntroSkipTracker());
+  introTracker.current.bind(episode);
+  const [introSkipVersion, setIntroSkipVersion] = useState(0);
+  useEffect(() => {
+    setIntroList([]);
+    if (!episode) return;
+    let active = true;
+    introCandidates(episode).then((list) => {
+      if (active) setIntroList(list);
+    });
+    return () => {
+      active = false;
+    };
+  }, [episode]);
+  const introInterval = useMemo(() => selectInterval(introList, duration * 1000), [introList, duration]);
+  const introDecision: IntroDecision = useMemo(
+    () => introTracker.current.decide(time * 1000, duration * 1000, introInterval, introSettings),
+    // introSkipVersion: re-decide right after a skip.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [time, duration, introInterval, introSettings, introSkipVersion],
+  );
+  const skipIntro = useCallback(
+    (toMs: number, automatic: boolean) => {
+      if (!introTracker.current.markSkipped(automatic)) return;
+      setIntroSkipVersion((value) => value + 1);
+      if (!automatic) {
+        seekTo(toMs / 1000);
+        return;
+      }
+      // Automatic skips do not wake the controls.
+      const element = video.current;
+      if (!element || !Number.isFinite(element.duration)) return;
+      element.currentTime = toMs / 1000;
+      setTime(toMs / 1000);
+      core.playerSeek(toMs, element.duration * 1000);
+    },
+    [core, seekTo],
+  );
+  useEffect(() => {
+    if (introDecision.kind === 'auto') skipIntro(introDecision.skipToMs, true);
+  }, [introDecision, skipIntro]);
+
   useBackHandler(() => {
     if (menu) {
       setMenu(null);
@@ -245,6 +307,13 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
       if (key === 'MediaPause') return void video.current?.pause();
       if (key === 'MediaFastForward') return void seekTo((video.current?.currentTime ?? 0) + SEEK_STEP_S);
       if (key === 'MediaRewind') return void seekTo((video.current?.currentTime ?? 0) - SEEK_STEP_S);
+      if (!controls && key === 'Enter' && introDecision.kind === 'button') {
+        // While "Pular abertura" shows over hidden controls, OK skips (like streaming apps).
+        event.preventDefault();
+        event.stopPropagation();
+        skipIntro(introDecision.skipToMs, false);
+        return;
+      }
       if (!controls && (key.startsWith('Arrow') || key === 'Enter')) {
         event.preventDefault();
         event.stopPropagation();
@@ -255,7 +324,7 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [controls, menu, seekTo, showControls, togglePlay]);
+  }, [controls, introDecision, menu, seekTo, showControls, skipIntro, togglePlay]);
 
   // Video element events → UI state and core progress reports.
   useEffect(() => {
@@ -532,12 +601,35 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
     };
   }, [activeSubtitleTrack]);
 
-  // Hands the video to a TV with the browser's own picker, or explains how to mirror the screen.
-  const mirror = () => {
-    showControls();
+  // "Transmitir": browser picker (Chromecast / AirPlay), another app on Android (Web Video
+  // Caster, VLC…), the video link, or mirroring instructions.
+  const platform = detectMirrorPlatform(navigator.userAgent);
+  const castUrl = playableUrl;
+  const proxyHeaders = request.stream.behaviorHints?.proxyHeaders?.request;
+  const needsHeaders = Boolean(proxyHeaders && Object.keys(proxyHeaders).length > 0);
+  const currentCastOptions = castOptions(video.current as MirrorVideo | null, platform, castUrl, needsHeaders);
+  const openPicker = () => {
+    setMenu(null);
     startMirroring(video.current as MirrorVideo | null).then((result) => {
       if (result === 'instructions') setMenu('mirror');
     });
+  };
+  const openInApp = (packageName?: string) => {
+    if (!castUrl) return;
+    // The other app plays it now: stop here so the sound does not play twice.
+    video.current?.pause();
+    setMenu(null);
+    const title = request.subtitle ? request.title + ' — ' + request.subtitle : request.title;
+    window.location.href = androidIntentUrl(castUrl, title, packageName);
+  };
+  const copyLink = async () => {
+    if (!castUrl) return false;
+    try {
+      await navigator.clipboard.writeText(castUrl);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const enterFullscreen = () => {
@@ -703,6 +795,11 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
             <button type="button" className="icon-button focusable" aria-label="Legendas" onClick={() => setMenu('subtitles')}>
               <SubtitlesIcon />
             </button>
+            {episode && (
+              <button type="button" className="icon-button focusable" aria-label="Marcar abertura" title="Marcar abertura" onClick={() => setMenu('intro')}>
+                <SkipIntroIcon />
+              </button>
+            )}
             {audioTracks.length > 0 && (
               <button type="button" className="icon-button focusable" aria-label="Áudio" onClick={() => setMenu('audio')}>
                 <AudioIcon />
@@ -715,7 +812,7 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
                 aria-label="Próximo episódio"
                 onClick={() => {
                   core.playerNextVideo();
-                  navigate({ name: 'detail', type: request.returnTo.type, id: request.returnTo.id, videoId: current.nextVideo!.id }, { replace: true });
+                  navigate({ name: 'detail', type: request.returnTo.type, id: request.returnTo.id, videoId: current.nextVideo!.id, resume: true }, { replace: true });
                 }}
               >
                 <NextIcon />
@@ -733,7 +830,13 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
             >
               <AspectIcon /> {ASPECT_MODES.find((item) => item.mode === aspect)!.label}
             </button>
-            <button type="button" className="icon-button focusable" aria-label="Transmitir ou espelhar na TV" title="Transmitir ou espelhar na TV" onClick={mirror}>
+            <button type="button" className="icon-button focusable" aria-label="Transmitir"
+              title="Transmitir"
+              onClick={() => {
+                showControls();
+                setMenu('cast');
+              }}
+            >
               <CastIcon />
             </button>
             <button type="button" className="icon-button focusable" aria-label="Tela cheia" onClick={enterFullscreen}>
@@ -748,14 +851,53 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
           <button
             type="button"
             className="button button--primary focusable"
-            onClick={() => navigate({ name: 'detail', type: request.returnTo.type, id: request.returnTo.id, videoId: current.nextVideo!.id }, { replace: true })}
+            onClick={() => navigate({ name: 'detail', type: request.returnTo.type, id: request.returnTo.id, videoId: current.nextVideo!.id, resume: true }, { replace: true })}
           >
             <NextIcon /> Próximo episódio
           </button>
         </div>
       )}
 
-      {menu === 'mirror' && <MirrorPanel guides={mirrorGuides(detectMirrorPlatform(navigator.userAgent))} onClose={() => setMenu(null)} />}
+      {introDecision.kind === 'button' && !menu && (
+        <SkipIntroButton
+          raised={controls}
+          showOkHint={!controls && document.documentElement.dataset.ui === 'tv'}
+          onSkip={() => skipIntro(introDecision.skipToMs, false)}
+        />
+      )}
+
+      {menu === 'mirror' && <MirrorPanel guides={mirrorGuides(platform)} onClose={() => setMenu(null)} />}
+
+      {menu === 'cast' && (
+        <CastPanel
+          options={currentCastOptions}
+          onPicker={openPicker}
+          onWebVideoCaster={() => openInApp(WEB_VIDEO_CASTER_PACKAGE)}
+          onOtherApp={() => openInApp()}
+          onCopyLink={copyLink}
+          onMirror={() => setMenu('mirror')}
+          onClose={() => setMenu(null)}
+        />
+      )}
+
+      {menu === 'intro' && episode && (
+        <IntroMarkPanel
+          positionMs={time * 1000}
+          durationMs={duration * 1000}
+          existing={introList.find((item) => item.source !== 'aniskip') ?? null}
+          onSave={(startMs, endMs, wholeSeries) => {
+            saveManualInterval(episode, startMs, endMs, wholeSeries);
+            setIntroList((list) => [...manualIntervals(episode), ...list.filter((item) => item.source === 'aniskip')]);
+            setMenu(null);
+          }}
+          onClear={() => {
+            clearManualIntervals(episode);
+            setIntroList((list) => list.filter((item) => item.source === 'aniskip'));
+            setMenu(null);
+          }}
+          onClose={() => setMenu(null)}
+        />
+      )}
 
       {menu === 'audio' && (
         <AudioPanel
