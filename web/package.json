@@ -1,7 +1,7 @@
 {
   "name": "mw-play-web",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "MW Play for browsers (mobile, desktop and TV), built on the official stremio-core WebAssembly runtime.",
   "type": "module",
   "scripts": {

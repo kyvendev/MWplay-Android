@@ -1,5 +1,5 @@
 /** MW Play release this web build belongs to (same version line as the Android apps). */
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.3.0';
 
 /** Default local streaming server, the same address the Android apps use (StremioCore.STREAMING_SERVER_BASE). */
 export const DEFAULT_STREAMING_SERVER = 'http://127.0.0.1:11470/';
