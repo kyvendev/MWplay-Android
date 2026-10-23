@@ -147,15 +147,14 @@ export function androidIntentUrl(url: string, title: string, packageName?: strin
 export interface CastOptions {
   /** Browser picker: Chromecast / Google TV (Remote Playback) or AirPlay. */
   picker: 'remote' | 'airplay' | null;
-  /** Android apps through intents. */
+  /** Android apps through intents (Web Video Caster, VLC…). */
   androidApps: boolean;
-  /** Copying the link for any casting app. */
-  copyLink: boolean;
 }
 
 export function castOptions(video: MirrorVideo | null, platform: MirrorPlatform, url: string | null, needsHeaders: boolean): CastOptions {
   const picker = typeof video?.webkitShowPlaybackTargetPicker === 'function' ? 'airplay' : video?.remote && typeof video.remote.prompt === 'function' ? 'remote' : null;
-  // Sources that need the addon's own HTTP headers only play inside MW Play.
+  // Sources that need the addon's own HTTP headers only play inside MW Play. The link itself is
+  // never shown or copied: the video goes straight to the TV or the other app.
   const external = isCastableUrl(url) && !needsHeaders;
-  return { picker, androidApps: external && platform === 'android', copyLink: external };
+  return { picker, androidApps: external && platform === 'android' };
 }

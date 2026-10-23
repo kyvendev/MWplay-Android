@@ -60,9 +60,9 @@ describe('other apps', () => {
 
   it('offers apps only on Android and never for sources that need their own headers', () => {
     const url = 'https://cdn.example/v.mp4';
-    expect(castOptions(video({}), 'android', url, false)).toEqual({ picker: null, androidApps: true, copyLink: true });
-    expect(castOptions(video({}), 'windows', url, false)).toEqual({ picker: null, androidApps: false, copyLink: true });
-    expect(castOptions(video({}), 'android', url, true)).toEqual({ picker: null, androidApps: false, copyLink: false });
+    expect(castOptions(video({}), 'android', url, false)).toEqual({ picker: null, androidApps: true });
+    expect(castOptions(video({}), 'windows', url, false)).toEqual({ picker: null, androidApps: false });
+    expect(castOptions(video({}), 'android', url, true)).toEqual({ picker: null, androidApps: false });
     expect(castOptions(video({ remote: { prompt: vi.fn() } }), 'windows', 'http://127.0.0.1/x', false).picker).toBe('remote');
   });
 });

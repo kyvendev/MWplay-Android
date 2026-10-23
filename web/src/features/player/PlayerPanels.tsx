@@ -351,13 +351,12 @@ export function IntroMarkPanel({
   );
 }
 
-/** Ways to watch on another screen: browser picker, other apps (Android), link, mirroring. */
+/** Ways to watch on another screen: browser picker, other apps (Android) or mirroring. */
 export function CastPanel({
   options,
   onPicker,
   onWebVideoCaster,
   onOtherApp,
-  onCopyLink,
   onMirror,
   onClose,
 }: {
@@ -365,11 +364,9 @@ export function CastPanel({
   onPicker: () => void;
   onWebVideoCaster: () => void;
   onOtherApp: () => void;
-  onCopyLink: () => Promise<boolean>;
   onMirror: () => void;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null);
   return (
     <Modal title="Transmitir" onClose={onClose}>
       <div className="list">
@@ -392,24 +389,11 @@ export function CastPanel({
             </button>
           </>
         )}
-        {options.copyLink && (
-          <button
-            type="button"
-            className="option focusable"
-            onClick={() => {
-              onCopyLink().then((ok) => setCopied(ok ? 'ok' : 'failed'));
-            }}
-          >
-            <span className="cast-option">Copiar link do vídeo</span>
-          </button>
-        )}
         <button type="button" className="option focusable" onClick={onMirror}>
           <span className="cast-option">Espelhar a tela inteira</span>
         </button>
       </div>
-      {copied === 'ok' && <p className="settings__hint">Link copiado. Cole no Web Video Caster ou em outro app de transmissão.</p>}
-      {copied === 'failed' && <p className="subs-panel__error">Não foi possível copiar o link neste navegador.</p>}
-      {!options.copyLink && <p className="settings__hint">Esta fonte só toca dentro do MW Play; use o espelhamento da tela.</p>}
+      {!options.picker && !options.androidApps && <p className="settings__hint">Esta fonte só toca dentro do MW Play; use o espelhamento da tela.</p>}
     </Modal>
   );
 }

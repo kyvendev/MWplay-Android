@@ -169,21 +169,17 @@ describe('player options', () => {
     expect(screen.queryByRole('dialog', { name: 'Espelhar na TV' })).toBeNull();
   });
 
-  it('offers Web Video Caster and other apps on Android, and copies the video link', async () => {
+  it('offers Web Video Caster and other apps on Android and never exposes the video link', async () => {
     const userAgent = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent')!;
     Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/130', configurable: true });
-    const writeText = vi.fn(() => Promise.resolve());
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     try {
       mount(readyPlayer());
       await act(async () => {});
       fireEvent.click(screen.getByRole('button', { name: 'Transmitir' }));
       expect(screen.getByRole('button', { name: /Web Video Caster/ })).toBeTruthy();
       expect(screen.getByRole('button', { name: /Outro app/ })).toBeTruthy();
-      fireEvent.click(screen.getByRole('button', { name: 'Copiar link do vídeo' }));
-      await act(async () => {});
-      expect(writeText).toHaveBeenCalledWith(stream.url);
-      expect(screen.getByText(/Link copiado/)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /Copiar link/ })).toBeNull();
+      expect(document.body.textContent).not.toContain(stream.url);
     } finally {
       delete (navigator as unknown as Record<string, unknown>).userAgent;
       Object.defineProperty(Navigator.prototype, 'userAgent', userAgent);

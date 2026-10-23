@@ -602,7 +602,7 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
   }, [activeSubtitleTrack]);
 
   // "Transmitir": browser picker (Chromecast / AirPlay), another app on Android (Web Video
-  // Caster, VLC…), the video link, or mirroring instructions.
+  // Caster, VLC…) or mirroring instructions. The video link is never shown or copied.
   const platform = detectMirrorPlatform(navigator.userAgent);
   const castUrl = playableUrl;
   const proxyHeaders = request.stream.behaviorHints?.proxyHeaders?.request;
@@ -621,15 +621,6 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
     setMenu(null);
     const title = request.subtitle ? request.title + ' — ' + request.subtitle : request.title;
     window.location.href = androidIntentUrl(castUrl, title, packageName);
-  };
-  const copyLink = async () => {
-    if (!castUrl) return false;
-    try {
-      await navigator.clipboard.writeText(castUrl);
-      return true;
-    } catch {
-      return false;
-    }
   };
 
   const enterFullscreen = () => {
@@ -874,7 +865,6 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
           onPicker={openPicker}
           onWebVideoCaster={() => openInApp(WEB_VIDEO_CASTER_PACKAGE)}
           onOtherApp={() => openInApp()}
-          onCopyLink={copyLink}
           onMirror={() => setMenu('mirror')}
           onClose={() => setMenu(null)}
         />
