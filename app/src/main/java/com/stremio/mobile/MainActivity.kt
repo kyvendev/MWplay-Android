@@ -41,7 +41,11 @@ class MainActivity : FragmentActivity(), PictureInPictureHost {
             ) as T
         }
     }
-    override fun onCreate(savedInstanceState:Bundle?){val splash=installSplashScreen();splash.setKeepOnScreenCondition{viewModel.sessionRestoring.value};super.onCreate(savedInstanceState);WindowCompat.setDecorFitsSystemWindows(window,false);(application as MainApplication).castController.initialize();requestNotificationPermission();viewModel.acceptIntent(intent);setContent{StremioMobileApp(viewModel)}}
+    override fun onCreate(savedInstanceState:Bundle?){
+        // Opening animation only on a fresh launch (not on recreation or deep links); it then
+        // covers session restore instead of holding the system splash.
+        val showIntro=savedInstanceState==null&&intent?.data==null
+        val splash=installSplashScreen();splash.setKeepOnScreenCondition{!showIntro&&viewModel.sessionRestoring.value};super.onCreate(savedInstanceState);WindowCompat.setDecorFitsSystemWindows(window,false);(application as MainApplication).castController.initialize();requestNotificationPermission();viewModel.acceptIntent(intent);setContent{StremioMobileApp(viewModel,showIntro)}}
     override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);viewModel.acceptIntent(intent)}
     @Suppress("DEPRECATION","OVERRIDE_DEPRECATION") override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){if(FacebookLoginBridge.callbackManager.onActivityResult(requestCode,resultCode,data))return;super.onActivityResult(requestCode,resultCode,data)}
     override fun onStart(){super.onStart();viewModel.onAppForegrounded();validateRemoteSession()}

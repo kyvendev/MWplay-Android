@@ -88,10 +88,13 @@ import java.io.File
 import kotlin.math.roundToInt
 
 @Composable
-fun StremioMobileApp(viewModel: MainViewModel) {
+fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val streamsState by viewModel.streamsState.collectAsStateWithLifecycle()
     val isPlayerOpen by viewModel.isPlayerOpen.collectAsStateWithLifecycle()
+    // Saveable so rotation / process restore never replays the opening.
+    var introVisible by rememberSaveable { mutableStateOf(showIntro) }
+    val sessionRestoring by viewModel.sessionRestoring.collectAsStateWithLifecycle()
     val rootGlobalTheme = remember(
         state.globalUiStyle,
         state.glassEffectsMode,
@@ -372,7 +375,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 )
             }
 
-            if (state.server is StreamingServerState.Failed) {
+            if (!introVisible && state.server is StreamingServerState.Failed) {
                 val context = LocalContext.current
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = {
@@ -414,7 +417,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 )
             }
 
-            when (val update = state.updateState) {
+            when (val update = state.updateState.takeUnless { introVisible }) {
                 is UpdateState.Available -> {
                     androidx.compose.material3.AlertDialog(
                         onDismissRequest = viewModel::dismissUpdateDialog,
@@ -608,7 +611,7 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                 )
             }
 
-            if (state.showAnalyticsDisclosure) {
+            if (!introVisible && state.showAnalyticsDisclosure) {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = { /* Block clicks outside */ },
                     title = {
@@ -677,6 +680,15 @@ fun StremioMobileApp(viewModel: MainViewModel) {
                     containerColor = Color(0xFF171A20),
                     shape = RoundedCornerShape(28.dp),
                     modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            // Opening animation on top of everything; the app keeps starting underneath.
+            if (introVisible) {
+                OrbitalIntro(
+                    ready = !sessionRestoring,
+                    onFinished = { introVisible = false },
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }
