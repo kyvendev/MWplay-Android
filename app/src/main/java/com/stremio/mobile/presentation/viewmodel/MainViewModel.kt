@@ -22,6 +22,7 @@ import com.stremio.mobile.player.failover.SourceFailoverMessages
 import com.stremio.mobile.player.failover.SourceFailoverPreferences
 import com.stremio.mobile.player.failover.SourceFailoverSession
 import com.stremio.mobile.player.failover.SourceFailoverUi
+import com.stremio.mobile.player.failover.sameVideoStreams
 import com.stremio.mobile.player.intro.EpisodeRef
 import com.stremio.mobile.player.intro.IntroSkipSettings
 import com.stremio.mobile.player.intro.IntroTimestampRepository
@@ -1506,7 +1507,8 @@ class MainViewModel(
         val failed = session.current!!
         val ranking = compareByDescending<StreamOption> { parseSeedCount(it.seeds) }
             .thenByDescending { qualityScore(it.quality, preferredQuality.value) }
-        val next = session.onFailed(outcome, reason, streams.value.streams, ranking)
+        val candidates = failoverCandidates(failed)
+        val next = session.onFailed(outcome, reason, candidates, ranking)
         logFailover(session)
         if (next != null) {
             val timeout = failoverPreferences.config.value.startTimeoutMs
@@ -1522,13 +1524,33 @@ class MainViewModel(
             // in case it still starts, with the choice to retry or pick another source.
             _sourceFailover.value = SourceFailoverUi(allFailed = true)
         } else {
+            // Show the stream sheet with the message, also when playback started from
+            // "Continuar assistindo" (the sheet was never opened there).
             streams.value = streams.value.copy(
                 isResolving = false,
+                isOpen = true,
+                isLoading = false,
+                streams = streams.value.streams.ifEmpty { candidates },
                 error = "${SourceFailoverMessages.ALL_FAILED} ${SourceFailoverMessages.ALL_FAILED_HINT}",
             )
         }
         failoverSession = null
         return true
+    }
+
+    /**
+     * Every stream of the video being played. Read from the core when the attempt fails, because
+     * "Continuar assistindo" and the next-episode autoplay start playback without the stream
+     * sheet (its list is then empty or still holds the previous episode), and slower addons such
+     * as FrostStream or BestCine may have answered after the first stream was picked.
+     */
+    private fun failoverCandidates(failed: StreamOption): List<StreamOption> {
+        val fromCore = runCatching { catalogRepository.extractStreams(core.getMetaDetails()) }
+            .onFailure { Timber.w(it, "SourceFailover: could not read the streams from the core") }
+            .getOrDefault(emptyList())
+            .mapIndexed { index, coreStream -> buildStreamOption(index, coreStream) }
+        val videoOf = { option: StreamOption -> option.core.streamRequest.path.let { "${it.type}/${it.id}" } }
+        return sameVideoStreams(videoOf(failed), fromCore, streams.value.streams, videoOf) { it.key }
     }
 
     private fun showFailoverNotice(message: String?, allFailed: Boolean) {

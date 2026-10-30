@@ -134,4 +134,26 @@ class SourceFailoverTest {
         detector.reset()
         assertFalse(detector.started)
     }
+
+    @Test
+    fun resumeWithoutTheStreamSheetStillFindsTheOtherAddons() {
+        // "Continuar assistindo": the sheet list is empty, the core has every addon's streams.
+        data class Candidate(val source: Source, val video: String)
+        val ep2 = "series/tt1:1:2"
+        val fromCore = listOf(Candidate(torrentioA, ep2), Candidate(frostB, ep2), Candidate(bestCine, ep2))
+        val candidates = sameVideoStreams(ep2, fromCore, emptyList(), { it.video }) { it.source.key }
+        val session = SourceFailoverSession<Candidate>(SourceFailoverConfig(), { it.source.key }, { it.source.addon }, { clock })
+        session.begin(candidates.first())
+        clock = 30_000
+        assertEquals(frostB, session.onFailed(AttemptOutcome.TIMEOUT, null, candidates, compareByDescending { it.source.seeds })?.source)
+    }
+
+    @Test
+    fun nextEpisodeAutoplayNeverUsesThePreviousEpisodesStreams() {
+        // The sheet still lists episode 1; the core already has episode 2.
+        val fromSheet = listOf("series/tt1:1:1" to frostB, "series/tt1:1:1" to bestCine)
+        val fromCore = listOf("series/tt1:1:2" to torrentioA, "series/tt1:1:2" to frostA, "series/tt1:1:2" to frostA)
+        val candidates = sameVideoStreams("series/tt1:1:2", fromCore, fromSheet, { it.first }) { it.second.key }
+        assertEquals(listOf(torrentioA, frostA), candidates.map { it.second })
+    }
 }
