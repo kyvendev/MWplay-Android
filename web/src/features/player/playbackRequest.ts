@@ -13,6 +13,23 @@ export interface PlaybackRequest {
   backdrop: string | null;
   /** Details route to return to when the player closes. */
   returnTo: { type: string; id: string; videoId: string | null };
+  /** The chosen stream as a source-switch candidate; without it the switch is off. */
+  candidate?: PlaybackCandidate;
+  /** Every stream of the title, for the automatic switch when a source does not start. */
+  alternatives?: PlaybackCandidate[];
+}
+
+/** One stream of the title as the automatic source switch sees it. */
+export interface PlaybackCandidate {
+  key: string;
+  /** Addon name, matched against the registered order (Torrentio, FrostStream, BestCine). */
+  addon: string;
+  stream: Stream;
+  streamRequest: ResourceRequest | null;
+  /** This browser can play it (HTTP, or torrents with a streaming server). */
+  playable: boolean;
+  /** Position in the addon's own list. */
+  order: number;
 }
 
 let current: PlaybackRequest | null = null;

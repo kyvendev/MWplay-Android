@@ -1,28 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '../../app/router';
 import { useBackHandler } from '../../app/back';
-import { AspectIcon, AudioIcon, BackIcon, CastIcon, ForwardIcon, FullscreenIcon, MuteIcon, NextIcon, PauseIcon, PlayIcon, RewindIcon, SkipIntroIcon, SpeedIcon, SubtitlesIcon, VolumeIcon } from '../../components/icons';
+import { AspectIcon, AudioIcon, BackIcon, CastIcon, ForwardIcon, FullscreenIcon, MuteIcon, NextIcon, PauseIcon, PlayIcon, RewindIcon, SpeedIcon, SubtitlesIcon, VolumeIcon } from '../../components/icons';
 import { Spinner } from '../../components/States';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { srtToVtt, streamKind } from '../../services/stremio/streams';
 import type { Player, Stream, StreamState, Subtitles } from '../../services/stremio/types';
 import { PROGRESS_REPORT_INTERVAL_MS } from '../../shared/config';
-import { getPlaybackRequest, type PlaybackRequest } from './playbackRequest';
+import { getPlaybackRequest, setPlaybackRequest, type PlaybackCandidate, type PlaybackRequest } from './playbackRequest';
+import { FAILOVER_MESSAGES, PlaybackStartDetector, readFailoverConfig, SourceFailoverSession } from '../../shared/sourceFailover';
 import { findNext, focusElement, type Direction } from '../tv/spatialNav';
-import { AudioPanel, CastPanel, IntroMarkPanel, MirrorPanel, SkipIntroButton, SubtitleOverlay, SubtitlesPanel } from './PlayerPanels';
+import { AudioPanel, CastPanel, FailoverPanel, MirrorPanel, SkipIntroButton, SubtitleOverlay, SubtitlesPanel } from './PlayerPanels';
 import { androidIntentUrl, castOptions, detectMirrorPlatform, mirrorGuides, startMirroring, WEB_VIDEO_CASTER_PACKAGE, type MirrorVideo } from './screenMirror';
-import {
-  clearManualIntervals,
-  episodeRef,
-  introCandidates,
-  IntroSkipTracker,
-  manualIntervals,
-  saveManualInterval,
-  selectInterval,
-  useIntroSettings,
-  type IntroDecision,
-  type IntroInterval,
-} from './introSkip';
+import { dropLegacyManualMarks, episodeRef, findIntro, IntroSkipTracker, useIntroSettings, type IntroDecision, type IntroInterval } from './introSkip';
 import {
   ASPECT_MODES,
   formatSpeed,
@@ -46,7 +36,118 @@ export function PlayerPage() {
   useEffect(() => {
     if (!request) navigate({ name: 'home' }, { replace: true });
   }, [request]);
-  return request ? <PlayerView request={request} /> : null;
+  return request ? <FailoverPlayer initial={request} /> : null;
+}
+
+/** Ranking inside one addon: sources this browser can play first, then the addon's own order. */
+const byPlayableThenOrder = (a: PlaybackCandidate, b: PlaybackCandidate) => Number(b.playable) - Number(a.playable) || a.order - b.order;
+
+/**
+ * Runs the automatic source switch around the player. Each attempt mounts a fresh
+ * <PlayerView> (key), so the previous engine is destroyed before the next one starts and two
+ * players never run together.
+ */
+function FailoverPlayer({ initial }: { initial: PlaybackRequest }) {
+  const config = useMemo(readFailoverConfig, []);
+  const [attempt, setAttempt] = useState({ request: initial, index: 0 });
+  const [notice, setNotice] = useState<string | null>(null);
+  const [allFailed, setAllFailed] = useState(false);
+  const session = useRef<SourceFailoverSession<PlaybackCandidate> | null>(null);
+  const timer = useRef<number>();
+  const noticeTimer = useRef<number>();
+
+  const showNotice = useCallback((message: string | null) => {
+    window.clearTimeout(noticeTimer.current);
+    setNotice(message);
+    if (message) noticeTimer.current = window.setTimeout(() => setNotice((value) => (value === message ? null : value)), 6_000);
+  }, []);
+
+  const beginSession = useCallback(() => {
+    session.current?.cancel();
+    session.current = null;
+    if (!config.enabled || !initial.candidate) return;
+    session.current = new SourceFailoverSession<PlaybackCandidate>(config, (item) => item.key, (item) => item.addon);
+    session.current.begin(initial.candidate);
+  }, [config, initial]);
+
+  useEffect(() => {
+    beginSession();
+    return () => {
+      session.current?.cancel();
+      window.clearTimeout(timer.current);
+      window.clearTimeout(noticeTimer.current);
+    };
+  }, [beginSession]);
+
+  const log = () => {
+    const attempts = session.current?.attempts ?? [];
+    if (attempts.length) console.info('[MW Play] troca de fonte', attempts[attempts.length - 1]);
+  };
+
+  const fail = useCallback(
+    (outcome: 'timeout' | 'failed', reason: string) => {
+      const current = session.current;
+      if (!current?.isWaiting) return;
+      window.clearTimeout(timer.current);
+      const failed = current.current!;
+      const next = current.onFailed(outcome, reason, (initial.alternatives ?? []).filter((item) => item.playable), byPlayableThenOrder);
+      log();
+      if (!next) {
+        // A definitive failure already stopped the player; a slow last source keeps loading in
+        // case it still starts, with the choice to retry or pick another source.
+        setAllFailed(true);
+        return;
+      }
+      showNotice(FAILOVER_MESSAGES.switching(failed.addon, outcome, next.addon, config.startTimeoutMs));
+      const request: PlaybackRequest = { ...initial, stream: next.stream, streamRequest: next.streamRequest, candidate: next };
+      setPlaybackRequest(request);
+      setAttempt((value) => ({ request, index: value.index + 1 }));
+    },
+    [config.startTimeoutMs, initial, showNotice],
+  );
+
+  // The 30 s clock covers preparing, opening and buffering, until the video really plays.
+  useEffect(() => {
+    if (!session.current?.isWaiting) return;
+    timer.current = window.setTimeout(() => fail('timeout', 'não iniciou em ' + config.startTimeoutMs / 1000 + ' s'), config.startTimeoutMs);
+    return () => window.clearTimeout(timer.current);
+  }, [attempt, config.startTimeoutMs, fail]);
+
+  const onStarted = useCallback(() => {
+    const current = session.current;
+    if (!current || current.onStarted() === null) return;
+    window.clearTimeout(timer.current);
+    log();
+    setAllFailed(false);
+    showNotice(current.attempts.length > 1 ? FAILOVER_MESSAGES.switched(current.current!.addon) : null);
+  }, [showNotice]);
+
+  const onFailed = useCallback((reason: string) => fail('failed', reason), [fail]);
+
+  const retry = () => {
+    setAllFailed(false);
+    showNotice(null);
+    setPlaybackRequest(initial);
+    beginSession();
+    setAttempt((value) => ({ request: initial, index: value.index + 1 }));
+  };
+
+  const chooseAnother = () => {
+    const back = initial.returnTo;
+    navigate({ name: 'detail', type: back.type, id: back.id, videoId: back.videoId }, { replace: true });
+  };
+
+  return (
+    <>
+      <PlayerView key={attempt.index} request={attempt.request} onStarted={onStarted} onFailed={onFailed} />
+      {notice && !allFailed && (
+        <div className="player__notice" role="status">
+          {notice}
+        </div>
+      )}
+      {allFailed && <FailoverPanel onRetry={retry} onChooseAnother={chooseAnother} />}
+    </>
+  );
 }
 
 /** True when the core's Player model belongs to this request (it may still hold the previous one). */
@@ -74,7 +175,7 @@ function formatTime(seconds: number): string {
 
 const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/.test(navigator.userAgent);
 
-function PlayerView({ request }: { request: PlaybackRequest }) {
+function PlayerView({ request, onStarted, onFailed }: { request: PlaybackRequest; onStarted: () => void; onFailed: (reason: string) => void }) {
   const { core } = useCore();
   const player = useCoreState('player');
   const container = useRef<HTMLDivElement>(null);
@@ -89,7 +190,7 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
   const [volume, setVolume] = useState(1);
   const [controls, setControls] = useState(true);
   const [error, setError] = useState<EngineError | null>(null);
-  const [menu, setMenu] = useState<'audio' | 'subtitles' | 'mirror' | 'cast' | 'intro' | null>(null);
+  const [menu, setMenu] = useState<'audio' | 'subtitles' | 'mirror' | 'cast' | null>(null);
   const [tracksVersion, setTracksVersion] = useState(0);
   const [externalSubtitle, setExternalSubtitle] = useState<{ id: string; src: string } | null>(null);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
@@ -239,22 +340,25 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
     [request],
   );
   const [introSettings] = useIntroSettings();
-  const [introList, setIntroList] = useState<IntroInterval[]>([]);
+  const [introInterval, setIntroInterval] = useState<IntroInterval | null>(null);
   const introTracker = useRef(new IntroSkipTracker());
   introTracker.current.bind(episode);
   const [introSkipVersion, setIntroSkipVersion] = useState(0);
+  useEffect(dropLegacyManualMarks, []);
+  // Looked up once the duration is known (the databases match releases by duration), beside
+  // playback: the video never waits for it.
+  const knownDuration = duration > 0;
   useEffect(() => {
-    setIntroList([]);
-    if (!episode) return;
+    setIntroInterval(null);
+    if (!episode || !knownDuration || !introSettings.enabled) return;
     let active = true;
-    introCandidates(episode).then((list) => {
-      if (active) setIntroList(list);
+    findIntro(episode, (video.current?.duration ?? 0) * 1000).then((interval) => {
+      if (active) setIntroInterval(interval);
     });
     return () => {
       active = false;
     };
-  }, [episode]);
-  const introInterval = useMemo(() => selectInterval(introList, duration * 1000), [introList, duration]);
+  }, [episode, knownDuration, introSettings.enabled]);
   const introDecision: IntroDecision = useMemo(
     () => introTracker.current.decide(time * 1000, duration * 1000, introInterval, introSettings),
     // introSkipVersion: re-decide right after a skip.
@@ -640,6 +744,18 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
   };
 
   const errorMessage = describePlaybackError(coreFailed, error, request.stream);
+
+  // Source switch signals: real progress (not just the player opening), or a definitive error.
+  const startDetector = useRef(new PlaybackStartDetector());
+  useEffect(() => {
+    if (startDetector.current.onUpdate(!paused, buffering, time * 1000, errorMessage !== null)) onStarted();
+  }, [time, paused, buffering, errorMessage, onStarted]);
+  useEffect(() => {
+    if (errorMessage) onFailed(errorMessage);
+    // Reported once per message; the parent ignores reports after the attempt ended.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errorMessage]);
+
   const showLoading = !errorMessage && (!started || (buffering && !paused));
 
   return (
@@ -786,11 +902,6 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
             <button type="button" className="icon-button focusable" aria-label="Legendas" onClick={() => setMenu('subtitles')}>
               <SubtitlesIcon />
             </button>
-            {episode && (
-              <button type="button" className="icon-button focusable" aria-label="Marcar abertura" title="Marcar abertura" onClick={() => setMenu('intro')}>
-                <SkipIntroIcon />
-              </button>
-            )}
             {audioTracks.length > 0 && (
               <button type="button" className="icon-button focusable" aria-label="Áudio" onClick={() => setMenu('audio')}>
                 <AudioIcon />
@@ -866,25 +977,6 @@ function PlayerView({ request }: { request: PlaybackRequest }) {
           onWebVideoCaster={() => openInApp(WEB_VIDEO_CASTER_PACKAGE)}
           onOtherApp={() => openInApp()}
           onMirror={() => setMenu('mirror')}
-          onClose={() => setMenu(null)}
-        />
-      )}
-
-      {menu === 'intro' && episode && (
-        <IntroMarkPanel
-          positionMs={time * 1000}
-          durationMs={duration * 1000}
-          existing={introList.find((item) => item.source !== 'aniskip') ?? null}
-          onSave={(startMs, endMs, wholeSeries) => {
-            saveManualInterval(episode, startMs, endMs, wholeSeries);
-            setIntroList((list) => [...manualIntervals(episode), ...list.filter((item) => item.source === 'aniskip')]);
-            setMenu(null);
-          }}
-          onClear={() => {
-            clearManualIntervals(episode);
-            setIntroList((list) => list.filter((item) => item.source === 'aniskip'));
-            setMenu(null);
-          }}
           onClose={() => setMenu(null)}
         />
       )}

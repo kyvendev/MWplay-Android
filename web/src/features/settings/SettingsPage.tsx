@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import type { UiPreference } from '../../app/uiMode';
 import { LogoutIcon } from '../../components/icons';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { APP_VERSION } from '../../shared/config';
 import { useIntroSettings } from '../player/introSkip';
+import { readFailoverConfig, writeFailoverEnabled } from '../../shared/sourceFailover';
 
 const SUBTITLE_LANGUAGES: { value: string | null; label: string }[] = [
   { value: null, label: 'Nenhum' },
@@ -21,6 +23,7 @@ export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: U
   const ctx = useCoreState('ctx');
   const settings = ctx?.profile.settings;
   const [intro, setIntro] = useIntroSettings();
+  const [failoverEnabled, setFailoverEnabled] = useState(() => readFailoverConfig().enabled);
   const update = (patch: Partial<NonNullable<typeof settings>>) => {
     if (settings) core.updateSettings({ ...settings, ...patch });
   };
@@ -92,9 +95,8 @@ export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: U
             />
           </div>
           {intro.enabled && (
-            <>
-              <div className="settings__row">
-                <label htmlFor="intro-mode">Como pular</label>
+            <div className="settings__row">
+                <label htmlFor="intro-mode">Modo</label>
                 <select
                   id="intro-mode"
                   className="select focusable"
@@ -104,23 +106,29 @@ export function SettingsPage({ uiPreference, onUiPreference }: { uiPreference: U
                   <option value="manual">Manual (botão)</option>
                   <option value="auto">Automático</option>
                 </select>
-              </div>
-              <div className="settings__row">
-                <label htmlFor="intro-button">Exibir botão durante a abertura</label>
-                <input
-                  id="intro-button"
-                  type="checkbox"
-                  className="toggle focusable"
-                  checked={intro.showButton}
-                  onChange={(event) => setIntro({ ...intro, showButton: event.target.checked })}
-                />
-              </div>
-            </>
+            </div>
           )}
           <p className="settings__hint">
-            Em séries e animes com o tempo da abertura conhecido (AniSkip ou marcado por você no player, em "Marcar abertura"). No automático, a abertura é pulada uma vez
-            por episódio, só quando o tempo é confiável.
+            Em séries e animes, com o tempo da abertura buscado no TheIntroDB, AniSkip e SkipDB. Manual mostra o botão durante a abertura; automático pula assim que ela
+            começa, uma vez por episódio. Sem dados confiáveis, nada é pulado.
           </p>
+        </section>
+
+        <section className="settings__card" aria-label="Troca automática de fonte">
+          <div className="settings__row">
+            <label htmlFor="source-failover">Trocar fonte se não iniciar em 30 s</label>
+            <input
+              id="source-failover"
+              type="checkbox"
+              className="toggle focusable"
+              checked={failoverEnabled}
+              onChange={(event) => {
+                setFailoverEnabled(event.target.checked);
+                writeFailoverEnabled(event.target.checked);
+              }}
+            />
+          </div>
+          <p className="settings__hint">Se a fonte escolhida não começar a tocar, tenta Torrentio, FrostStream e BestCine, nessa ordem.</p>
         </section>
 
         <section className="settings__card" aria-label="Sobre">

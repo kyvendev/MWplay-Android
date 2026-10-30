@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Poster, PosterSkeleton } from '../../components/Poster';
 import { EmptyState, ErrorState } from '../../components/States';
 import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
-import { parseDiscoverDeepLink } from '../../services/stremio/streams';
+import { metaLinks, parseDiscoverDeepLink } from '../../services/stremio/streams';
 import type { Discover, ResourceRequest } from '../../services/stremio/types';
 import { catalogName, extraOptionName, isTvType, preferredTvCatalog, typeName } from '../../shared/contentLabels';
 import { navigate } from '../../app/router';
 import { openDetails } from '../home/HomePage';
+import { buildCategoryRow, sportsChannels, type CategoryChip, type CategoryRow } from '../../shared/sportsChannels';
 
 type Mode = 'discover' | 'tv';
 
@@ -16,6 +17,8 @@ type Mode = 'discover' | 'tv';
  */
 const lastRequest: Record<Mode, ResourceRequest | null> = { discover: null, tv: null };
 let tvCatalogChosen = false;
+/** Esportes open on a TV source without a sports category (channels filtered by metadata). */
+let tvSportsByMetadata = false;
 
 /** Opens a catalog (e.g. "Ver tudo" on Início) on the tab it belongs to. */
 export function openCatalogTab(request: ResourceRequest) {
@@ -29,6 +32,7 @@ export function resetCatalogTabs() {
   lastRequest.discover = null;
   lastRequest.tv = null;
   tvCatalogChosen = false;
+  tvSportsByMetadata = false;
 }
 
 /** Addon catalogs with type, catalog and genre filters, as on the native Discover screen. */
@@ -98,7 +102,28 @@ function CatalogBrowser({ mode }: { mode: Mode }) {
   }, [isTv, onThisTab, discover?.selectable.catalogs.length]);
 
   const content = onThisTab ? discover?.catalog?.content ?? null : null;
-  const items = content?.type === 'Ready' ? content.content : [];
+  const [sportsByMetadata, setSportsByMetadata] = useState(tvSportsByMetadata);
+  const genreExtra = discover?.selectable.extra.find((extra) => extra.name === 'genre');
+  const selectedCatalog = discover?.selectable.catalogs.find((catalog) => catalog.selected);
+  // TV: "Todos os canais", "Esportes" and the source's categories (from its genre filter).
+  const categories: CategoryRow<string> | null =
+    isTv && onThisTab && discover
+      ? buildCategoryRow(
+          (genreExtra?.options ?? []).map((option) => ({ value: option.value, selected: option.selected, request: option.deepLinks.discover })),
+          sportsByMetadata,
+          (value) => extraOptionName('genre', value),
+          selectedCatalog?.deepLinks.discover,
+        )
+      : null;
+  const selectCategory = (chip: CategoryChip<string>) => {
+    tvSportsByMetadata = chip.kind === 'sports' && (categories?.sportsFromMetadata ?? false);
+    setSportsByMetadata(tvSportsByMetadata);
+    select(chip.request);
+  };
+  const catalogItems = content?.type === 'Ready' ? content.content : [];
+  const items = categories?.sportsOpen
+    ? sportsChannels(catalogItems, (item) => item.id, (item) => metaLinks(item).genres, categories.listedUnderSports)
+    : catalogItems;
   const nextPage = onThisTab && (discover?.selectable.nextPage ?? false);
 
   useEffect(() => {
@@ -119,11 +144,14 @@ function CatalogBrowser({ mode }: { mode: Mode }) {
   return (
     <main className="page">
       <h1 className="page-title">{isTv ? 'TV' : 'Descobrir'}</h1>
-      {discover && onThisTab && <Filters discover={discover} isTv={isTv} catalogs={catalogs} genre={genre} onSelect={select} />}
+      {discover && onThisTab && <Filters discover={discover} isTv={isTv} catalogs={catalogs} genre={isTv ? undefined : genre} onSelect={select} />}
+      {categories && categories.chips.length > 0 && <Categories row={categories} onSelect={selectCategory} />}
 
       {noTvCatalogs && <EmptyState>Nenhum canal de TV disponível. Os canais aparecem aqui quando um addon da sua conta oferece catálogos de TV.</EmptyState>}
       {content?.type === 'Err' && <ErrorState message="Este catálogo não respondeu. Escolha outro ou tente novamente." onRetry={() => core.loadDiscover(discover?.selected?.request ?? null)} />}
-      {content?.type === 'Ready' && items.length === 0 && <EmptyState>Nenhum item neste catálogo.</EmptyState>}
+      {content?.type === 'Ready' && items.length === 0 && (
+        <EmptyState>{categories?.sportsOpen ? 'Nenhum canal de esportes encontrado neste catálogo.' : 'Nenhum item neste catálogo.'}</EmptyState>
+      )}
       <div className="poster-grid">
         {items.map((item) => (
           <Poster key={`${item.type}:${item.id}`} name={item.name} poster={item.poster} onSelect={() => openDetails(item)} />
@@ -185,6 +213,24 @@ function Filters({
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+/** The TV tab's categories as chips (mouse, touch, keyboard and remote); Esportes may have its own row. */
+function Categories({ row, onSelect }: { row: CategoryRow<string>; onSelect: (chip: CategoryChip<string>) => void }) {
+  const rows = [row.chips, row.sportsOpen ? row.sportsSubcategories : []].filter((chips) => chips.length > 0);
+  return (
+    <>
+      {rows.map((chips, index) => (
+        <div key={index} className="chips" role="toolbar" aria-label={index === 0 ? 'Categorias' : 'Esportes'}>
+          {chips.map((chip) => (
+            <button key={chip.label} type="button" className="chip focusable" aria-pressed={chip.selected} onClick={() => onSelect(chip)}>
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      ))}
     </>
   );
 }

@@ -50,6 +50,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Dev equivalent of api/introdb.js (the Vercel function used in production).
+    proxy: {
+      '/api/introdb': {
+        target: 'https://api.introdb.app',
+        changeOrigin: true,
+        rewrite: (path) => '/segments' + path.slice('/api/introdb'.length),
+      },
+    },
   },
   test: {
     environment: 'jsdom',

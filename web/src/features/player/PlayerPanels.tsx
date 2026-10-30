@@ -15,7 +15,7 @@ import {
   SUBTITLE_SIZE,
   type SubtitleOption,
 } from './playerOptions';
-import { isReliable, type IntroInterval } from './introSkip';
+import { FAILOVER_MESSAGES } from '../../shared/sourceFailover';
 import type { CastOptions, MirrorGuide } from './screenMirror';
 import type { TrackOption } from './videoEngine';
 
@@ -291,60 +291,17 @@ export function SkipIntroButton({ onSkip, showOkHint, raised }: { onSkip: () => 
   );
 }
 
-function formatClock(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const hours = Math.floor(total / 3600);
-  const minutes = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
-  const seconds = String(total % 60).padStart(2, '0');
-  return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
-}
-
-/** Marks the opening with the current playback position, for this episode or the whole series. */
-export function IntroMarkPanel({
-  positionMs,
-  durationMs,
-  existing,
-  onSave,
-  onClear,
-  onClose,
-}: {
-  positionMs: number;
-  durationMs: number;
-  existing: IntroInterval | null;
-  onSave: (startMs: number, endMs: number, wholeSeries: boolean) => void;
-  onClear: () => void;
-  onClose: () => void;
-}) {
-  const [startMs, setStartMs] = useState<number | null>(existing?.startMs ?? null);
-  const [endMs, setEndMs] = useState<number | null>(existing?.endMs ?? null);
-  const [wholeSeries, setWholeSeries] = useState(existing?.source === 'manual-series');
-  const candidate = startMs !== null && endMs !== null ? { startMs, endMs, source: 'manual-episode' as const } : null;
-  const valid = candidate !== null && isReliable(candidate, durationMs);
+/** Every source failed (or the last one still does not play): retry the chain or pick another. */
+export function FailoverPanel({ onRetry, onChooseAnother }: { onRetry: () => void; onChooseAnother: () => void }) {
   return (
-    <Modal title="Marcar abertura" onClose={onClose}>
-      <p className="settings__hint" style={{ margin: 0 }}>Use a posição atual do vídeo para marcar o início e o fim da abertura.</p>
-      <button type="button" className="button focusable" onClick={() => setStartMs(positionMs)}>
-        Início: {startMs !== null ? formatClock(startMs) : '—'} · marcar em {formatClock(positionMs)}
-      </button>
-      <button type="button" className="button focusable" onClick={() => setEndMs(positionMs)}>
-        Fim: {endMs !== null ? formatClock(endMs) : '—'} · marcar em {formatClock(positionMs)}
-      </button>
-      <label className="intro-mark__series focusable">
-        <input type="checkbox" checked={wholeSeries} onChange={(event) => setWholeSeries(event.target.checked)} />
-        Usar em todos os episódios desta série
-      </label>
-      {candidate && !valid && <p className="subs-panel__error">A abertura precisa ter entre 5 segundos e 4 minutos, com o fim depois do início.</p>}
-      <div className="intro-mark__actions">
-        {existing && (
-          <button type="button" className="button focusable" onClick={onClear}>
-            Remover marcação
-          </button>
-        )}
-        <button type="button" className="button focusable" onClick={onClose}>
-          Cancelar
+    <Modal title={FAILOVER_MESSAGES.allFailed} onClose={onChooseAnother}>
+      <p className="settings__hint">{FAILOVER_MESSAGES.allFailedHint}</p>
+      <div className="state__actions">
+        <button type="button" className="button button--primary focusable" onClick={onRetry}>
+          Tentar novamente
         </button>
-        <button type="button" className="button button--primary focusable" disabled={!valid} onClick={() => candidate && onSave(candidate.startMs, candidate.endMs, wholeSeries)}>
-          Salvar
+        <button type="button" className="button focusable" onClick={onChooseAnother}>
+          Escolher outra fonte
         </button>
       </div>
     </Modal>

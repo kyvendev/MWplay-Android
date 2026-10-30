@@ -482,6 +482,7 @@ html[data-ui='tv'] .player__volume {
   font-size: 0.95rem;
   font-weight: 800;
   transition: bottom 180ms ease;
+  animation: player-skip-in 220ms ease-out;
 }
 
 .player__skip svg {
@@ -505,27 +506,51 @@ html[data-ui='tv'] .player__volume {
   font-weight: 900;
 }
 
-.intro-mark__series {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-height: var(--touch);
-  padding: 0 0.25rem;
-  border-radius: var(--radius-md);
+/* Source switch notice: discreet, above the video, never over the controls row. */
+.player__notice {
+  position: fixed;
+  z-index: 55;
+  top: calc(var(--safe-top, 0px) + 1.25rem);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 2rem);
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(20, 20, 34, 0.88);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+  animation: player-fade-in 200ms ease-out;
 }
 
-.intro-mark__series input {
-  width: 1.2rem;
-  height: 1.2rem;
-  accent-color: #8a63ff;
+@keyframes player-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.intro-mark__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+@keyframes player-skip-in {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player__notice,
+  .player__skip {
+    animation: none;
+  }
 }
 
 .cast-option {

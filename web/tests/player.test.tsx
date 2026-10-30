@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoreProvider } from '../src/services/stremio/CoreProvider';
 import { PlayerPage, describePlaybackError } from '../src/features/player/PlayerPage';
 import { setPlaybackRequest } from '../src/features/player/playbackRequest';
+import { resetIntroMemory } from '../src/features/player/introSkip';
 import { createFakeCore } from './fakeCore';
 import { ctxFixture } from './fixtures/coreStates';
 
@@ -186,9 +187,16 @@ describe('player options', () => {
     }
   });
 
-  it('shows "Pular abertura" only inside a marked opening and skips to its end', async () => {
-    const episodeRequest = { ...request, streamRequest: { ...request.streamRequest, path: { ...request.streamRequest.path, type: 'series', id: 'tt1:1:1' } }, returnTo: { type: 'series', id: 'tt1', videoId: 'tt1:1:1' } };
-    localStorage.setItem('mwplay.web.introMarks', JSON.stringify({ 'e:series|tt1|tt1:1:1': [60_000, 150_000] }));
+  it('shows "Pular abertura" only inside the opening found in TheIntroDB and skips to its end', async () => {
+    const episodeRequest = { ...request, streamRequest: { ...request.streamRequest, path: { ...request.streamRequest.path, type: 'series', id: 'tt0944947:1:1' } }, returnTo: { type: 'series', id: 'tt0944947', videoId: 'tt0944947:1:1' } };
+    localStorage.clear();
+    resetIntroMemory();
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.startsWith('/api/introdb?imdb_id=tt0944947&season=1&episode=1')
+        ? new Response(JSON.stringify({ imdb_id: 'tt0944947', season: 1, episode: 1, intro: { start_ms: 60_000, end_ms: 150_000 }, no_intro: false }))
+        : new Response(null, { status: 404 }),
+    );
+    vi.stubGlobal('fetch', fetchImpl);
     setPlaybackRequest(episodeRequest);
     const fake = createFakeCore({ ctx: ctxFixture(true), player: { ...readyPlayer(), selected: { stream, streamRequest: episodeRequest.streamRequest, metaRequest: request.metaRequest, subtitlesPath: null } } });
     const view = render(
@@ -203,7 +211,11 @@ describe('player options', () => {
     Object.defineProperty(videoElement, 'currentTime', { get: () => current, set: (value: number) => (current = value), configurable: true });
     fireEvent(videoElement, new Event('durationchange'));
     fireEvent(videoElement, new Event('timeupdate'));
+    await act(async () => {});
+    // Looked up once, after the duration was known.
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: /Pular abertura/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Marcar abertura' })).toBeNull();
 
     current = 70;
     fireEvent(videoElement, new Event('timeupdate'));
