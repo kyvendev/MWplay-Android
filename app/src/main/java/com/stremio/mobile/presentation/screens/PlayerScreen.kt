@@ -969,59 +969,6 @@ fun PlayerScreen(
             }
         }
 
-        // Automatic source switch: a discreet notice, or the choice when every source failed
-        // (D-pad: "Tentar novamente" gets focus, LEFT/RIGHT move, OK selects, Back leaves).
-        AnimatedVisibility(
-            visible = sourceFailover.notice != null && !sourceFailover.allFailed,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 32.dp),
-        ) {
-            Text(
-                text = sourceFailover.notice.orEmpty(),
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xD9141422))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-            )
-        }
-        if (sourceFailover.allFailed) {
-            LaunchedEffect(Unit) {
-                delay(120)
-                runCatching { failoverRetryFocus.requestFocus() }
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xCC000000)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(horizontal = 32.dp),
-                ) {
-                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
-                    Text(SourceFailoverMessages.ALL_FAILED, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    Text(SourceFailoverMessages.ALL_FAILED_HINT, color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ThemedButton(text = "Escolher outra fonte", onClick = onChooseAnotherSource)
-                        ThemedButton(
-                            text = "Tentar novamente",
-                            modifier = Modifier.focusRequester(failoverRetryFocus),
-                            onClick = onRetrySources,
-                        )
-                    }
-                }
-            }
-        }
-
         // Floating Stats Overlay Panel
         if (showStatsPanel && torrentStats != null) {
             // Full-screen backdrop detector to close the stats panel when clicking outside
@@ -1199,6 +1146,59 @@ fun PlayerScreen(
             startVisible = loadingInfo != null,
             modifier = Modifier.fillMaxSize(),
         )
+        // Drawn above the loading layer, so the switch is visible while a source is still loading.
+        // Automatic source switch: a discreet notice, or the choice when every source failed
+        // (D-pad: "Tentar novamente" gets focus, LEFT/RIGHT move, OK selects, Back leaves).
+        AnimatedVisibility(
+            visible = sourceFailover.notice != null && !sourceFailover.allFailed,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 32.dp),
+        ) {
+            Text(
+                text = sourceFailover.notice.orEmpty(),
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xD9141422))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
+            )
+        }
+        if (sourceFailover.allFailed) {
+            LaunchedEffect(Unit) {
+                delay(120)
+                runCatching { failoverRetryFocus.requestFocus() }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC000000)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                ) {
+                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
+                    Text(SourceFailoverMessages.ALL_FAILED, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(SourceFailoverMessages.ALL_FAILED_HINT, color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ThemedButton(text = "Escolher outra fonte", onClick = onChooseAnotherSource)
+                        ThemedButton(
+                            text = "Tentar novamente",
+                            modifier = Modifier.focusRequester(failoverRetryFocus),
+                            onClick = onRetrySources,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

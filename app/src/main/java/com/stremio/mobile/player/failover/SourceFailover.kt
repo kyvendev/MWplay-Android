@@ -204,3 +204,11 @@ object SourceFailoverMessages {
 
     fun switched(to: String): String = "Reproduzindo por $to"
 }
+
+/**
+ * Candidates for the switch: the streams of [video] only (never another episode's), read from
+ * the core first (always up to date, also when playback started without the stream sheet), then
+ * from the sheet's list, each once.
+ */
+fun <T> sameVideoStreams(video: String, fromCore: List<T>, fromSheet: List<T>, videoOf: (T) -> String, keyOf: (T) -> String): List<T> =
+    (fromCore + fromSheet).filter { videoOf(it) == video }.distinctBy(keyOf)
