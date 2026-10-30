@@ -2,34 +2,48 @@ package com.stremio.mobile.player.intro
 
 import kotlin.math.abs
 
-/** Where an opening interval came from. Manual marks win over automatic data. */
-enum class IntroSource { MANUAL_EPISODE, MANUAL_SERIES, ANISKIP }
+/** Which public database an opening interval came from. */
+enum class IntroSource(val label: String) { INTRODB("TheIntroDB"), ANISKIP("AniSkip"), SKIPDB("SkipDB") }
 
 /**
  * An opening interval for one episode. [episodeLengthMs] is the length of the release the
- * timestamps were measured on (AniSkip reports it); it lets us reject data from another cut.
+ * timestamps were measured on when the source reports it (AniSkip); it lets us reject data from
+ * another cut. [durationMatched] is true when the source itself matched the playing duration
+ * (SkipDB "exact"/"shifted").
  */
 data class IntroInterval(
     val startMs: Long,
     val endMs: Long,
     val source: IntroSource,
     val episodeLengthMs: Long? = null,
+    val durationMatched: Boolean = false,
 )
 
-/** "Pular abertura" preferences. Automatic skipping is opt-in. */
+/** "Pular abertura" preferences: on by default, manual (button) mode by default. */
 data class IntroSkipSettings(
     val enabled: Boolean = true,
-    val showButton: Boolean = true,
     val autoSkip: Boolean = false,
 )
 
 /**
- * The episode being played. Movies never get an [EpisodeRef]. Anime addons use ids such as
- * `kitsu:12:5` or `mal:21:5` (provider, show id, episode), which map to AniSkip.
+ * The episode being played. Movies never get an [EpisodeRef].
+ * - Cinemeta-style ids `tt0944947:1:1` give (IMDb id, season, episode) for TheIntroDB/SkipDB.
+ * - Anime addon ids `kitsu:12:5` / `mal:21:5` give (provider, show id, episode) for AniSkip.
  */
 data class EpisodeRef(val type: String, val itemId: String, val videoId: String) {
     val episodeKey: String get() = "$type|$itemId|$videoId"
-    val seriesKey: String get() = "$type|$itemId"
+
+    /** (IMDb id, season, episode) for IMDb episode ids, null otherwise. Season 0 = specials. */
+    val imdbEpisode: Triple<String, Int, Int>? get() {
+        val parts = videoId.split(':')
+        if (parts.size != 3) return null
+        val imdb = parts[0].takeIf { IMDB_ID.matches(it) } ?: return null
+        // The episode must belong to the show being played.
+        if (itemId != imdb) return null
+        val season = parts[1].toIntOrNull()?.takeIf { it >= 0 } ?: return null
+        val episode = parts[2].toIntOrNull()?.takeIf { it > 0 } ?: return null
+        return Triple(imdb, season, episode)
+    }
 
     /** (provider, show id, episode number) for anime ids, null otherwise. */
     val animeIds: Triple<String, String, Int>? get() {
@@ -43,6 +57,8 @@ data class EpisodeRef(val type: String, val itemId: String, val videoId: String)
     }
 
     companion object {
+        private val IMDB_ID = Regex("tt\\d{5,10}")
+
         /** Null for movies and for items without a distinct episode id. */
         fun of(type: String?, itemId: String?, videoId: String?): EpisodeRef? {
             if (type.isNullOrBlank() || itemId.isNullOrBlank() || videoId.isNullOrBlank()) return null
@@ -59,30 +75,31 @@ object IntroSkipPolicy {
     /** How far the measured release may differ from the playing video before data is rejected. */
     const val EPISODE_LENGTH_TOLERANCE_MS = 10_000L
 
+    /** An opening must end at least this long before the video does. */
+    const val MIN_TAIL_MS = 60_000L
+
     /** The button disappears this close to the end of the opening. */
     const val END_MARGIN_MS = 1_000L
 
-    /** True when [interval] makes sense for a video of [durationMs] (0 = unknown). */
+    /** True when [interval] makes sense for a video of [durationMs]; unknown duration = unreliable. */
     fun isReliable(interval: IntroInterval, durationMs: Long): Boolean {
         val length = interval.endMs - interval.startMs
         if (interval.startMs < 0 || length !in MIN_INTRO_MS..MAX_INTRO_MS) return false
-        if (durationMs > 0 && interval.endMs > durationMs) return false
-        if (interval.source == IntroSource.ANISKIP) {
+        if (durationMs <= 0 || interval.endMs > durationMs - MIN_TAIL_MS) return false
+        // The opening sits in the first part of an episode, never in its second half.
+        if (interval.startMs > durationMs / 2) return false
+        interval.episodeLengthMs?.let { measured ->
             // Community timestamps are tied to one release: only use them when it matches.
-            val measured = interval.episodeLengthMs ?: return false
-            if (durationMs <= 0) return false
             if (abs(measured - durationMs) > EPISODE_LENGTH_TOLERANCE_MS) return false
         }
+        if (interval.source == IntroSource.ANISKIP && interval.episodeLengthMs == null) return false
         return true
     }
 
-    /** First reliable candidate, manual marks first (they come first from the repository). */
-    fun select(candidates: List<IntroInterval>, durationMs: Long): IntroInterval? {
-        val reliable = candidates.filter { isReliable(it, durationMs) }
-        return reliable.firstOrNull { it.source != IntroSource.ANISKIP }
-            ?: reliable.filter { it.source == IntroSource.ANISKIP }
-                .minByOrNull { abs((it.episodeLengthMs ?: 0L) - durationMs) }
-    }
+    /** The reliable candidate whose measured release is closest to the playing video. */
+    fun select(candidates: List<IntroInterval>, durationMs: Long): IntroInterval? =
+        candidates.filter { isReliable(it, durationMs) }
+            .minByOrNull { candidate -> candidate.episodeLengthMs?.let { abs(it - durationMs) } ?: 0L }
 }
 
 sealed interface IntroSkipDecision {
@@ -119,7 +136,7 @@ class IntroSkipTracker {
         }
         if (skippedInside) return IntroSkipDecision.None
         if (settings.autoSkip && !autoSkipUsed) return IntroSkipDecision.AutoSkip(interval.endMs)
-        return if (settings.showButton) IntroSkipDecision.ShowButton(interval.endMs) else IntroSkipDecision.None
+        return IntroSkipDecision.ShowButton(interval.endMs)
     }
 
     /** Records a skip; returns false when it was already done (double tap, repeated event). */
@@ -131,5 +148,8 @@ class IntroSkipTracker {
     }
 }
 
-/** Opening data for the episode on screen: its reference plus every candidate interval found. */
-data class PlaybackIntro(val ref: EpisodeRef, val candidates: List<IntroInterval>)
+/**
+ * Opening data for the episode on screen. [interval] stays null while the lookup runs (playback
+ * is never held for it) and when no source had valid data.
+ */
+data class PlaybackIntro(val ref: EpisodeRef, val interval: IntroInterval? = null, val lookupDone: Boolean = false)

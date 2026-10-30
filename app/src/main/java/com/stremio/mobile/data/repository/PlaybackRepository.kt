@@ -29,6 +29,8 @@ class PlaybackRepository(
 
     fun release() = playbackManager.release()
 
+    fun clearStartSignals() = playbackManager.clearStartSignals()
+
     suspend fun resolveAndLoadStream(
         option: StreamOption,
         engine: PlayerEngine = PlayerEngine.EXO,

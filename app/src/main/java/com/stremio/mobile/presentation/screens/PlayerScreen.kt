@@ -14,6 +14,9 @@ import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -89,12 +92,11 @@ import com.stremio.mobile.player.PlayerRuntimeState
 import com.stremio.mobile.player.PlayerSubtitleStyle
 import com.stremio.mobile.player.PlayerTrackOption
 import com.stremio.mobile.player.intro.IntroSkipDecision
-import com.stremio.mobile.player.intro.IntroSkipPolicy
 import com.stremio.mobile.player.intro.IntroSkipSettings
 import com.stremio.mobile.player.intro.IntroSkipTracker
-import com.stremio.mobile.player.intro.IntroSource
+import com.stremio.mobile.player.failover.SourceFailoverMessages
+import com.stremio.mobile.player.failover.SourceFailoverUi
 import com.stremio.mobile.player.intro.PlaybackIntro
-import com.stremio.mobile.presentation.screens.player.IntroMarkDialog
 import com.stremio.mobile.presentation.screens.player.SkipIntroButton
 import com.stremio.mobile.presentation.screens.player.ClassicPlayerControls
 import com.stremio.mobile.presentation.screens.player.ModernPlayerControls
@@ -156,8 +158,9 @@ fun PlayerScreen(
     loadingInfo: PlaybackLoadingInfo? = null,
     playbackIntro: PlaybackIntro? = null,
     introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
-    onSaveManualIntro: (startMs: Long, endMs: Long, wholeSeries: Boolean) -> Unit = { _, _, _ -> },
-    onClearManualIntro: () -> Unit = {},
+    sourceFailover: SourceFailoverUi = SourceFailoverUi(),
+    onRetrySources: () -> Unit = {},
+    onChooseAnotherSource: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val runtimeStateHolder = player?.runtimeState?.collectAsState()
@@ -211,6 +214,7 @@ fun PlayerScreen(
     var lastActivityTime by remember { mutableStateOf(System.currentTimeMillis()) }
     val videoSurfaceFocus = remember { FocusRequester() }
     val errorRetryFocus = remember { FocusRequester() }
+    val failoverRetryFocus = remember { FocusRequester() }
     var consumedWakeKey by remember { mutableIntStateOf(-1) }
     val coroutineScope = rememberCoroutineScope()
     var singleTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -326,12 +330,8 @@ fun PlayerScreen(
     val introTracker = remember { IntroSkipTracker() }
     introTracker.bind(playbackIntro?.ref?.episodeKey)
     var introSkipVersion by remember { mutableIntStateOf(0) }
-    var showIntroDialog by remember { mutableStateOf(false) }
-    val selectedIntro = remember(playbackIntro, durationMs) {
-        playbackIntro?.let { IntroSkipPolicy.select(it.candidates, durationMs) }
-    }
-    val introDecision = remember(positionMs, durationMs, selectedIntro, introSkipSettings, introSkipVersion) {
-        introTracker.decide(positionMs, durationMs, selectedIntro, introSkipSettings)
+    val introDecision = remember(positionMs, durationMs, playbackIntro, introSkipSettings, introSkipVersion) {
+        introTracker.decide(positionMs, durationMs, playbackIntro?.interval, introSkipSettings)
     }
 
     fun skipIntro(toMs: Long, automatic: Boolean) {
@@ -715,13 +715,6 @@ fun PlayerScreen(
             resetActivityTimer()
         },
         onPlayNext = onPlayNext,
-        // Episodes only: lets the user mark the opening where no automatic data exists.
-        onMarkIntro = if (playbackIntro != null) {
-            {
-                showIntroDialog = true
-                resetActivityTimer()
-            }
-        } else null,
     )
 
     val globalTheme = remember(
@@ -783,7 +776,7 @@ fun PlayerScreen(
                     val skipOffer = introDecision as? IntroSkipDecision.ShowButton
                     if (skipOffer != null && !showControls && remoteKey == PlayerRemoteKey.ACTIVATE &&
                         event.type == KeyEventType.KeyDown && nativeEvent.repeatCount == 0 &&
-                        !showAudioDialog && !showSubtitleDialog && !showIntroDialog
+                        !showAudioDialog && !showSubtitleDialog && !sourceFailover.allFailed
                     ) {
                         consumedWakeKey = nativeEvent.keyCode
                         skipIntro(skipOffer.skipToMs, automatic = false)
@@ -792,7 +785,7 @@ fun PlayerScreen(
                     when (playerRemoteAction(
                         key = remoteKey,
                         controlsVisible = showControls,
-                        overlayVisible = showAudioDialog || showSubtitleDialog || showIntroDialog || showFatalPlaybackError,
+                        overlayVisible = showAudioDialog || showSubtitleDialog || sourceFailover.allFailed || showFatalPlaybackError,
                         isKeyDown = event.type == KeyEventType.KeyDown,
                         isRepeat = nativeEvent.repeatCount > 0,
                         hasNextVideo = nextVideo != null,
@@ -913,7 +906,7 @@ fun PlayerScreen(
 
         // Playback error overlay — shown when the codec/source fails so it's visible instead
         // of an infinite buffering spinner, with a one-tap retry.
-        if (showFatalPlaybackError) {
+        if (showFatalPlaybackError && !sourceFailover.allFailed) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -973,6 +966,59 @@ fun PlayerScreen(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                 )
+            }
+        }
+
+        // Automatic source switch: a discreet notice, or the choice when every source failed
+        // (D-pad: "Tentar novamente" gets focus, LEFT/RIGHT move, OK selects, Back leaves).
+        AnimatedVisibility(
+            visible = sourceFailover.notice != null && !sourceFailover.allFailed,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 32.dp),
+        ) {
+            Text(
+                text = sourceFailover.notice.orEmpty(),
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xD9141422))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
+            )
+        }
+        if (sourceFailover.allFailed) {
+            LaunchedEffect(Unit) {
+                delay(120)
+                runCatching { failoverRetryFocus.requestFocus() }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC000000)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                ) {
+                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
+                    Text(SourceFailoverMessages.ALL_FAILED, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(SourceFailoverMessages.ALL_FAILED_HINT, color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ThemedButton(text = "Escolher outra fonte", onClick = onChooseAnotherSource)
+                        ThemedButton(
+                            text = "Tentar novamente",
+                            modifier = Modifier.focusRequester(failoverRetryFocus),
+                            onClick = onRetrySources,
+                        )
+                    }
+                }
             }
         }
 
@@ -1113,13 +1159,20 @@ fun PlayerScreen(
         // Skip intro — only inside a reliable opening interval. Above the controls while they are
         // visible (reachable with the D-pad there), lower when they hide; OK skips then.
         val skipDecision = introDecision as? IntroSkipDecision.ShowButton
-        if (skipDecision != null) {
+        // Kept while the button fades out after the skip.
+        var lastSkipToMs by remember { mutableLongStateOf(0L) }
+        if (skipDecision != null) lastSkipToMs = skipDecision.skipToMs
+        AnimatedVisibility(
+            visible = skipDecision != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 38.dp, bottom = if (showControls) 150.dp else 48.dp),
+        ) {
             SkipIntroButton(
-                onClick = { skipIntro(skipDecision.skipToMs, automatic = false) },
+                onClick = { skipIntro(lastSkipToMs, automatic = false) },
                 showOkHint = !showControls,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 38.dp, bottom = if (showControls) 150.dp else 48.dp),
             )
         }
 
@@ -1148,23 +1201,6 @@ fun PlayerScreen(
         )
     }
 }
-
-    if (showIntroDialog && playbackIntro != null) {
-        IntroMarkDialog(
-            currentPositionMs = positionMs,
-            durationMs = durationMs,
-            existing = playbackIntro.candidates.firstOrNull { it.source != IntroSource.ANISKIP },
-            onSave = { start, end, wholeSeries ->
-                onSaveManualIntro(start, end, wholeSeries)
-                showIntroDialog = false
-            },
-            onClear = {
-                onClearManualIntro()
-                showIntroDialog = false
-            },
-            onDismiss = { showIntroDialog = false },
-        )
-    }
 
     // Audio Tracks Dialogue
     if (showAudioDialog) {

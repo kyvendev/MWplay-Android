@@ -99,7 +99,8 @@ class CatalogRepository(private val core: StremioCore) {
                         releaseInfo = item.releaseInfo,
                         imdbRating = null,
                         inCinema = item.inCinema,
-                        watched = item.watched
+                        watched = item.watched,
+                        genres = item.links.filter { it.category.equals("Genres", ignoreCase = true) }.map { it.name },
                     )
                 }
             } else {
