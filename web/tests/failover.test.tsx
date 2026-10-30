@@ -215,6 +215,35 @@ describe('player with automatic source switch', () => {
     expect(document.querySelector('.player__notice')).toBeNull();
   });
 
+  it('Continuar assistindo: finds FrostStream in the core even if it answered after the click, without restarting the clock', async () => {
+    const streamPath = first.streamRequest!.path;
+    const metaDetails = (groups: { name: string; url: string }[]) => ({
+      selected: { metaPath: { resource: 'meta', type: 'movie', id: 'tt1', extra: [] }, streamPath },
+      metaItem: null,
+      libraryItem: null,
+      title: null,
+      streams: groups.map((group) => ({
+        content: { type: 'Ready', content: [{ url: group.url }] },
+        addon: { manifest: { id: group.name.toLowerCase(), name: group.name }, transportUrl: `https://${group.name.toLowerCase()}.example/manifest.json` },
+      })),
+    });
+    setPlaybackRequest({ ...base, alternatives: [first], torrentsAvailable: false });
+    const fake = createFakeCore({ ctx: ctxFixture(true), player: playerFor(first, null), meta_details: metaDetails([{ name: 'Torrentio', url: first.stream.url! }]) });
+    render(
+      <CoreProvider core={fake.core}>
+        <PlayerPage />
+      </CoreProvider>,
+    );
+    await act(async () => {});
+    await act(async () => vi.advanceTimersByTime(20_000));
+    // FrostStream answers while Torrentio is still loading.
+    act(() => fake.setState('meta_details', metaDetails([{ name: 'Torrentio', url: first.stream.url! }, { name: 'FrostStream', url: second.stream.url! }])));
+    await act(async () => {});
+    await act(async () => vi.advanceTimersByTime(10_000));
+    expect(loads(fake)).toEqual([first.stream.url, second.stream.url]);
+    expect(document.querySelector('.player__notice')?.textContent).toBe('Torrentio não iniciou em 30 s. Tentando FrostStream…');
+  });
+
   it('closing the player cancels the switch', async () => {
     const { fake, view } = mount(playerFor(first, null));
     await act(async () => {});

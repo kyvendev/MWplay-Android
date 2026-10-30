@@ -8,7 +8,7 @@ import { episodeLabel, metaLinks, streamKind, streamLabel } from '../../services
 import type { MetaItem, MetaItemPreview, Stream, StreamsGroup, Video } from '../../services/stremio/types';
 import { genreName } from '../../shared/contentLabels';
 import { pickRemembered, recallStream, rememberStream, selectionOf } from '../../shared/streamMemory';
-import { setPlaybackRequest, type PlaybackCandidate } from '../player/playbackRequest';
+import { candidatesFrom, playableInBrowser, setPlaybackRequest } from '../player/playbackRequest';
 
 interface Props {
   type: string;
@@ -81,21 +81,11 @@ export function DetailsPage({ type, id, videoId, resume = false }: Props) {
     const video = meta.videos.find((item) => item.id === streamPath?.id);
     if (group.addon.transportUrl) rememberStream(type, id, streamPath?.id ?? id, selectionOf(stream, group.addon.transportUrl));
     // Every stream of the title, for the automatic switch when the chosen one does not start.
-    const alternatives: PlaybackCandidate[] = details.streams.flatMap((streamsGroup) =>
-      streamsGroup.content.type === 'Ready'
-        ? streamsGroup.content.content.map((candidate, order) => ({
-            key: `${streamsGroup.addon.transportUrl ?? streamsGroup.addon.manifest.id}|${order}`,
-            addon: streamsGroup.addon.manifest.name,
-            stream: candidate,
-            streamRequest: streamPath && streamsGroup.addon.transportUrl ? { base: streamsGroup.addon.transportUrl, path: streamPath } : null,
-            playable: playableInBrowser(candidate, torrentsAvailable),
-            order,
-          }))
-        : [],
-    );
+    const alternatives = candidatesFrom(details, streamPath, torrentsAvailable);
     setPlaybackRequest({
       candidate: alternatives.find((candidate) => candidate.stream === stream),
       alternatives,
+      torrentsAvailable,
       stream,
       streamRequest: streamPath && group.addon.transportUrl ? { base: group.addon.transportUrl, path: streamPath } : null,
       metaRequest: details.metaItem?.addon.transportUrl && details.selected ? { base: details.metaItem.addon.transportUrl, path: details.selected.metaPath } : null,
@@ -142,12 +132,6 @@ export function DetailsPage({ type, id, videoId, resume = false }: Props) {
       </div>
     </main>
   );
-}
-
-/** Plays inside the web player: HTTP streams, or torrents/YouTube with a streaming server. */
-function playableInBrowser(stream: Stream, torrentsAvailable: boolean): boolean {
-  const kind = streamKind(stream);
-  return kind === 'http' || ((kind === 'torrent' || kind === 'youtube') && torrentsAvailable);
 }
 
 function DetailsTopBar() {

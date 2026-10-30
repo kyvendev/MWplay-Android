@@ -1,4 +1,5 @@
-import type { ResourceRequest, Stream } from '../../services/stremio/types';
+import { streamKind } from '../../services/stremio/streams';
+import type { MetaDetails, ResourcePath, ResourceRequest, Stream } from '../../services/stremio/types';
 
 /**
  * What the details screen hands to the player: the chosen stream plus the requests the core needs
@@ -17,6 +18,8 @@ export interface PlaybackRequest {
   candidate?: PlaybackCandidate;
   /** Every stream of the title, for the automatic switch when a source does not start. */
   alternatives?: PlaybackCandidate[];
+  /** Torrents play here (a streaming server is running). */
+  torrentsAvailable?: boolean;
 }
 
 /** One stream of the title as the automatic source switch sees it. */
@@ -40,4 +43,32 @@ export function setPlaybackRequest(request: PlaybackRequest | null) {
 
 export function getPlaybackRequest(): PlaybackRequest | null {
   return current;
+}
+
+/** Plays inside the web player: HTTP streams, or torrents/YouTube with a streaming server. */
+export function playableInBrowser(stream: Stream, torrentsAvailable: boolean): boolean {
+  const kind = streamKind(stream);
+  return kind === 'http' || ((kind === 'torrent' || kind === 'youtube') && torrentsAvailable);
+}
+
+/**
+ * Every ready stream of the details screen's video as switch candidates. Empty when the core
+ * shows another video (never another episode's streams).
+ */
+export function candidatesFrom(details: MetaDetails | null, streamPath: ResourcePath | null, torrentsAvailable: boolean): PlaybackCandidate[] {
+  if (!details || !streamPath) return [];
+  const shown = details.selected?.streamPath;
+  if (!shown || shown.id !== streamPath.id || shown.type !== streamPath.type) return [];
+  return details.streams.flatMap((group) =>
+    group.content.type === 'Ready'
+      ? group.content.content.map((stream, order) => ({
+          key: `${group.addon.transportUrl ?? group.addon.manifest.id}|${order}`,
+          addon: group.addon.manifest.name,
+          stream,
+          streamRequest: group.addon.transportUrl ? { base: group.addon.transportUrl, path: streamPath } : null,
+          playable: playableInBrowser(stream, torrentsAvailable),
+          order,
+        }))
+      : [],
+  );
 }

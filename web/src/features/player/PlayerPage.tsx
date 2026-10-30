@@ -7,7 +7,7 @@ import { useCore, useCoreState } from '../../services/stremio/CoreProvider';
 import { srtToVtt, streamKind } from '../../services/stremio/streams';
 import type { Player, Stream, StreamState, Subtitles } from '../../services/stremio/types';
 import { PROGRESS_REPORT_INTERVAL_MS } from '../../shared/config';
-import { getPlaybackRequest, setPlaybackRequest, type PlaybackCandidate, type PlaybackRequest } from './playbackRequest';
+import { candidatesFrom, getPlaybackRequest, setPlaybackRequest, type PlaybackCandidate, type PlaybackRequest } from './playbackRequest';
 import { FAILOVER_MESSAGES, PlaybackStartDetector, readFailoverConfig, SourceFailoverSession } from '../../shared/sourceFailover';
 import { findNext, focusElement, type Direction } from '../tv/spatialNav';
 import { AudioPanel, CastPanel, FailoverPanel, MirrorPanel, SkipIntroButton, SubtitleOverlay, SubtitlesPanel } from './PlayerPanels';
@@ -49,6 +49,11 @@ const byPlayableThenOrder = (a: PlaybackCandidate, b: PlaybackCandidate) => Numb
  */
 function FailoverPlayer({ initial }: { initial: PlaybackRequest }) {
   const config = useMemo(readFailoverConfig, []);
+  // Live streams of the video: "Continuar assistindo" may start before FrostStream or BestCine answer.
+  // Kept in a ref: addon answers must not restart the 30 s clock.
+  const liveDetails = useCoreState('meta_details');
+  const details = useRef(liveDetails);
+  details.current = liveDetails;
   const [attempt, setAttempt] = useState({ request: initial, index: 0 });
   const [notice, setNotice] = useState<string | null>(null);
   const [allFailed, setAllFailed] = useState(false);
@@ -90,7 +95,10 @@ function FailoverPlayer({ initial }: { initial: PlaybackRequest }) {
       if (!current?.isWaiting) return;
       window.clearTimeout(timer.current);
       const failed = current.current!;
-      const next = current.onFailed(outcome, reason, (initial.alternatives ?? []).filter((item) => item.playable), byPlayableThenOrder);
+      const live = candidatesFrom(details.current, initial.streamRequest?.path ?? null, initial.torrentsAvailable ?? false);
+      const seen = new Set<string>();
+      const candidates = [...live, ...(initial.alternatives ?? [])].filter((item) => item.playable && !seen.has(item.key) && Boolean(seen.add(item.key)));
+      const next = current.onFailed(outcome, reason, candidates, byPlayableThenOrder);
       log();
       if (!next) {
         // A definitive failure already stopped the player; a slow last source keeps loading in
