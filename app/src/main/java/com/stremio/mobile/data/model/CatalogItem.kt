@@ -14,4 +14,6 @@ data class CatalogItem(
     val remainingEpisodes: Int? = null,
     val continueWatchingVideoId: String? = null,
     val isContinueWatching: Boolean = false,
+    /** Genres from the addon's metadata (used to find sports channels). */
+    val genres: List<String> = emptyList(),
 )

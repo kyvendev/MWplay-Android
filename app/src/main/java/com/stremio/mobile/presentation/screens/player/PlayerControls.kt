@@ -35,7 +35,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Cast
-import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.FastForward
@@ -122,8 +121,6 @@ class PlayerControlsActions(
     val onShowCast: () -> Unit,
     /** Null when the device has no Picture-in-Picture support. */
     val onEnterPip: (() -> Unit)? = null,
-    /** Opens "Marcar abertura"; null for movies. */
-    val onMarkIntro: (() -> Unit)? = null,
 )
 
 @Composable
@@ -363,15 +360,6 @@ fun ClassicPlayerControls(
                             enabled = state.canSelectAudio,
                             onClick = actions.onShowAudio,
                         )
-
-                        actions.onMarkIntro?.let { markIntro ->
-                            PlayerIconButton(
-                                imageVector = Icons.Outlined.SkipNext,
-                                contentDescription = "Marcar abertura",
-                                enabled = true,
-                                onClick = markIntro,
-                            )
-                        }
 
                         TextButton(
                             onClick = actions.onCycleAspect,
@@ -646,18 +634,6 @@ private fun ModernTopPill(
                             onClick = {
                                 moreExpanded = false
                                 actions.onShowAudio()
-                            },
-                        )
-                    }
-                    actions.onMarkIntro?.let { markIntro ->
-                        DropdownMenuItem(
-                            text = { Text("Marcar abertura", color = Color.White) },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.SkipNext, contentDescription = null, tint = Color.White)
-                            },
-                            onClick = {
-                                moreExpanded = false
-                                markIntro()
                             },
                         )
                     }

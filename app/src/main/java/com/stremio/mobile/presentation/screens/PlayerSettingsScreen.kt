@@ -85,22 +85,16 @@ private fun IntroSkipSettingsSection(settings: IntroSkipSettings, onUpdate: (Int
             title = "Pular abertura",
             checked = settings.enabled,
             onCheckedChange = { onUpdate(settings.copy(enabled = it)) },
-            description = "Em séries e animes com o tempo da abertura conhecido (AniSkip ou marcado por você no player)",
+            description = "Em séries e animes, com o tempo da abertura buscado no TheIntroDB, AniSkip e SkipDB",
         )
         if (settings.enabled) {
             val modes = listOf(false to "Manual (botão)", true to "Automático")
             SettingsDropdownRow(
-                title = "Como pular",
+                title = "Modo",
                 selectedValue = settings.autoSkip,
                 options = modes,
                 onSelect = { onUpdate(settings.copy(autoSkip = it)) },
-                description = "No automático, a abertura é pulada uma vez por episódio, só quando o tempo é confiável",
-            )
-            SettingsToggleRow(
-                title = "Exibir botão durante a abertura",
-                checked = settings.showButton,
-                onCheckedChange = { onUpdate(settings.copy(showButton = it)) },
-                description = "Mostra \"Pular abertura\" enquanto a abertura estiver passando",
+                description = "Manual mostra o botão durante a abertura. Automático pula assim que ela começa, uma vez por episódio",
             )
         }
     }

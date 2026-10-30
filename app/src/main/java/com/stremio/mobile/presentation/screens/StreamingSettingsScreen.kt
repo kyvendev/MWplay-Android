@@ -47,7 +47,9 @@ fun StreamingSettingsScreen(
     onSetMinDownloadSpeedBps: (Long) -> Unit,
     onSetPreferredQuality: (String) -> Unit,
     onSetAutoSwitchOnDeadStream: (Boolean) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    isSourceFailoverEnabled: Boolean = true,
+    onSetSourceFailoverEnabled: (Boolean) -> Unit = {},
 ) {
     Column(
         modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth),
@@ -243,6 +245,13 @@ fun StreamingSettingsScreen(
             checked = isAutoSwitchOnDeadStream,
             onCheckedChange = onSetAutoSwitchOnDeadStream,
             description = "Reproduz a próxima melhor fonte sem perguntar"
+        )
+
+        SettingsToggleRow(
+            title = "Trocar fonte se não iniciar em 30 s",
+            checked = isSourceFailoverEnabled,
+            onCheckedChange = onSetSourceFailoverEnabled,
+            description = "Se a fonte escolhida não começar a tocar, tenta Torrentio, FrostStream e BestCine, nessa ordem"
         )
     }
 }

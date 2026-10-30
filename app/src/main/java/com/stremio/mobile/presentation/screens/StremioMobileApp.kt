@@ -11,6 +11,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
+import com.stremio.mobile.data.model.SportsChannelPolicy
+import com.stremio.mobile.data.model.TvCategories
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -170,6 +176,8 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     onSetPlayerUiStyle = viewModel::setPlayerUiStyle,
                     onSetGlassEffectsMode = viewModel::setGlassEffectsMode,
                     onSetAutoSwitchOnDeadStream = viewModel::setAutoSwitchOnDeadStream,
+                    isSourceFailoverEnabled = viewModel.sourceFailoverConfig.collectAsStateWithLifecycle().value.enabled,
+                    onSetSourceFailoverEnabled = viewModel::setSourceFailoverEnabled,
                     onSetGlobalGlassAlpha = viewModel::setGlobalGlassAlpha,
                     onSetAdaptiveGlassContrastEnabled = viewModel::setAdaptiveGlassContrastEnabled,
                     onSetGlassHapticsEnabled = viewModel::setGlassHapticsEnabled,
@@ -606,8 +614,10 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     },
                     playbackIntro = viewModel.playbackIntro.collectAsStateWithLifecycle().value,
                     introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
-                    onSaveManualIntro = viewModel::saveManualIntro,
-                    onClearManualIntro = viewModel::clearManualIntro,
+                    sourceFailover = viewModel.sourceFailover.collectAsStateWithLifecycle().value,
+                    onRetrySources = viewModel::retrySourceFailover,
+                    onChooseAnotherSource = viewModel::chooseAnotherSource,
+                    onCastingChanged = viewModel::onCastingChanged,
                 )
             }
 
@@ -741,6 +751,8 @@ private fun BoardScreen(
     onSetPlayerUiStyle: (String) -> Unit,
     onSetGlassEffectsMode: (String) -> Unit,
     onSetAutoSwitchOnDeadStream: (Boolean) -> Unit,
+    isSourceFailoverEnabled: Boolean,
+    onSetSourceFailoverEnabled: (Boolean) -> Unit,
     onSetGlobalGlassAlpha: (Float) -> Unit,
     onSetAdaptiveGlassContrastEnabled: (Boolean) -> Unit,
     onSetGlassHapticsEnabled: (Boolean) -> Unit,
@@ -757,6 +769,8 @@ private fun BoardScreen(
     onIgnoreUpdate: (String) -> Unit,
 ) {
     var settingsSubScreen by rememberSaveable { mutableStateOf(SettingsSubScreen.Main) }
+    // Esportes on a TV source without a sports category (channels filtered by metadata).
+    var tvSportsByMetadata by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.selectedSection) {
         if (state.selectedSection != MainSection.Settings) {
@@ -930,16 +944,43 @@ private fun BoardScreen(
                                 selectedTv == isTvTab
                             },
                             showTypes = !isTvTab,
+                            // The TV tab shows the categories as the row below.
+                            showExtras = !isTvTab,
                             backdrop = appBackdrop,
                             onSelectRequest = onSelectDiscoverFilter
                         )
+                    }
+                    val tvFilters = state.discoverCatalogWithFilters?.takeIf { isTvTab && TvCatalogPolicy.isTv(it.selected?.request?.path?.type) }
+                    val tvCategories = tvFilters?.let { tvCategoryRow(it, tvSportsByMetadata) }
+                    if (tvCategories != null && tvCategories.chips.isNotEmpty()) {
+                        item {
+                            TvCategoryChipsRow(
+                                row = tvCategories,
+                                onSelect = { chip ->
+                                    tvSportsByMetadata = chip.kind == TvCategories.Kind.SPORTS && tvCategories.sportsFromMetadata
+                                    onSelectDiscoverFilter(chip.request)
+                                },
+                            )
+                        }
                     }
                     if (state.discoverCatalog.isLoading) {
                         item { LoadingRow() }
                     } else if (state.discoverCatalog.error != null) {
                         item { EmptyState(state.discoverCatalog.error) }
                     } else {
-                        val items = state.discoverCatalog.items
+                        val items = if (tvCategories?.sportsOpen == true) {
+                            SportsChannelPolicy.sportsChannels(
+                                state.discoverCatalog.items,
+                                id = { it.id },
+                                genres = { it.genres },
+                                listedUnderSports = tvCategories.listedUnderSports,
+                            )
+                        } else {
+                            state.discoverCatalog.items
+                        }
+                        if (tvCategories?.sportsOpen == true && items.isEmpty()) {
+                            item { EmptyState("Nenhum canal de esportes encontrado neste catálogo.") }
+                        }
                         val chunks = items.chunked(gridColumns)
                         chunks.forEach { rowItems ->
                             item(contentType = "poster-row") {
@@ -1084,6 +1125,8 @@ private fun BoardScreen(
                                     onSetMinDownloadSpeedBps = onSetMinDownloadSpeedBps,
                                     onSetPreferredQuality = onSetPreferredQuality,
                                     onSetAutoSwitchOnDeadStream = onSetAutoSwitchOnDeadStream,
+                                    isSourceFailoverEnabled = isSourceFailoverEnabled,
+                                    onSetSourceFailoverEnabled = onSetSourceFailoverEnabled,
                                     onBack = { settingsSubScreen = SettingsSubScreen.Main }
                                 )
                             }
@@ -1343,12 +1386,65 @@ private fun LibraryFiltersRow(
     }
 }
 
+/** The TV tab's category row, from the selected TV catalog's genre filter. */
+private fun tvCategoryRow(
+    filters: com.stremio.core.models.CatalogWithFilters,
+    sportsByMetadata: Boolean,
+): TvCategories.Row<com.stremio.core.types.addon.ResourceRequest> {
+    val genre = filters.selectable.extra.firstOrNull { it.name.equals("genre", ignoreCase = true) }
+    val options = genre?.options.orEmpty().map { TvCategories.Option(it.value, it.selected, it.request) }
+    return TvCategories.build(
+        options = options,
+        sportsByMetadata = sportsByMetadata,
+        label = ContentLabels::genre,
+        allRequest = filters.selectable.catalogs.firstOrNull { it.selected }?.request,
+    )
+}
+
+/** "Todos os canais", "Esportes" and the source's other categories, as tappable pills. */
+@Composable
+internal fun TvCategoryChipsRow(
+    row: TvCategories.Row<com.stremio.core.types.addon.ResourceRequest>,
+    onSelect: (TvCategories.Chip<com.stremio.core.types.addon.ResourceRequest>) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        listOf(row.chips, if (row.sportsOpen) row.sportsSubcategories else emptyList())
+            .filter { it.isNotEmpty() }
+            .forEach { chips ->
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = ScreenGutter),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    items(chips, key = { it.label }) { chip ->
+                        val shape = RoundedCornerShape(99.dp)
+                        Text(
+                            text = chip.label,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .heightIn(min = TouchTarget)
+                                .clip(shape)
+                                .background(if (chip.selected) AccentPurple else SurfaceHigh)
+                                .border(1.dp, if (chip.selected) AccentPurple else HairlineBorder, shape)
+                                .selectable(selected = chip.selected, role = Role.Tab, onClick = { onSelect(chip) })
+                                .wrapContentHeight(Alignment.CenterVertically)
+                                .padding(horizontal = 18.dp),
+                        )
+                    }
+                }
+            }
+    }
+}
+
 @Composable
 private fun DiscoverFiltersRow(
     discoverCatalogWithFilters: com.stremio.core.models.CatalogWithFilters?,
     backdrop: LayerBackdrop?,
     onSelectRequest: (com.stremio.core.types.addon.ResourceRequest) -> Unit,
     showTypes: Boolean = true,
+    showExtras: Boolean = true,
 ) {
     if (discoverCatalogWithFilters == null) return
 
@@ -1395,7 +1491,7 @@ private fun DiscoverFiltersRow(
         }
 
         // Extra Options dropdowns (usually Genre)
-        selectable.extra.forEach { selectableExtra ->
+        if (showExtras) selectable.extra.forEach { selectableExtra ->
             if (selectableExtra.options.isNotEmpty()) {
                 item {
                     val options = selectableExtra.options.map { ContentLabels.extraOption(selectableExtra.name, it.value) }

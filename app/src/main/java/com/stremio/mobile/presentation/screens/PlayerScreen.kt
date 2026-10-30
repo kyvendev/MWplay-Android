@@ -13,6 +13,10 @@ import android.view.View
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -78,12 +82,11 @@ import com.stremio.mobile.player.PlayerResizeMode
 import com.stremio.mobile.player.PlayerRuntimeState
 import com.stremio.mobile.player.PlayerSubtitleStyle
 import com.stremio.mobile.player.PlayerTrackOption
-import com.stremio.mobile.player.intro.IntroInterval
+import com.stremio.mobile.player.failover.SourceFailoverMessages
+import com.stremio.mobile.player.failover.SourceFailoverUi
 import com.stremio.mobile.player.intro.IntroSkipDecision
-import com.stremio.mobile.player.intro.IntroSkipPolicy
 import com.stremio.mobile.player.intro.IntroSkipSettings
 import com.stremio.mobile.player.intro.IntroSkipTracker
-import com.stremio.mobile.player.intro.IntroSource
 import com.stremio.mobile.player.intro.PlaybackIntro
 import com.stremio.mobile.presentation.screens.player.ClassicPlayerControls
 import com.stremio.mobile.presentation.screens.player.ModernPlayerControls
@@ -102,7 +105,6 @@ import com.stremio.mobile.presentation.components.ThemedIconButton
 import com.stremio.mobile.presentation.components.PlaybackLoadingInfo
 import com.stremio.mobile.presentation.components.PlaybackLoadingOverlay
 import com.stremio.mobile.presentation.screens.player.PictureInPictureHost
-import com.stremio.mobile.presentation.screens.player.IntroMarkDialog
 import com.stremio.mobile.presentation.screens.player.SkipIntroButton
 import com.stremio.mobile.presentation.screens.player.PlayerPictureInPictureEffect
 import com.stremio.mobile.presentation.screens.player.rememberIsInPictureInPicture
@@ -154,8 +156,10 @@ fun PlayerScreen(
     loadingInfo: PlaybackLoadingInfo? = null,
     playbackIntro: PlaybackIntro? = null,
     introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
-    onSaveManualIntro: (startMs: Long, endMs: Long, wholeSeries: Boolean) -> Unit = { _, _, _ -> },
-    onClearManualIntro: () -> Unit = {},
+    sourceFailover: SourceFailoverUi = SourceFailoverUi(),
+    onRetrySources: () -> Unit = {},
+    onChooseAnotherSource: () -> Unit = {},
+    onCastingChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onBack)
@@ -171,6 +175,7 @@ fun PlayerScreen(
     LaunchedEffect(player, activeUri, activeSelectionId, castUri, castState.mediaUrl, castState.connected) {
         castController.attachLocalPlayback(activeUri, castUri ?: activeUri, activeSelectionId)
     }
+    LaunchedEffect(isCasting) { onCastingChanged(isCasting) }
     LaunchedEffect(player, activeUri, activeSelectionId, isCasting) {
         // Reopening this video or recreating its local engine must not start a second soundtrack.
         if (isCasting) player?.pause()
@@ -332,13 +337,9 @@ fun PlayerScreen(
     val introTracker = remember { IntroSkipTracker() }
     introTracker.bind(playbackIntro?.ref?.episodeKey)
     var introSkipVersion by remember { mutableIntStateOf(0) }
-    var showIntroDialog by remember { mutableStateOf(false) }
-    val selectedIntro = remember(playbackIntro, durationMs) {
-        playbackIntro?.let { IntroSkipPolicy.select(it.candidates, durationMs) }
-    }
-    val introDecision = remember(positionMs, durationMs, selectedIntro, introSkipSettings, introSkipVersion, isCasting) {
+    val introDecision = remember(positionMs, durationMs, playbackIntro, introSkipSettings, introSkipVersion, isCasting) {
         if (isCasting) IntroSkipDecision.None
-        else introTracker.decide(positionMs, durationMs, selectedIntro, introSkipSettings)
+        else introTracker.decide(positionMs, durationMs, playbackIntro?.interval, introSkipSettings)
     }
 
     fun skipIntro(toMs: Long, automatic: Boolean) {
@@ -742,13 +743,6 @@ fun PlayerScreen(
         onEnterPip = if (activity?.supportsPlayerPip() == true) {
             { (activity as? PictureInPictureHost)?.enterPlayerPip() }
         } else null,
-        // Episodes only: lets the user mark the opening where no automatic data exists.
-        onMarkIntro = if (playbackIntro != null && !isCasting) {
-            {
-                showIntroDialog = true
-                resetActivityTimer()
-            }
-        } else null,
     )
 
     val globalTheme = remember(
@@ -923,6 +917,51 @@ fun PlayerScreen(
             }
         }
 
+        // Automatic source switch: a discreet notice, or the choice when every source failed.
+        AnimatedVisibility(
+            visible = sourceFailover.notice != null && !sourceFailover.allFailed && !isInPip,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 24.dp, start = 24.dp, end = 24.dp),
+        ) {
+            Text(
+                text = sourceFailover.notice.orEmpty(),
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xD9141422))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            )
+        }
+        if (sourceFailover.allFailed && !isInPip) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC000000))
+                    .pointerInput(Unit) { detectTapGestures { } },
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                ) {
+                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+                    Text(SourceFailoverMessages.ALL_FAILED, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text(SourceFailoverMessages.ALL_FAILED_HINT, color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ThemedButton(text = "Escolher outra fonte", onClick = onChooseAnotherSource)
+                        ThemedButton(text = "Tentar novamente", onClick = onRetrySources)
+                    }
+                }
+            }
+        }
+
         // Floating Stats Overlay Panel
         if (showStatsPanel && torrentStats != null && !isInPip) {
             // Full-screen backdrop detector to close the stats panel when clicking outside
@@ -1057,13 +1096,18 @@ fun PlayerScreen(
             label = "skipIntroBottom",
         )
         val skipDecision = introDecision as? IntroSkipDecision.ShowButton
-        if (skipDecision != null && !isInPip) {
-            SkipIntroButton(
-                onClick = { skipIntro(skipDecision.skipToMs, automatic = false) },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 24.dp, bottom = skipButtonBottom),
-            )
+        // Kept while the button fades out after the skip.
+        var lastSkipToMs by remember { mutableLongStateOf(0L) }
+        if (skipDecision != null) lastSkipToMs = skipDecision.skipToMs
+        AnimatedVisibility(
+            visible = skipDecision != null && !isInPip,
+            enter = fadeIn() + slideInHorizontally { it / 3 },
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 24.dp, bottom = skipButtonBottom),
+        ) {
+            SkipIntroButton(onClick = { skipIntro(lastSkipToMs, automatic = false) })
         }
 
         // Next Episode Popup — shown near the end of an episode, independent of showControls, no animation
@@ -1126,23 +1170,6 @@ fun PlayerScreen(
                 }
             },
             onDismiss = { showCastDialog = false },
-        )
-    }
-
-    if (showIntroDialog && playbackIntro != null) {
-        IntroMarkDialog(
-            currentPositionMs = positionMs,
-            durationMs = durationMs,
-            existing = playbackIntro.candidates.firstOrNull { it.source != IntroSource.ANISKIP },
-            onSave = { start, end, wholeSeries ->
-                onSaveManualIntro(start, end, wholeSeries)
-                showIntroDialog = false
-            },
-            onClear = {
-                onClearManualIntro()
-                showIntroDialog = false
-            },
-            onDismiss = { showIntroDialog = false },
         )
     }
 
