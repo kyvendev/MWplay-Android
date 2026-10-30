@@ -89,4 +89,34 @@ class SportsChannelsTest {
         assertEquals(listOf("Todos os canais", "Esportes"), row.chips.map { it.label })
         assertEquals(listOf("catalog", "catalog"), row.chips.map { it.request })
     }
+
+    @Test
+    fun bestCineSportsCatalogIsEsportes() {
+        assertTrue(SportsChannelPolicy.isSportsCatalog("Canais | Esportes"))
+        assertTrue(SportsChannelPolicy.isSportsCatalog("canais|esportes"))
+        assertFalse(SportsChannelPolicy.isSportsCatalog("Canais | Abertos"))
+        assertFalse(SportsChannelPolicy.isSportsCatalog("Esportes Radicais Canal"))
+        val catalogs = listOf(
+            TvCategories.Option("Canais", true, "canais"),
+            TvCategories.Option("Canais | Esportes", false, "canais-esportes"),
+        )
+        val genres = listOf(TvCategories.Option(null, true, "canais"), TvCategories.Option("Notícias", false, "noticias"))
+        val row = TvCategories.build(genres, false, label = { it }, allRequest = "canais", catalogs = catalogs)
+        assertEquals(listOf("Todos os canais", "Esportes", "Notícias"), row.chips.map { it.label })
+        assertEquals("canais-esportes", row.chips[1].request)
+        assertFalse(row.sportsOpen)
+
+        // Inside "Canais | Esportes": Esportes is selected, Todos os canais goes back to "Canais".
+        val inSports = TvCategories.build(
+            genres = emptyList(),
+            sportsByMetadata = false,
+            label = { it },
+            allRequest = "canais-esportes",
+            catalogs = catalogs.map { it.copy(selected = it.value == "Canais | Esportes") },
+        )
+        assertEquals(listOf("Todos os canais", "Esportes"), inSports.chips.map { it.label })
+        assertEquals("canais", inSports.chips[0].request)
+        assertFalse(inSports.chips[0].selected)
+        assertTrue(inSports.chips[1].selected && inSports.listedUnderSports && !inSports.sportsFromMetadata)
+    }
 }

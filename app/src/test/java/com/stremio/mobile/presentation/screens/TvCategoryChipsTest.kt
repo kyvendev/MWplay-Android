@@ -27,7 +27,7 @@ class TvCategoryChipsTest {
         val all = ResourceRequest(base = "https://addon.example/", path = com.stremio.core.types.addon.ResourcePath(resource = "catalog", type = "tv", id = "canais", extra = emptyList()))
         val sports = all.copy(path = all.path.copy(extra = listOf(com.stremio.core.types.addon.ExtraValue(name = "genre", value = "Esportes"))))
         val row = TvCategories.build(
-            options = listOf(TvCategories.Option(null, true, all), TvCategories.Option("Esportes", false, sports)),
+            genres = listOf(TvCategories.Option(null, true, all), TvCategories.Option("Esportes", false, sports)),
             sportsByMetadata = false,
             label = { it },
         )
