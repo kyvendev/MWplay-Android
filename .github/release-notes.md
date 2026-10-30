@@ -1,15 +1,15 @@
-MW Play **TV 1.4.0**, desenvolvido para Android TV e Google TV.
+MW Play **TV 1.4.1**, desenvolvido para Android TV e Google TV.
 
-## Novidades
+## Correções
 
-- **Pular abertura automático:** séries e animes mostram o botão "Pular abertura" durante a abertura, com os tempos buscados no TheIntroDB, no SkipDB e na AniSkip. Com os controles escondidos, o **OK** pula direto. O tempo só é usado quando é do episódio certo e cabe na duração do vídeo; sem dados confiáveis, nada é pulado. O botão "Marcar abertura" foi removido. Em **Ajustes › Player › Pular abertura** dá para desligar ou escolher entre o modo manual (padrão) e o automático.
-- **Troca automática de fonte:** se a fonte escolhida não começar a tocar em 30 segundos, ou falhar de vez, o app tenta sozinho a melhor fonte do próximo addon, na ordem Torrentio, FrostStream e BestCine, e avisa a troca na tela. Cada addon é tentado uma vez, e um vídeo que já começou nunca é trocado. Se nenhuma funcionar, aparecem "Tentar novamente" (já com o foco) e "Escolher outra fonte". Dá para desligar em **Ajustes › Streaming**.
-- **Esportes na aba TV:** a aba TV agora tem "Todos os canais", "Esportes" (o catálogo "Canais | Esportes" do BestCine) e as demais categorias do addon, navegáveis pelo controle remoto.
+- **Troca automática de fonte:** agora também funciona quando o vídeo é aberto por **Continuar assistindo** ou pelo próximo episódio automático. Antes, nesses casos, o app não encontrava as outras fontes e ficava preso no carregamento quando o Torrentio demorava. As alternativas (FrostStream e BestCine) passam a ser buscadas no momento da falha, incluindo addons que responderam depois, e nunca de outro episódio.
+- O aviso da troca e o painel "Nenhuma fonte conseguiu iniciar a reprodução" aparecem por cima da tela de carregamento.
+- Se todas as fontes falharem antes de o player abrir, a tela de fontes aparece com a mensagem, para escolher outra.
 
 ## Instalação
 
-Baixe um APK **MW-Play-TV** compatível com seu aparelho. Use o arquivo **universal-release.apk** se não souber a arquitetura. Ele instala por cima da versão 1.3.0 sem perder login nem configurações.
+Baixe um APK **MW-Play-TV** compatível com seu aparelho. Use o arquivo **universal-release.apk** se não souber a arquitetura. Ele instala por cima da versão 1.4.0 sem perder login nem configurações.
 
 Os APKs são assinados com a chave original do projeto. O arquivo SHA256SUMS acompanha os downloads.
 
-A versão para celulares e tablets é distribuída separadamente como **MW Play Mobile 1.4.0**.
+A versão para celulares e tablets é distribuída separadamente como **MW Play Mobile 1.4.1**.
