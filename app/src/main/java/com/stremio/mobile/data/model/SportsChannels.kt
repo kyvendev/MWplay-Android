@@ -7,7 +7,8 @@ import java.text.Normalizer
  *
  * A channel is sports only through metadata, never because its name contains a sports word:
  * 1. the explicit lists below (fixes for channels a source classifies wrongly);
- * 2. the category it was listed under (the addon's genre filter, e.g. "Esportes");
+ * 2. the category it was listed under: a sports catalog (BestCine's "Canais | Esportes") or the
+ *    addon's genre filter (e.g. "Esportes");
  * 3. its own genres from the addon's metadata.
  * Category names are compared whole (accents and case ignored), so "Futebol" matches but
  * "Canal Esportivo da Cidade" as a channel name does not.
@@ -19,6 +20,9 @@ object SportsChannelPolicy {
         "Basquete", "Lutas", "Tênis", "Sports", "Sport", "Football", "Soccer", "Motorsport",
         "Basketball", "Fighting", "Tennis",
     ).mapTo(mutableSetOf(), ::normalize)
+
+    /** TV catalogs that list only sports channels, by name. */
+    val SPORTS_CATALOG_NAMES: Set<String> = setOf("Canais | Esportes").mapTo(mutableSetOf(), ::normalize)
 
     /** Channel ids always treated as sports, whatever the source says. */
     val FORCED_SPORTS_IDS: Set<String> = emptySet()
@@ -34,6 +38,17 @@ object SportsChannelPolicy {
             .replace(Regex("\\s+"), " ")
 
     fun isSportsCategory(name: String?): Boolean = name != null && normalize(name) in SPORTS_CATEGORIES
+
+    /**
+     * A sports catalog: listed in [SPORTS_CATALOG_NAMES], or named "<group> | <sports category>"
+     * like "Canais | Esportes" (each part compared whole).
+     */
+    fun isSportsCatalog(name: String?): Boolean {
+        if (name == null) return false
+        if (normalize(name) in SPORTS_CATALOG_NAMES) return true
+        val parts = name.split('|')
+        return parts.size > 1 && isSportsCategory(parts.last())
+    }
 
     /**
      * Whether [id] with [genres] is a sports channel. [listedUnderSports] = it came from a
@@ -66,9 +81,10 @@ object SportsChannelPolicy {
 }
 
 /**
- * The category row of the TV tab, built from the source's genre filter: "Todos os canais",
- * "Esportes" and the source's other categories, unchanged and in its order. [R] is the request
- * that loads a category.
+ * The category row of the TV tab: "Todos os canais", "Esportes" and the source's other
+ * categories, unchanged and in its order. Esportes opens the source's sports catalog
+ * ("Canais | Esportes"), otherwise its sports genre, otherwise every channel filtered by
+ * metadata. [R] is the request that loads a category.
  */
 object TvCategories {
     data class Option<R>(val value: String?, val selected: Boolean, val request: R)
@@ -79,36 +95,65 @@ object TvCategories {
 
     data class Row<R>(
         val chips: List<Chip<R>>,
-        /** Sports categories of the source, shown under "Esportes" when it has more than one. */
+        /** Sports catalogs or categories of the source, shown under "Esportes" when there are several. */
         val sportsSubcategories: List<Chip<R>>,
         /** The Esportes section is open. */
         val sportsOpen: Boolean,
-        /** The channels on screen come from a sports category of the source. */
+        /** The channels on screen come from a sports catalog or category of the source. */
         val listedUnderSports: Boolean,
-        /** The source has no sports category: Esportes filters every channel by its metadata. */
+        /** The source has no sports catalog or category: Esportes filters every channel by its metadata. */
         val sportsFromMetadata: Boolean,
     )
 
     /**
-     * [sportsByMetadata] = the user opened Esportes on a source without a sports category, so
-     * the whole list is shown filtered by each channel's metadata. [allRequest] loads every
-     * channel when the source's filter has no "all" option (or no genre filter at all).
+     * [genres]: the selected catalog's genre options. [catalogs]: the TV catalogs (value = name).
+     * [sportsByMetadata] = the user opened Esportes on a source without sports catalog/category.
+     * [allRequest] loads every channel when nothing better exists (the selected catalog).
      */
-    fun <R> build(options: List<Option<R>>, sportsByMetadata: Boolean, label: (String) -> String, allRequest: R? = null): Row<R> {
-        val allOption = options.firstOrNull { it.value == null }
-        val all = allOption?.request ?: allRequest
-        val sports = options.filter { SportsChannelPolicy.isSportsCategory(it.value) }
-        val selectedSports = sports.firstOrNull { it.selected }
-        val sportsOpen = selectedSports != null || (sportsByMetadata && sports.isEmpty())
-        val allSelected = allOption?.selected ?: options.none { it.selected }
-        val chips = buildList<Chip<R>> {
-            if (all != null) add(Chip("Todos os canais", Kind.ALL, all, allSelected && !sportsOpen))
-            val sportsRequest = sports.firstOrNull()?.request ?: all
-            if (sportsRequest != null) add(Chip("Esportes", Kind.SPORTS, sportsRequest, sportsOpen))
-            options.filter { it.value != null && it !in sports }
-                .forEach { add(Chip(label(it.value!!), Kind.OTHER, it.request, it.selected && !sportsOpen)) }
+    fun <R> build(
+        genres: List<Option<R>>,
+        sportsByMetadata: Boolean,
+        label: (String) -> String,
+        allRequest: R? = null,
+        catalogs: List<Option<R>> = emptyList(),
+    ): Row<R> {
+        val sportsCatalogs = catalogs.filter { SportsChannelPolicy.isSportsCatalog(it.value) }
+        val inSportsCatalog = sportsCatalogs.any { it.selected }
+        val sportsGenres = genres.filter { SportsChannelPolicy.isSportsCategory(it.value) }
+        val selectedSportsGenre = sportsGenres.firstOrNull { it.selected }
+        val sportsFromMetadata = sportsCatalogs.isEmpty() && sportsGenres.isEmpty()
+        val sportsOpen = inSportsCatalog || selectedSportsGenre != null || (sportsByMetadata && sportsFromMetadata)
+
+        val allGenre = genres.firstOrNull { it.value == null }
+        // Inside the sports catalog, "Todos os canais" goes back to the first other TV catalog.
+        val all = if (inSportsCatalog) {
+            catalogs.firstOrNull { it !in sportsCatalogs }?.request
+        } else {
+            allGenre?.request ?: allRequest
         }
-        val sub = if (sports.size > 1) sports.map { Chip(label(it.value!!), Kind.SPORTS, it.request, it.selected) } else emptyList()
-        return Row(chips, sub, sportsOpen, listedUnderSports = selectedSports != null, sportsFromMetadata = sports.isEmpty())
+        val allSelected = !sportsOpen && (allGenre?.selected ?: genres.none { it.selected })
+
+        val chips = buildList<Chip<R>> {
+            if (all != null) add(Chip("Todos os canais", Kind.ALL, all, allSelected))
+            val sportsRequest = sportsCatalogs.firstOrNull()?.request ?: sportsGenres.firstOrNull()?.request ?: all
+            if (sportsRequest != null) add(Chip("Esportes", Kind.SPORTS, sportsRequest, sportsOpen))
+            // The other categories belong to the catalog on screen; the sports catalog has none.
+            if (!inSportsCatalog) {
+                genres.filter { it.value != null && it !in sportsGenres }
+                    .forEach { add(Chip(label(it.value!!), Kind.OTHER, it.request, it.selected && !sportsOpen)) }
+            }
+        }
+        val sub = when {
+            sportsCatalogs.size > 1 -> sportsCatalogs.map { Chip(it.value.orEmpty(), Kind.SPORTS, it.request, it.selected) }
+            sportsCatalogs.isEmpty() && sportsGenres.size > 1 -> sportsGenres.map { Chip(label(it.value!!), Kind.SPORTS, it.request, it.selected) }
+            else -> emptyList()
+        }
+        return Row(
+            chips = chips,
+            sportsSubcategories = sub,
+            sportsOpen = sportsOpen,
+            listedUnderSports = inSportsCatalog || selectedSportsGenre != null,
+            sportsFromMetadata = sportsFromMetadata,
+        )
     }
 }

@@ -1509,10 +1509,11 @@ private fun tvCategoryRow(
     val genre = filters.selectable.extra.firstOrNull { it.name.equals("genre", ignoreCase = true) }
     val options = genre?.options.orEmpty().map { TvCategories.Option(it.value, it.selected, it.request) }
     return TvCategories.build(
-        options = options,
+        genres = options,
         sportsByMetadata = sportsByMetadata,
         label = ContentLabels::genre,
         allRequest = filters.selectable.catalogs.firstOrNull { it.selected }?.request,
+        catalogs = filters.selectable.catalogs.map { TvCategories.Option(it.name, it.selected, it.request) },
     )
 }
 

@@ -36,7 +36,7 @@ class TvCategoryChipsTest {
     private val sports = all.copy(path = all.path.copy(extra = listOf(ExtraValue("genre", "Esportes"))))
     private val news = all.copy(path = all.path.copy(extra = listOf(ExtraValue("genre", "Notícias"))))
     private val row = TvCategories.build(
-        options = listOf(
+        genres = listOf(
             TvCategories.Option(null, true, all),
             TvCategories.Option("Esportes", false, sports),
             TvCategories.Option("Notícias", false, news),

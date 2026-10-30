@@ -1038,8 +1038,10 @@ class MainViewModel(
                         if (discover.selectable.types.isNotEmpty()) openTvCatalog(discover)
                     } else if (tvTabRequest == null && discover.selected?.request == shown) {
                         // First visit: switch to the preferred provider's TV catalog, once.
+                        // "Todos os canais" first: sports catalogs open from Esportes.
                         val preferred = TvCatalogPolicy.preferredCatalog(
-                            discover.selectable.catalogs,
+                            discover.selectable.catalogs.filterNot { SportsChannelPolicy.isSportsCatalog(it.name) }
+                                .ifEmpty { discover.selectable.catalogs },
                             name = { it.name },
                             transportUrl = { it.request.base },
                             addonName = ::addonNameForTransportUrl,
