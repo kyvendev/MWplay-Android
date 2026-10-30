@@ -6,7 +6,7 @@ import { App } from '../src/App';
 import { resetCatalogTabs } from '../src/features/catalog/DiscoverPage';
 import { CoreProvider } from '../src/services/stremio/CoreProvider';
 import type { Discover, MetaItemPreview } from '../src/services/stremio/types';
-import { buildCategoryRow, isSportsCategory, sportsChannels } from '../src/shared/sportsChannels';
+import { buildCategoryRow, isSportsCatalog, isSportsCategory, sportsChannels } from '../src/shared/sportsChannels';
 import { createFakeCore, type FakeCore } from './fakeCore';
 import { ctxFixture } from './fixtures/coreStates';
 
@@ -54,6 +54,23 @@ describe('classification', () => {
     expect(inSports.sportsSubcategories.map((chip) => chip.label)).toEqual(['Esportes', 'Futebol']);
     const noSports = buildCategoryRow([options[0], options[1]], true, (value) => value);
     expect(noSports.sportsOpen && noSports.sportsFromMetadata && !noSports.listedUnderSports).toBe(true);
+  });
+});
+
+describe('BestCine "Canais | Esportes"', () => {
+  it('is the Esportes catalog, and Todos os canais leaves it', () => {
+    expect(isSportsCatalog('Canais | Esportes')).toBe(true);
+    expect(isSportsCatalog('Canais | Abertos')).toBe(false);
+    expect(isSportsCatalog('Esportes Radicais Canal')).toBe(false);
+    const catalogs = [
+      { value: 'Canais', selected: true, request: 'canais' },
+      { value: 'Canais | Esportes', selected: false, request: 'canais-esportes' },
+    ];
+    const row = buildCategoryRow([{ value: null, selected: true, request: 'canais' }, { value: 'Notícias', selected: false, request: 'noticias' }], false, (value) => value, 'canais', catalogs);
+    expect(row.chips.map((chip) => [chip.label, chip.request])).toEqual([['Todos os canais', 'canais'], ['Esportes', 'canais-esportes'], ['Notícias', 'noticias']]);
+    const inSports = buildCategoryRow([], false, (value) => value, 'canais-esportes', catalogs.map((catalog) => ({ ...catalog, selected: catalog.value === 'Canais | Esportes' })));
+    expect(inSports.chips.map((chip) => [chip.label, chip.request, chip.selected])).toEqual([['Todos os canais', 'canais', false], ['Esportes', 'canais-esportes', true]]);
+    expect(inSports.listedUnderSports).toBe(true);
   });
 });
 

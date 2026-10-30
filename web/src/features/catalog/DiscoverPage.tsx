@@ -7,7 +7,7 @@ import type { Discover, ResourceRequest } from '../../services/stremio/types';
 import { catalogName, extraOptionName, isTvType, preferredTvCatalog, typeName } from '../../shared/contentLabels';
 import { navigate } from '../../app/router';
 import { openDetails } from '../home/HomePage';
-import { buildCategoryRow, sportsChannels, type CategoryChip, type CategoryRow } from '../../shared/sportsChannels';
+import { buildCategoryRow, isSportsCatalog, sportsChannels, type CategoryChip, type CategoryRow } from '../../shared/sportsChannels';
 
 type Mode = 'discover' | 'tv';
 
@@ -96,7 +96,9 @@ function CatalogBrowser({ mode }: { mode: Mode }) {
     const catalogs = discover.selectable.catalogs.filter((catalog) => isTvType(catalog.type));
     if (catalogs.length === 0) return;
     tvCatalogChosen = true;
-    const preferred = preferredTvCatalog(catalogs, (catalog) => catalog.name, (catalog) => catalog.addon.transportUrl ?? '', (catalog) => catalog.addon.manifest.name);
+    // "Todos os canais" first: sports catalogs open from Esportes.
+    const general = catalogs.filter((catalog) => !isSportsCatalog(catalog.name));
+    const preferred = preferredTvCatalog(general.length ? general : catalogs, (catalog) => catalog.name, (catalog) => catalog.addon.transportUrl ?? '', (catalog) => catalog.addon.manifest.name);
     if (preferred && !preferred.selected) select(preferred.deepLinks.discover);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTv, onThisTab, discover?.selectable.catalogs.length]);
@@ -113,6 +115,9 @@ function CatalogBrowser({ mode }: { mode: Mode }) {
           sportsByMetadata,
           (value) => extraOptionName('genre', value),
           selectedCatalog?.deepLinks.discover,
+          discover.selectable.catalogs
+            .filter((catalog) => isTvType(catalog.type))
+            .map((catalog) => ({ value: catalog.name, selected: catalog.selected, request: catalog.deepLinks.discover })),
         )
       : null;
   const selectCategory = (chip: CategoryChip<string>) => {
