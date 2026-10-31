@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
@@ -74,17 +75,17 @@ class PlayerTimelineDpadTest {
     }
 
     @Test
-    fun eachVolumeActionAppearsOnceAndIsReachableWithTheDpad() {
+    fun muteIsTheOnlyVolumeButtonAndTheRowStaysReachable() {
         showControlsAndFocusTimeline()
-        for (label in listOf("Silenciar", "Diminuir volume", "Aumentar volume")) {
-            composeRule.onAllNodesWithContentDescription(label).assertCountEquals(1)
-        }
+        composeRule.onAllNodesWithContentDescription("Silenciar").assertCountEquals(1)
+        // The volume - / + buttons were removed (the remote's volume keys change the volume).
+        composeRule.onAllNodesWithContentDescription("Diminuir volume").assertCountEquals(0)
+        composeRule.onAllNodesWithContentDescription("Aumentar volume").assertCountEquals(0)
         composeRule.onAllNodesWithContentDescription("Ativar som").assertCountEquals(0)
         composeRule.onNodeWithContentDescription("Silenciar").performSemanticsAction(SemanticsActions.RequestFocus)
         composeRule.onNodeWithContentDescription("Silenciar").performKeyInput { pressKey(Key.DirectionRight) }
-        composeRule.onNodeWithContentDescription("Diminuir volume").assertIsFocused()
-            .performKeyInput { pressKey(Key.DirectionRight) }
-        composeRule.onNodeWithContentDescription("Aumentar volume").assertIsFocused()
+        // Next to mute now: the speed button, with no gap in between.
+        composeRule.onNodeWithText("1.0x", substring = true).assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionUp) }
         timeline().assertIsFocused()
         composeRule.runOnIdle { assertEquals(emptyList<Long>(), seeks) }

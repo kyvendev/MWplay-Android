@@ -700,20 +700,6 @@ fun PlayerScreen(
             showStatsPanel = !showStatsPanel
             resetActivityTimer()
         },
-        onDecreaseVolume = {
-            val volume = (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) - 1).coerceAtLeast(0)
-            if (volume > 0) lastVolume = volume
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
-            isMuted = volume == 0
-            resetActivityTimer()
-        },
-        onIncreaseVolume = {
-            val volume = (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) + 1).coerceAtMost(maxVolume)
-            if (volume > 0) lastVolume = volume
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
-            isMuted = volume == 0
-            resetActivityTimer()
-        },
         onPlayNext = onPlayNext,
     )
 
