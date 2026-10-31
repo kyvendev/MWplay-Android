@@ -203,6 +203,15 @@ fun DetailSheet(
             } else {
                 Text(text = details.description ?: "Sinopse indisponível.", color = Color(0xFFDADBE6), fontSize = 15.sp,
                     lineHeight = 22.sp, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                // Discreet: the original shows meanwhile, and the label says when the text was translated.
+                if (details.translatingDescription) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        CircularProgressIndicator(color = SubtleText, strokeWidth = 1.5.dp, modifier = Modifier.size(12.dp))
+                        Text(text = "Traduzindo sinopse…", color = SubtleText, fontSize = 12.sp)
+                    }
+                } else if (details.descriptionTranslated) {
+                    Text(text = "Sinopse traduzida automaticamente", color = SubtleText, fontSize = 12.sp)
+                }
                 val credits = details.cast.take(4)
                 if (credits.isNotEmpty()) {
                     Text(text = "Elenco: " + credits.joinToString(", "), color = SubtleText,

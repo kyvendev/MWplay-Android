@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,6 +106,7 @@ import com.stremio.mobile.presentation.components.ThemedIconButton
 import com.stremio.mobile.presentation.components.PlaybackLoadingInfo
 import com.stremio.mobile.presentation.components.PlaybackLoadingOverlay
 import com.stremio.mobile.presentation.screens.player.PictureInPictureHost
+import com.stremio.mobile.presentation.screens.player.PlayerLockLayer
 import com.stremio.mobile.presentation.screens.player.SkipIntroButton
 import com.stremio.mobile.presentation.screens.player.PlayerPictureInPictureEffect
 import com.stremio.mobile.presentation.screens.player.rememberIsInPictureInPicture
@@ -244,6 +246,8 @@ fun PlayerScreen(
     // UI Configuration
     var resizeMode by remember { mutableStateOf(PlayerResizeMode.FIT) }
     var showControls by remember { mutableStateOf(true) }
+    // Screen lock: survives rotation; only the player's own touch handling is blocked.
+    var isLocked by rememberSaveable { mutableStateOf(false) }
     var lastActivityTime by remember { mutableStateOf(System.currentTimeMillis()) }
     val coroutineScope = rememberCoroutineScope()
     var singleTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -665,7 +669,7 @@ fun PlayerScreen(
         currentSpeed = currentSpeed,
         resizeMode = resizeMode,
         title = title,
-        showControls = showControls,
+        showControls = showControls && !isLocked,
         hasInfoHash = infoHash != null,
         isStatsVisible = showStatsPanel,
         canSelectSubtitles = runtimeState.subtitleTracks.isNotEmpty(),
@@ -743,6 +747,10 @@ fun PlayerScreen(
         onEnterPip = if (activity?.supportsPlayerPip() == true) {
             { (activity as? PictureInPictureHost)?.enterPlayerPip() }
         } else null,
+        onLock = {
+            isLocked = true
+            showControls = false
+        },
     )
 
     val globalTheme = remember(
@@ -1055,7 +1063,7 @@ fun PlayerScreen(
         var lastSkipToMs by remember { mutableLongStateOf(0L) }
         if (skipDecision != null) lastSkipToMs = skipDecision.skipToMs
         AnimatedVisibility(
-            visible = skipDecision != null && !isInPip,
+            visible = skipDecision != null && !isInPip && !isLocked,
             enter = fadeIn() + slideInHorizontally { it / 3 },
             exit = fadeOut(),
             modifier = Modifier
@@ -1066,7 +1074,7 @@ fun PlayerScreen(
         }
 
         // Next Episode Popup — shown near the end of an episode, independent of showControls, no animation
-        if (showNextVideoPopup && nextVideo != null && !isInPip) {
+        if (showNextVideoPopup && nextVideo != null && !isInPip && !isLocked) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -1087,6 +1095,16 @@ fun PlayerScreen(
             startVisible = loadingInfo != null && !isCasting,
             modifier = Modifier.fillMaxSize(),
         )
+        // Locked: swallows every touch on the player (controls, gestures, popups). Drawn under the
+        // source-switch panel, which must stay usable if every source fails.
+        if (isLocked && !isInPip) {
+            PlayerLockLayer(
+                onUnlock = {
+                    isLocked = false
+                    resetActivityTimer()
+                },
+            )
+        }
         // Drawn above the loading layer, so the switch is visible while a source is still loading.
         // Automatic source switch: a discreet notice, or the choice when every source failed.
         AnimatedVisibility(

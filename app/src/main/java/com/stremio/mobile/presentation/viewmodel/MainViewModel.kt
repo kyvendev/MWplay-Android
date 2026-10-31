@@ -16,6 +16,11 @@ import com.stremio.mobile.data.model.*
 import com.stremio.mobile.data.repository.*
 import com.stremio.mobile.data.settings.FirstRunDefaults
 import com.stremio.mobile.data.settings.serverSettingsPayload
+import com.stremio.mobile.data.translation.MlKitLanguageDetector
+import com.stremio.mobile.data.translation.MlKitTranslator
+import com.stremio.mobile.data.translation.PreferencesTranslationCache
+import com.stremio.mobile.data.translation.SynopsisResult
+import com.stremio.mobile.data.translation.SynopsisTranslationRepository
 import com.stremio.mobile.player.failover.AttemptOutcome
 import com.stremio.mobile.player.failover.SourceFailoverConfig
 import com.stremio.mobile.player.failover.SourceFailoverMessages
@@ -2212,9 +2217,12 @@ class MainViewModel(
                             }.map { it.name }.take(4)
                             val trailer = meta.trailerStreams.firstOrNull()?.let { catalogRepository.directUrl(it) }
 
+                            val synopsis = synopsisFor(meta.type, meta.id, meta.description, listOf(meta.name) + cast + director)
                             selectedDetails.value = MetaDetails(
                                 item = detailsItem,
-                                description = meta.description,
+                                description = synopsis.text,
+                                translatingDescription = synopsis.translating,
+                                descriptionTranslated = synopsis.translated,
                                 genres = genres,
                                 cast = cast,
                                 director = director,
@@ -2230,6 +2238,45 @@ class MainViewModel(
                     }
                 }
         }
+    }
+
+    // region synopsis translation ---------------------------------------------------------------
+
+    private val synopsisTranslations by lazy {
+        SynopsisTranslationRepository(MlKitLanguageDetector(), MlKitTranslator(), PreferencesTranslationCache(appContext))
+    }
+    private val synopsisResults = HashMap<String, SynopsisResult>()
+    private var synopsisJobKey: String? = null
+
+    private data class SynopsisView(val text: String?, val translating: Boolean, val translated: Boolean)
+
+    /**
+     * The synopsis to show now: the cached Portuguese translation, or the original while the
+     * translation runs beside the page (it never delays the details or playback).
+     */
+    private fun synopsisFor(type: String, id: String, text: String?, names: List<String>): SynopsisView {
+        if (text.isNullOrBlank()) return SynopsisView(text, translating = false, translated = false)
+        synopsisTranslations.cached(type, id, text)?.let { return SynopsisView(it.text, translating = false, translated = true) }
+        val key = SynopsisTranslationRepository.keyOf(type, id, text)
+        synopsisResults[key]?.let { done ->
+            return if (done is SynopsisResult.Translated) SynopsisView(done.text, false, true) else SynopsisView(text, false, false)
+        }
+        if (synopsisJobKey != key) {
+            synopsisJobKey = key
+            viewModelScope.launch {
+                val result = synopsisTranslations.translate(type, id, text, names)
+                synopsisResults[key] = result
+                if (synopsisJobKey == key) synopsisJobKey = null
+                val shown = selectedDetails.value ?: return@launch
+                if (shown.item.id != id || !shown.translatingDescription) return@launch
+                selectedDetails.value = shown.copy(
+                    description = (result as? SynopsisResult.Translated)?.text ?: text,
+                    translatingDescription = false,
+                    descriptionTranslated = result is SynopsisResult.Translated,
+                )
+            }
+        }
+        return SynopsisView(text, translating = true, translated = false)
     }
 
     fun closeDetails() {

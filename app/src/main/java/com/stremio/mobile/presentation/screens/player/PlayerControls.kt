@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.FastRewind
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Subtitles
@@ -121,6 +122,8 @@ class PlayerControlsActions(
     val onShowCast: () -> Unit,
     /** Null when the device has no Picture-in-Picture support. */
     val onEnterPip: (() -> Unit)? = null,
+    /** Locks the screen against accidental touches; null hides the button. */
+    val onLock: (() -> Unit)? = null,
 )
 
 @Composable
@@ -187,6 +190,11 @@ fun ClassicPlayerControls(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+                actions.onLock?.let { lock ->
+                    IconButton(onClick = lock) {
+                        Icon(Icons.Outlined.LockOpen, "Bloquear tela", tint = Color.White)
+                    }
+                }
                 actions.onEnterPip?.let { enterPip ->
                     IconButton(onClick = enterPip) {
                         Icon(Icons.Outlined.PictureInPictureAlt, "Picture-in-Picture", tint = Color.White)
@@ -589,6 +597,12 @@ private fun ModernTopPill(
                     .weight(1f)
                     .padding(horizontal = 8.dp),
             )
+
+            actions.onLock?.let { lock ->
+                IconButton(onClick = lock, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.LockOpen, "Bloquear tela", tint = Color.White)
+                }
+            }
 
             actions.onEnterPip?.let { enterPip ->
                 IconButton(onClick = enterPip, modifier = Modifier.size(48.dp)) {

@@ -11,4 +11,8 @@ data class MetaDetails(
     val trailer: String? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
+    /** The synopsis is being translated to Portuguese; [description] still holds the original. */
+    val translatingDescription: Boolean = false,
+    /** [description] was translated automatically. */
+    val descriptionTranslated: Boolean = false,
 )
