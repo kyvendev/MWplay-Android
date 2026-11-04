@@ -2,6 +2,9 @@ package com.stremio.mobile.presentation.screens
 
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
@@ -67,8 +70,59 @@ class TvDetailFocusTest {
     }
 
     @Test
-    fun loadingDetailsFocusTheListActionInsteadOfDisabledWatch() {
+    fun loadingDetailsStillFocusWatchAndOkDoesNothingYet() {
         setDetails(isLoading = true)
-        composeRule.onNodeWithText("Minha lista").assertIsFocused()
+        composeRule.onNodeWithText("Assistir").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.runOnIdle {
+            // OK while loading never lands on "Minha lista", and playback waits for the details.
+            assertEquals(0, listClicks)
+            assertEquals(0, watchClicks)
+        }
+    }
+
+    @Test
+    fun watchKeepsTheFocusWhenTheDetailsFinishLoading() {
+        var loading by mutableStateOf(true)
+        composeRule.setContent {
+            DetailSheet(
+                details = MetaDetails(
+                    item = CatalogItem("tt1", "movie", "Movie", null, null, "2024", "8.0"),
+                    description = "Synopsis",
+                    isLoading = loading,
+                ),
+                inLibrary = false,
+                onBack = {},
+                onToggleLibrary = { listClicks++ },
+                onOpenStreams = { watchClicks++ },
+            )
+        }
+        composeRule.onNodeWithText("Assistir").assertIsFocused()
+        composeRule.runOnIdle { loading = false }
+        composeRule.onNodeWithText("Assistir").assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.runOnIdle {
+            assertEquals(1, watchClicks)
+            assertEquals(0, listClicks)
+        }
+    }
+
+    @Test
+    fun translationStateIsShownWithoutHidingTheSynopsis() {
+        composeRule.setContent {
+            DetailSheet(
+                details = MetaDetails(
+                    item = CatalogItem("tt1", "movie", "Movie", null, null, "2024", "8.0"),
+                    description = "Original synopsis",
+                    translatingDescription = true,
+                ),
+                inLibrary = false,
+                onBack = {},
+                onToggleLibrary = {},
+                onOpenStreams = {},
+            )
+        }
+        composeRule.onNodeWithText("Original synopsis").assertExists()
+        composeRule.onNodeWithText("Traduzindo sinopse…").assertExists()
     }
 }

@@ -109,6 +109,7 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
     val isTv = rememberIsTelevision()
     // Saveable so rotation / process restore never replays the opening.
     var introVisible by rememberSaveable { mutableStateOf(showIntro) }
+    var showCloseAppDialog by remember { mutableStateOf(false) }
     var introSkipRequests by remember { mutableIntStateOf(0) }
     val sessionRestoring by viewModel.sessionRestoring.collectAsStateWithLifecycle()
     val rootGlobalTheme = remember(
@@ -161,6 +162,7 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     onStopServer = viewModel::stopServer,
                     onCheckServer = viewModel::checkServerWorking,
                     onLogout = viewModel::logout,
+                    onCloseApp = { showCloseAppDialog = true },
                     onCloseDiscoverCatalog = viewModel::closeDiscoverCatalog,
                     onOpenDiscoverCatalog = viewModel::openDiscoverCatalog,
                     onShelfVisible = viewModel::onShelfVisible,
@@ -170,9 +172,6 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
                     onUpdateIntroSkipSettings = viewModel::updateIntroSkipSettings,
                     onUpdateServerSettings = viewModel::updateStreamingServerSettings,
-                    onAuthenticateTrakt = viewModel::authenticateTrakt,
-                    onLogoutTrakt = viewModel::logoutTrakt,
-                    onInstallTraktAddon = viewModel::installTraktAddon,
                     onSetAutoStartOnBoot = viewModel::setAutoStartOnBoot,
                     onSetServerInForeground = viewModel::setServerInForeground,
                     onSetMobileDataWarning = viewModel::setMobileDataWarning,
@@ -190,8 +189,6 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     onSetPlayerUiStyle = viewModel::setPlayerUiStyle,
                     onSetGlassEffectsMode = viewModel::setGlassEffectsMode,
                     onSetAutoSwitchOnDeadStream = viewModel::setAutoSwitchOnDeadStream,
-                    isSourceFailoverEnabled = viewModel.sourceFailoverConfig.collectAsStateWithLifecycle().value.enabled,
-                    onSetSourceFailoverEnabled = viewModel::setSourceFailoverEnabled,
                     onSetGlobalGlassAlpha = viewModel::setGlobalGlassAlpha,
                     onSetAdaptiveGlassContrastEnabled = viewModel::setAdaptiveGlassContrastEnabled,
                     onSetGlassHapticsEnabled = viewModel::setGlassHapticsEnabled,
@@ -402,6 +399,38 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                         androidx.compose.material3.TextButton(
                             modifier = Modifier.tvDialogInitialFocus().tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
                             onClick = viewModel::cancelMobileDataPlayback
+                        ) {
+                            Text(text = "Cancelar", color = MutedText)
+                        }
+                    },
+                    containerColor = Color(0xFF2A2935),
+                    shape = RoundedCornerShape(20.dp),
+                )
+            }
+
+            if (showCloseAppDialog) {
+                val context = LocalContext.current
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showCloseAppDialog = false },
+                    title = { Text(text = "Fechar o MW Play?", color = Color.White, fontWeight = FontWeight.Bold) },
+                    text = { Text(text = "O app e o servidor de reprodução serão encerrados por completo.", color = MutedText) },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(
+                            modifier = Modifier.tvDialogInitialFocus().tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
+                            onClick = {
+                                generateSequence(context) { (it as? android.content.ContextWrapper)?.baseContext }
+                                    .filterIsInstance<android.app.Activity>()
+                                    .firstOrNull()
+                                    ?.let(viewModel::closeApp)
+                            },
+                        ) {
+                            Text(text = "Fechar app", color = AccentPurple, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(
+                            modifier = Modifier.tvFocusTarget(cornerRadius = 14.dp, focusedScale = 1f),
+                            onClick = { showCloseAppDialog = false },
                         ) {
                             Text(text = "Cancelar", color = MutedText)
                         }
@@ -642,9 +671,6 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                         onRemoteBackHandlerChanged = { playerRemoteBack = it },
                         playbackIntro = viewModel.playbackIntro.collectAsStateWithLifecycle().value,
                         introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
-                        sourceFailover = viewModel.sourceFailover.collectAsStateWithLifecycle().value,
-                        onRetrySources = viewModel::retrySourceFailover,
-                        onChooseAnotherSource = viewModel::chooseAnotherSource,
                     )
                 }
             }
@@ -785,6 +811,7 @@ private fun BoardScreen(
     onStopServer: () -> Unit,
     onCheckServer: () -> Unit,
     onLogout: () -> Unit,
+    onCloseApp: () -> Unit,
     onCloseDiscoverCatalog: () -> Unit,
     onOpenDiscoverCatalog: (com.stremio.core.types.addon.ResourceRequest, String) -> Unit,
     onShelfVisible: (Int) -> Unit,
@@ -794,9 +821,6 @@ private fun BoardScreen(
     introSkipSettings: com.stremio.mobile.player.intro.IntroSkipSettings,
     onUpdateIntroSkipSettings: (com.stremio.mobile.player.intro.IntroSkipSettings) -> Unit,
     onUpdateServerSettings: (com.stremio.core.models.StreamingServer.Settings) -> Unit,
-    onAuthenticateTrakt: (Context) -> Unit,
-    onLogoutTrakt: () -> Unit,
-    onInstallTraktAddon: () -> Unit,
     onSetAutoStartOnBoot: (Boolean) -> Unit,
     onSetServerInForeground: (Boolean) -> Unit,
     onSetMobileDataWarning: (Boolean) -> Unit,
@@ -814,8 +838,6 @@ private fun BoardScreen(
     onSetPlayerUiStyle: (String) -> Unit,
     onSetGlassEffectsMode: (String) -> Unit,
     onSetAutoSwitchOnDeadStream: (Boolean) -> Unit,
-    isSourceFailoverEnabled: Boolean,
-    onSetSourceFailoverEnabled: (Boolean) -> Unit,
     onSetGlobalGlassAlpha: (Float) -> Unit,
     onSetAdaptiveGlassContrastEnabled: (Boolean) -> Unit,
     onSetGlassHapticsEnabled: (Boolean) -> Unit,
@@ -928,6 +950,7 @@ private fun BoardScreen(
             onSelect = { onSelectSection(it.toSection()) },
             contentFocusRequester = contentFocusRequester,
             navigationEnabled = continueWatchingActionsEnabled,
+            onCloseApp = onCloseApp,
         ) { contentModifier ->
             if (appBackdrop != null) {
                 Box(
@@ -1157,11 +1180,12 @@ private fun BoardScreen(
                         SettingsSubScreen.General -> {
                             item {
                                 GeneralSettingsScreen(
-                                    isAuthenticated = state.account.isAuthenticated,
-                                    isTraktAuthenticated = state.isTraktAuthenticated,
-                                    onAuthenticateTrakt = onAuthenticateTrakt,
-                                    onLogoutTrakt = onLogoutTrakt,
-                                    onInstallTraktAddon = onInstallTraktAddon,
+                                    settings = state.profileSettings,
+                                    onUpdateSettings = onUpdateProfileSettings,
+                                    isKeepScreenOn = state.isKeepScreenOn,
+                                    onSetKeepScreenOn = onSetKeepScreenOn,
+                                    isAutoUpdateEnabled = state.isAutoUpdateEnabled,
+                                    onSetAutoUpdateEnabled = onSetAutoUpdateEnabled,
                                     onBack = { settingsSubScreen = SettingsSubScreen.Main }
                                 )
                             }
@@ -1220,8 +1244,6 @@ private fun BoardScreen(
                                     onSetMinDownloadSpeedBps = onSetMinDownloadSpeedBps,
                                     onSetPreferredQuality = onSetPreferredQuality,
                                     onSetAutoSwitchOnDeadStream = onSetAutoSwitchOnDeadStream,
-                                    isSourceFailoverEnabled = isSourceFailoverEnabled,
-                                    onSetSourceFailoverEnabled = onSetSourceFailoverEnabled,
                                     onBack = { settingsSubScreen = SettingsSubScreen.Main }
                                 )
                             }

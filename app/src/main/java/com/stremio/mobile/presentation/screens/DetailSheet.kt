@@ -36,7 +36,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +47,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlendMode
@@ -108,9 +111,9 @@ fun DetailSheet(
         if (isTv) {
             // Let the action buttons attach before requesting focus (same pattern as the rail).
             withFrameNanos { }
-            runCatching {
-                if (details.isLoading) listRequester.requestFocus() else watchRequester.requestFocus()
-            }
+            // Always "Assistir", also while the details load: it can hold the focus then, so OK
+            // never lands on "Minha lista" by accident.
+            runCatching { watchRequester.requestFocus() }
         }
     }
 
@@ -402,6 +405,17 @@ private fun TvDetailLayout(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            // Discreet: the original shows meanwhile, and the label says when the text was translated.
+            if (!details.isLoading && details.error == null) {
+                if (details.translatingDescription) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CircularProgressIndicator(color = SubtleText, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                        Text(text = "Traduzindo sinopse…", color = SubtleText, fontSize = TvTextLabel)
+                    }
+                } else if (details.descriptionTranslated) {
+                    Text(text = "Sinopse traduzida automaticamente", color = SubtleText, fontSize = TvTextLabel)
+                }
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.padding(top = 8.dp),
@@ -449,21 +463,31 @@ private fun TvDetailButton(
     val triggerHaptic = rememberGlobalHapticFeedback()
     val shape = RoundedCornerShape(999.dp)
     val alpha = if (enabled) 1f else 0.45f
+    var focused by remember { mutableStateOf(false) }
+    val contentColor = if (primary && focused) Color(0xFF101018) else Color.White.copy(alpha = alpha)
     Row(
         modifier = modifier
             .height(TvButtonHeight)
             .widthIn(min = 172.dp)
-            .tvFocusTarget(enabled = enabled, cornerRadius = 999.dp, focusedScale = 1.06f)
+            .onFocusChanged { focused = it.hasFocus }
+            .tvFocusTarget(cornerRadius = 999.dp, focusedScale = 1.06f)
             .clip(shape)
-            .background(if (primary) AccentPurple.copy(alpha = alpha) else SurfaceHigh.copy(alpha = 0.9f * alpha))
+            .background(
+                when {
+                    primary && focused -> Color.White
+                    primary -> AccentPurple.copy(alpha = alpha)
+                    else -> SurfaceHigh.copy(alpha = 0.9f * alpha)
+                },
+            )
             .then(if (primary) Modifier else Modifier.border(1.dp, HairlineBorder, shape))
-            .clickable(enabled = enabled) { triggerHaptic(); onClick() }
+            // Not "enabled = false" while loading: that would take the focus away from the button.
+            .clickable { if (enabled) { triggerHaptic(); onClick() } }
             .padding(horizontal = 22.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(imageVector, contentDescription = null, tint = Color.White.copy(alpha = alpha), modifier = Modifier.size(TvIconSize))
+        Icon(imageVector, contentDescription = null, tint = contentColor, modifier = Modifier.size(TvIconSize))
         Spacer(Modifier.width(8.dp))
-        Text(label, color = Color.White.copy(alpha = alpha), fontSize = TvTextBodyLarge, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(label, color = contentColor, fontSize = TvTextBodyLarge, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }

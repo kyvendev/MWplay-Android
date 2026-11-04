@@ -16,13 +16,11 @@ import com.stremio.mobile.data.model.*
 import com.stremio.mobile.data.repository.*
 import com.stremio.mobile.data.settings.FirstRunDefaults
 import com.stremio.mobile.data.settings.serverSettingsPayload
-import com.stremio.mobile.player.failover.AttemptOutcome
-import com.stremio.mobile.player.failover.SourceFailoverConfig
-import com.stremio.mobile.player.failover.SourceFailoverMessages
-import com.stremio.mobile.player.failover.SourceFailoverPreferences
-import com.stremio.mobile.player.failover.SourceFailoverSession
-import com.stremio.mobile.player.failover.SourceFailoverUi
-import com.stremio.mobile.player.failover.sameVideoStreams
+import com.stremio.mobile.data.translation.MlKitLanguageDetector
+import com.stremio.mobile.data.translation.MlKitTranslator
+import com.stremio.mobile.data.translation.PreferencesTranslationCache
+import com.stremio.mobile.data.translation.SynopsisResult
+import com.stremio.mobile.data.translation.SynopsisTranslationRepository
 import com.stremio.mobile.player.intro.EpisodeRef
 import com.stremio.mobile.player.intro.IntroSkipSettings
 import com.stremio.mobile.player.intro.IntroTimestampRepository
@@ -303,7 +301,6 @@ class MainViewModel(
 
     init {
         observeBoard()
-        observeFailoverSignals()
         observeContinueWatching()
         observeDiscover()
         observeLibrary()
@@ -1419,184 +1416,6 @@ class MainViewModel(
         streams.value = StreamsUiState()
     }
 
-    // region automatic source switch -----------------------------------------------------------
-
-    private val failoverPreferences = SourceFailoverPreferences(appContext)
-    private var failoverSession: SourceFailoverSession<StreamOption>? = null
-    private var failoverFirstOption: StreamOption? = null
-    private var failoverTimerJob: Job? = null
-    private var failoverNoticeJob: Job? = null
-    private val _sourceFailover = MutableStateFlow(SourceFailoverUi())
-
-    /** Notice / "every source failed" panel for the player. */
-    val sourceFailover: StateFlow<SourceFailoverUi> = _sourceFailover
-    val sourceFailoverConfig: StateFlow<SourceFailoverConfig> = failoverPreferences.config
-
-    fun setSourceFailoverEnabled(enabled: Boolean) = failoverPreferences.setEnabled(enabled)
-
-    /** A new playback request: the chosen stream first, then the registered addons in order. */
-    private fun beginFailoverSession(option: StreamOption) {
-        cancelFailoverSession()
-        val config = failoverPreferences.config.value
-        if (!config.enabled) return
-        failoverFirstOption = option
-        failoverSession = SourceFailoverSession<StreamOption>(
-            config = config,
-            keyOf = { it.key },
-            addonOf = { it.addonTitle },
-            now = { android.os.SystemClock.elapsedRealtime() },
-        ).also { it.begin(option) }
-        _sourceFailover.value = SourceFailoverUi()
-    }
-
-    private fun cancelFailoverSession() {
-        failoverTimerJob?.cancel()
-        failoverTimerJob = null
-        failoverSession?.let { session ->
-            session.cancel()
-            logFailover(session)
-        }
-        failoverSession = null
-    }
-
-    /** The clock covers resolving, the player opening and buffering, until the video really plays. */
-    private fun startFailoverTimer() {
-        failoverTimerJob?.cancel()
-        val session = failoverSession ?: return
-        if (!session.isWaiting) return
-        val timeout = failoverPreferences.config.value.startTimeoutMs
-        failoverTimerJob = viewModelScope.launch {
-            delay(timeout)
-            onFailoverAttemptFailed(AttemptOutcome.TIMEOUT, "não iniciou em ${timeout / 1000} s")
-        }
-    }
-
-    private fun observeFailoverSignals() {
-        viewModelScope.launch {
-            playbackRepository.state.collect { state ->
-                val session = failoverSession ?: return@collect
-                // Signals are cleared when each attempt begins, so only the current stream's count.
-                if (!session.isWaiting || state.activeUri == null) return@collect
-                when {
-                    state.playbackStarted -> onFailoverAttemptStarted()
-                    state.enginesExhausted -> onFailoverAttemptFailed(AttemptOutcome.FAILED, "EXO, VLC e MPV não abriram a fonte")
-                }
-            }
-        }
-    }
-
-    private fun onFailoverAttemptStarted() {
-        val session = failoverSession ?: return
-        val playing = session.current ?: return
-        session.onStarted() ?: return
-        failoverTimerJob?.cancel()
-        logFailover(session)
-        val switched = session.attempts.size > 1
-        showFailoverNotice(if (switched) SourceFailoverMessages.switched(playing.addonTitle) else null, allFailed = false)
-    }
-
-    /**
-     * The current attempt timed out or failed for good. Returns true when failover handled it
-     * (next source started, or the "every source failed" message is shown); false when the
-     * switch is off, so the caller keeps its usual error handling.
-     */
-    private fun onFailoverAttemptFailed(outcome: AttemptOutcome, reason: String): Boolean {
-        val session = failoverSession ?: return false
-        if (!session.isWaiting) return false
-        failoverTimerJob?.cancel()
-        val failed = session.current!!
-        val ranking = compareByDescending<StreamOption> { parseSeedCount(it.seeds) }
-            .thenByDescending { qualityScore(it.quality, preferredQuality.value) }
-        val candidates = failoverCandidates(failed)
-        val next = session.onFailed(outcome, reason, candidates, ranking)
-        logFailover(session)
-        if (next != null) {
-            val timeout = failoverPreferences.config.value.startTimeoutMs
-            showFailoverNotice(SourceFailoverMessages.switching(failed.addonTitle, outcome, next.addonTitle, timeout), allFailed = false)
-            // End the previous attempt before the next one, so two players never run together.
-            playJob?.cancel()
-            playbackRepository.release()
-            proceedWithPlayback(next, failoverStep = true)
-            return true
-        }
-        if (playerOpen.value) {
-            // A definitive failure already stopped the player; a slow last source keeps loading
-            // in case it still starts, with the choice to retry or pick another source.
-            _sourceFailover.value = SourceFailoverUi(allFailed = true)
-        } else {
-            // Show the stream sheet with the message, also when playback started from
-            // "Continuar assistindo" (the sheet was never opened there).
-            streams.value = streams.value.copy(
-                isResolving = false,
-                isOpen = true,
-                isLoading = false,
-                streams = streams.value.streams.ifEmpty { candidates },
-                error = "${SourceFailoverMessages.ALL_FAILED} ${SourceFailoverMessages.ALL_FAILED_HINT}",
-            )
-        }
-        failoverSession = null
-        return true
-    }
-
-    /**
-     * Every stream of the video being played. Read from the core when the attempt fails, because
-     * "Continuar assistindo" and the next-episode autoplay start playback without the stream
-     * sheet (its list is then empty or still holds the previous episode), and slower addons such
-     * as FrostStream or BestCine may have answered after the first stream was picked.
-     */
-    private fun failoverCandidates(failed: StreamOption): List<StreamOption> {
-        val fromCore = runCatching { catalogRepository.extractStreams(core.getMetaDetails()) }
-            .onFailure { Timber.w(it, "SourceFailover: could not read the streams from the core") }
-            .getOrDefault(emptyList())
-            .mapIndexed { index, coreStream -> buildStreamOption(index, coreStream) }
-        val videoOf = { option: StreamOption -> option.core.streamRequest.path.let { "${it.type}/${it.id}" } }
-        return sameVideoStreams(videoOf(failed), fromCore, streams.value.streams, videoOf) { it.key }
-    }
-
-    private fun showFailoverNotice(message: String?, allFailed: Boolean) {
-        failoverNoticeJob?.cancel()
-        _sourceFailover.value = SourceFailoverUi(notice = message, allFailed = allFailed)
-        if (message == null) return
-        if (!playerOpen.value) Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
-        failoverNoticeJob = viewModelScope.launch {
-            delay(6_000)
-            if (_sourceFailover.value.notice == message) _sourceFailover.value = _sourceFailover.value.copy(notice = null)
-        }
-    }
-
-    private fun logFailover(session: SourceFailoverSession<StreamOption>) {
-        session.attempts.lastOrNull()?.let { attempt ->
-            Timber.i(
-                "SourceFailover attempt #%d addon=%s outcome=%s after=%sms reason=%s",
-                attempt.index, attempt.addon, attempt.outcome ?: "WAITING", attempt.elapsedMs ?: "-", attempt.reason ?: "-",
-            )
-        }
-    }
-
-    /** "Tentar novamente": the whole chain again, from the stream the user chose. */
-    fun retrySourceFailover() {
-        val first = failoverFirstOption ?: lastPlayedOption ?: return
-        _sourceFailover.value = SourceFailoverUi()
-        playJob?.cancel()
-        playbackRepository.release()
-        beginFailoverSession(first)
-        proceedWithPlayback(first, failoverStep = true)
-    }
-
-    /** "Escolher outra fonte": back to the stream list of the same title. */
-    fun chooseAnotherSource() {
-        closePlayer()
-        streams.value = streams.value.copy(isOpen = true, isResolving = false, error = null)
-    }
-
-    /** Casting moves playback to the TV, where the local start signal never comes. */
-    fun onCastingChanged(casting: Boolean) {
-        if (casting) {
-            cancelFailoverSession()
-            _sourceFailover.value = SourceFailoverUi()
-        }
-    }
-
     fun playStream(option: StreamOption) {
         if (isMobileDataWarning.value && isUsingMobileData()) {
             pendingMobileDataStream.value = option
@@ -1622,13 +1441,9 @@ class MainViewModel(
         return capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)
     }
 
-    /** [failoverStep] = an automatic switch inside the current request, not a new choice. */
-    private fun proceedWithPlayback(option: StreamOption, failoverStep: Boolean = false) {
+    private fun proceedWithPlayback(option: StreamOption) {
         playJob?.cancel()
         subtitleObserverJob?.cancel()
-        if (!failoverStep) beginFailoverSession(option)
-        playbackRepository.clearStartSignals()
-        startFailoverTimer()
         streams.value = streams.value.copy(isResolving = true, error = null)
         playJob = viewModelScope.launch {
             val engine = PlayerEngine.fromProfileValue(profileSettings.value?.playerType)
@@ -1643,7 +1458,6 @@ class MainViewModel(
                                 "error_message" to errorMsg
                             )
                         )
-                        if (onFailoverAttemptFailed(AttemptOutcome.FAILED, errorMsg)) return@launch
                         streams.value = streams.value.copy(
                             isResolving = false,
                             error = errorMsg,
@@ -1664,7 +1478,6 @@ class MainViewModel(
                         "error_message" to "Não foi possível preparar esta fonte para reprodução."
                     )
                 )
-                if (onFailoverAttemptFailed(AttemptOutcome.FAILED, "não foi possível preparar a fonte")) return@launch
                 streams.value = streams.value.copy(isResolving = false, error = "Não foi possível preparar esta fonte para reprodução.")
                 return@launch
             }
@@ -1762,9 +1575,6 @@ class MainViewModel(
         noSeedsPollJob?.cancel()
         noSeedsPollJob = null
         playbackRepository.release()
-        cancelFailoverSession()
-        failoverNoticeJob?.cancel()
-        _sourceFailover.value = SourceFailoverUi()
         introJob?.cancel()
         _playbackIntro.value = null
         playerOpen.value = false
@@ -1959,6 +1769,19 @@ class MainViewModel(
     fun startServer() {
         viewModelScope.launch {
             runCatching { startServerInternal() }
+        }
+    }
+
+    /**
+     * "Fechar app" on TV: like a force stop. Playback and the local server stop, the task leaves
+     * the recents and the process ends; the next launch starts from scratch.
+     */
+    fun closeApp(activity: android.app.Activity) {
+        viewModelScope.launch {
+            playbackRepository.release()
+            runCatching { kotlinx.coroutines.withTimeoutOrNull(2_000) { serverController.stop() } }
+            activity.finishAndRemoveTask()
+            android.os.Process.killProcess(android.os.Process.myPid())
         }
     }
 
@@ -2213,9 +2036,12 @@ class MainViewModel(
                             }.map { it.name }.take(4)
                             val trailer = meta.trailerStreams.firstOrNull()?.let { catalogRepository.directUrl(it) }
 
+                            val synopsis = synopsisFor(meta.type, meta.id, meta.description, listOf(meta.name) + cast + director)
                             selectedDetails.value = MetaDetails(
                                 item = detailsItem,
-                                description = meta.description,
+                                description = synopsis.text,
+                                translatingDescription = synopsis.translating,
+                                descriptionTranslated = synopsis.translated,
                                 genres = genres,
                                 cast = cast,
                                 director = director,
@@ -2231,6 +2057,45 @@ class MainViewModel(
                     }
                 }
         }
+    }
+
+    // region synopsis translation ---------------------------------------------------------------
+
+    private val synopsisTranslations by lazy {
+        SynopsisTranslationRepository(MlKitLanguageDetector(), MlKitTranslator(), PreferencesTranslationCache(appContext))
+    }
+    private val synopsisResults = HashMap<String, SynopsisResult>()
+    private var synopsisJobKey: String? = null
+
+    private data class SynopsisView(val text: String?, val translating: Boolean, val translated: Boolean)
+
+    /**
+     * The synopsis to show now: the cached Portuguese translation, or the original while the
+     * translation runs beside the page (it never delays the details or playback).
+     */
+    private fun synopsisFor(type: String, id: String, text: String?, names: List<String>): SynopsisView {
+        if (text.isNullOrBlank()) return SynopsisView(text, translating = false, translated = false)
+        synopsisTranslations.cached(type, id, text)?.let { return SynopsisView(it.text, translating = false, translated = true) }
+        val key = SynopsisTranslationRepository.keyOf(type, id, text)
+        synopsisResults[key]?.let { done ->
+            return if (done is SynopsisResult.Translated) SynopsisView(done.text, false, true) else SynopsisView(text, false, false)
+        }
+        if (synopsisJobKey != key) {
+            synopsisJobKey = key
+            viewModelScope.launch {
+                val result = synopsisTranslations.translate(type, id, text, names)
+                synopsisResults[key] = result
+                if (synopsisJobKey == key) synopsisJobKey = null
+                val shown = selectedDetails.value ?: return@launch
+                if (shown.item.id != id || !shown.translatingDescription) return@launch
+                selectedDetails.value = shown.copy(
+                    description = (result as? SynopsisResult.Translated)?.text ?: text,
+                    translatingDescription = false,
+                    descriptionTranslated = result is SynopsisResult.Translated,
+                )
+            }
+        }
+        return SynopsisView(text, translating = true, translated = false)
     }
 
     fun closeDetails() {

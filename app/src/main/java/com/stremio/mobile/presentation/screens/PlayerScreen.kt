@@ -94,8 +94,6 @@ import com.stremio.mobile.player.PlayerTrackOption
 import com.stremio.mobile.player.intro.IntroSkipDecision
 import com.stremio.mobile.player.intro.IntroSkipSettings
 import com.stremio.mobile.player.intro.IntroSkipTracker
-import com.stremio.mobile.player.failover.SourceFailoverMessages
-import com.stremio.mobile.player.failover.SourceFailoverUi
 import com.stremio.mobile.player.intro.PlaybackIntro
 import com.stremio.mobile.presentation.screens.player.SkipIntroButton
 import com.stremio.mobile.presentation.screens.player.ClassicPlayerControls
@@ -158,9 +156,6 @@ fun PlayerScreen(
     loadingInfo: PlaybackLoadingInfo? = null,
     playbackIntro: PlaybackIntro? = null,
     introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
-    sourceFailover: SourceFailoverUi = SourceFailoverUi(),
-    onRetrySources: () -> Unit = {},
-    onChooseAnotherSource: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val runtimeStateHolder = player?.runtimeState?.collectAsState()
@@ -214,7 +209,6 @@ fun PlayerScreen(
     var lastActivityTime by remember { mutableStateOf(System.currentTimeMillis()) }
     val videoSurfaceFocus = remember { FocusRequester() }
     val errorRetryFocus = remember { FocusRequester() }
-    val failoverRetryFocus = remember { FocusRequester() }
     var consumedWakeKey by remember { mutableIntStateOf(-1) }
     val coroutineScope = rememberCoroutineScope()
     var singleTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -762,7 +756,7 @@ fun PlayerScreen(
                     val skipOffer = introDecision as? IntroSkipDecision.ShowButton
                     if (skipOffer != null && !showControls && remoteKey == PlayerRemoteKey.ACTIVATE &&
                         event.type == KeyEventType.KeyDown && nativeEvent.repeatCount == 0 &&
-                        !showAudioDialog && !showSubtitleDialog && !sourceFailover.allFailed
+                        !showAudioDialog && !showSubtitleDialog
                     ) {
                         consumedWakeKey = nativeEvent.keyCode
                         skipIntro(skipOffer.skipToMs, automatic = false)
@@ -771,7 +765,7 @@ fun PlayerScreen(
                     when (playerRemoteAction(
                         key = remoteKey,
                         controlsVisible = showControls,
-                        overlayVisible = showAudioDialog || showSubtitleDialog || sourceFailover.allFailed || showFatalPlaybackError,
+                        overlayVisible = showAudioDialog || showSubtitleDialog || showFatalPlaybackError,
                         isKeyDown = event.type == KeyEventType.KeyDown,
                         isRepeat = nativeEvent.repeatCount > 0,
                         hasNextVideo = nextVideo != null,
@@ -892,7 +886,7 @@ fun PlayerScreen(
 
         // Playback error overlay — shown when the codec/source fails so it's visible instead
         // of an infinite buffering spinner, with a one-tap retry.
-        if (showFatalPlaybackError && !sourceFailover.allFailed) {
+        if (showFatalPlaybackError) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1132,59 +1126,6 @@ fun PlayerScreen(
             startVisible = loadingInfo != null,
             modifier = Modifier.fillMaxSize(),
         )
-        // Drawn above the loading layer, so the switch is visible while a source is still loading.
-        // Automatic source switch: a discreet notice, or the choice when every source failed
-        // (D-pad: "Tentar novamente" gets focus, LEFT/RIGHT move, OK selects, Back leaves).
-        AnimatedVisibility(
-            visible = sourceFailover.notice != null && !sourceFailover.allFailed,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 32.dp),
-        ) {
-            Text(
-                text = sourceFailover.notice.orEmpty(),
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xD9141422))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-            )
-        }
-        if (sourceFailover.allFailed) {
-            LaunchedEffect(Unit) {
-                delay(120)
-                runCatching { failoverRetryFocus.requestFocus() }
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xCC000000)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(horizontal = 32.dp),
-                ) {
-                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
-                    Text(SourceFailoverMessages.ALL_FAILED, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    Text(SourceFailoverMessages.ALL_FAILED_HINT, color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ThemedButton(text = "Escolher outra fonte", onClick = onChooseAnotherSource)
-                        ThemedButton(
-                            text = "Tentar novamente",
-                            modifier = Modifier.focusRequester(failoverRetryFocus),
-                            onClick = onRetrySources,
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 

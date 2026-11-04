@@ -49,7 +49,7 @@ fun SettingsPanel(email: String?, onLogout: () -> Unit, onNavigateTo: (SettingsS
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SettingsMenuRow(Icons.Outlined.AccountCircle, "Geral", "Conta, integrações e preferências gerais") { onNavigateTo(SettingsSubScreen.General) }
+            SettingsMenuRow(Icons.Outlined.AccountCircle, "Geral", "Idioma, spoilers, tela e atualizações") { onNavigateTo(SettingsSubScreen.General) }
             SettingsMenuRow(Icons.Outlined.Language, "Interface", "Idioma e aparência do aplicativo") { onNavigateTo(SettingsSubScreen.Interface) }
             SettingsMenuRow(Icons.Outlined.PlayCircle, "Player", "Legendas, decodificação e reprodução") { onNavigateTo(SettingsSubScreen.Player) }
             SettingsMenuRow(Icons.Outlined.Cloud, "Streaming", "Conexão, cache e desempenho") { onNavigateTo(SettingsSubScreen.Streaming) }

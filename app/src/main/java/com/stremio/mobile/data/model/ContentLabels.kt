@@ -61,6 +61,8 @@ object ContentLabels {
     /**
      * Home shelf title: Cinemeta's generic "Popular"/"Featured" catalogs get the content type, the
      * way the app always showed them ("Popular Movies"), now in Portuguese ("Filmes populares").
+     * Other movie and series catalogs say their type after the name ("Disney+ – Filmes"), unless
+     * the name already says it, so rows of the same provider can be told apart.
      */
     fun shelfTitle(catalogName: String?, catalogType: String?): String {
         val raw = catalogName?.trim().orEmpty()
@@ -72,9 +74,14 @@ object ContentLabels {
         return when {
             typeLabel != null && raw.equals("popular", ignoreCase = true) -> "$typeLabel populares"
             typeLabel != null && raw.equals("featured", ignoreCase = true) -> "$typeLabel em destaque"
+            typeLabel != null && raw.isNotEmpty() && !namesAType(raw) && !namesAType(catalog(raw)) -> "${catalog(raw)} – $typeLabel"
             else -> catalog(raw)
         }
     }
+
+    private val typeWords = listOf("filme", "movie", "série", "serie")
+
+    private fun namesAType(name: String): Boolean = name.lowercase(ptBr).let { lower -> typeWords.any(lower::contains) }
 
     private val genres = mapOf(
         "action" to "Ação",

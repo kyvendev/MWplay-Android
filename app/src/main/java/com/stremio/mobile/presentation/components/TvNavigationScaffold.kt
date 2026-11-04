@@ -23,6 +23,7 @@ fun TvNavigationScaffold(
     contentFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
     navigationEnabled: Boolean = true,
+    onCloseApp: (() -> Unit)? = null,
     content: @Composable (Modifier) -> Unit,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -41,6 +42,7 @@ fun TvNavigationScaffold(
             onSelect = onSelect,
             onExitToContent = { contentFocusRequester.requestFocus() },
             navigationEnabled = navigationEnabled,
+            onCloseApp = onCloseApp,
             modifier = Modifier.align(Alignment.TopStart),
         )
     }

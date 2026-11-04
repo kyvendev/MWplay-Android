@@ -150,7 +150,7 @@ private fun AuthFormScaffold(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 StremioMark(modifier = Modifier.size(58.dp))
-                Text("MW Play", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Play", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
             }
             Spacer(modifier = Modifier.height(if (isTv) 20.dp else 54.dp))
             Text(title, color = Color.White, fontSize = 36.sp, lineHeight = 42.sp, fontWeight = FontWeight.ExtraBold)

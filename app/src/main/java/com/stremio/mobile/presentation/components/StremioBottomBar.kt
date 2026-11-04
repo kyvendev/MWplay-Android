@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
@@ -77,6 +78,8 @@ fun StremioBottomBar(
     modifier: Modifier = Modifier,
     onExitToContent: (() -> Unit)? = null,
     navigationEnabled: Boolean = true,
+    /** TV: "Fechar app", below the sections. Null hides it. */
+    onCloseApp: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(true) }
     var previouslyExpanded by remember { mutableStateOf(true) }
@@ -221,6 +224,17 @@ fun StremioBottomBar(
                     modifier = if (view == selectedView) Modifier.focusRequester(menuFocusRequester) else Modifier,
                 )
             }
+            onCloseApp?.let { closeApp ->
+                TvRailButton(
+                    icon = Icons.Outlined.PowerSettingsNew,
+                    label = "Fechar app",
+                    tint = MutedText,
+                    selected = false,
+                    enabled = navigationEnabled,
+                    onClick = closeApp,
+                    onExitToContent = { expanded = false },
+                )
+            }
         }
     }
 }
@@ -234,8 +248,30 @@ private fun TvNavigationItem(
     onExitToContent: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    TvRailButton(
+        icon = view.icon,
+        label = view.label,
+        tint = if (selected) Color.White else MutedText,
+        selected = selected,
+        enabled = enabled,
+        onClick = onClick,
+        onExitToContent = onExitToContent,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun TvRailButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onExitToContent: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val shape = RoundedCornerShape(16.dp)
-    val tint = if (selected) Color.White else MutedText
 
     Column(
         modifier = modifier
@@ -273,13 +309,13 @@ private fun TvNavigationItem(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
-            imageVector = view.icon,
-            contentDescription = view.label,
+            imageVector = icon,
+            contentDescription = label,
             tint = tint,
             modifier = Modifier.size(TvIconSize),
         )
         Text(
-            text = view.label,
+            text = label,
             color = tint,
             fontSize = 11.sp,
             letterSpacing = (-0.1).sp,
