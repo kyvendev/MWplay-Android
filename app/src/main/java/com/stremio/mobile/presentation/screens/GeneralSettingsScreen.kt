@@ -1,59 +1,51 @@
 package com.stremio.mobile.presentation.screens
 
-import com.stremio.mobile.core.theme.SettingsMaxWidth
-import com.stremio.mobile.core.theme.ScreenGutter
-import androidx.compose.foundation.layout.widthIn
-import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.stremio.mobile.core.theme.AccentPurple
 import com.stremio.mobile.core.theme.MutedText
-import com.stremio.mobile.presentation.components.ThemedButton
-import com.stremio.mobile.presentation.components.ThemedCard
+import com.stremio.mobile.core.theme.ScreenGutter
+import com.stremio.mobile.core.theme.SettingsMaxWidth
 
+/** The most used preferences in one place; they are the same settings shown in their own screens. */
 @Composable
 fun GeneralSettingsScreen(
-    isAuthenticated: Boolean,
-    isTraktAuthenticated: Boolean,
-    onAuthenticateTrakt: (Context) -> Unit,
-    onLogoutTrakt: () -> Unit,
-    onInstallTraktAddon: () -> Unit,
-    onBack: () -> Unit
+    settings: com.stremio.core.types.profile.Profile.Settings?,
+    onUpdateSettings: (com.stremio.core.types.profile.Profile.Settings) -> Unit,
+    isKeepScreenOn: Boolean,
+    onSetKeepScreenOn: (Boolean) -> Unit,
+    isAutoUpdateEnabled: Boolean,
+    onSetAutoUpdateEnabled: (Boolean) -> Unit,
+    isMobileDataWarning: Boolean = false,
+    /** Null where there is no mobile data (TV). */
+    onSetMobileDataWarning: ((Boolean) -> Unit)? = null,
+    onBack: () -> Unit,
 ) {
-    val context = LocalContext.current
     Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsHeader(title = "Configurações gerais", onBack = onBack)
-        Text(text = "INTEGRAÇÕES", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
-        ThemedCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(text = "Integração com Trakt", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(text = if (isTraktAuthenticated) "Autenticado" else "Não autenticado", color = if (isTraktAuthenticated) Color(0xFF4CAF50) else MutedText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                }
-                Text(text = "Sincronize o que você assiste com o histórico e a lista do seu perfil no Trakt.", color = MutedText, fontSize = 12.sp, lineHeight = 16.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (isTraktAuthenticated) {
-                        ThemedButton(text = "Sair do Trakt", onClick = onLogoutTrakt, containerColor = Color(0xFFD32F2F), modifier = Modifier.weight(1f))
-                        ThemedButton(text = "Instalar integração", onClick = onInstallTraktAddon, containerColor = AccentPurple, modifier = Modifier.weight(1f))
-                    } else {
-                        ThemedButton(text = "Autenticar no Trakt", onClick = { onAuthenticateTrakt(context) }, enabled = isAuthenticated, containerColor = AccentPurple, modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
+        if (settings != null) {
+            GeneralSectionLabel("PREFERÊNCIAS")
+            SettingsDropdownRow(title = "Idioma da interface", selectedValue = settings.interfaceLanguage, options = InterfaceLanguageOptions, onSelect = { onUpdateSettings(settings.copy(interfaceLanguage = it)) }, description = "Escolha o idioma dos menus e catálogos")
+            SettingsToggleRow(title = "Ocultar spoilers", checked = settings.hideSpoilers, onCheckedChange = { onUpdateSettings(settings.copy(hideSpoilers = it)) }, description = "Desfoca pôsteres de filmes e episódios ainda não assistidos")
         }
+        GeneralSectionLabel("REPRODUÇÃO")
+        SettingsToggleRow(title = "Manter tela ligada", checked = isKeepScreenOn, onCheckedChange = onSetKeepScreenOn, description = "Impede que a tela desligue durante a reprodução")
+        onSetMobileDataWarning?.let { onSet ->
+            SettingsToggleRow(title = "Aviso de dados móveis", checked = isMobileDataWarning, onCheckedChange = onSet, description = "Avisa antes de reproduzir usando a conexão de dados móveis")
+        }
+        GeneralSectionLabel("ATUALIZAÇÕES")
+        SettingsToggleRow(title = "Verificar atualizações automaticamente", checked = isAutoUpdateEnabled, onCheckedChange = onSetAutoUpdateEnabled, description = "Verifica novas versões ao iniciar, no máximo uma vez por dia")
     }
+}
+
+@Composable
+private fun GeneralSectionLabel(text: String) {
+    Text(text = text, color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
 }

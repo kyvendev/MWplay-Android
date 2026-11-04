@@ -115,7 +115,7 @@ fun SettingsPanel(
             SettingsMenuRow(
                 icon = Icons.Outlined.AccountCircle,
                 title = "Geral",
-                description = "Conta, integrações e preferências gerais",
+                description = "Idioma, spoilers, tela e atualizações",
                 onClick = { onNavigateTo(SettingsSubScreen.General) },
             )
             SettingsMenuRow(

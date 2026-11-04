@@ -83,8 +83,6 @@ import com.stremio.mobile.player.PlayerResizeMode
 import com.stremio.mobile.player.PlayerRuntimeState
 import com.stremio.mobile.player.PlayerSubtitleStyle
 import com.stremio.mobile.player.PlayerTrackOption
-import com.stremio.mobile.player.failover.SourceFailoverMessages
-import com.stremio.mobile.player.failover.SourceFailoverUi
 import com.stremio.mobile.player.intro.IntroSkipDecision
 import com.stremio.mobile.player.intro.IntroSkipSettings
 import com.stremio.mobile.player.intro.IntroSkipTracker
@@ -158,10 +156,6 @@ fun PlayerScreen(
     loadingInfo: PlaybackLoadingInfo? = null,
     playbackIntro: PlaybackIntro? = null,
     introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
-    sourceFailover: SourceFailoverUi = SourceFailoverUi(),
-    onRetrySources: () -> Unit = {},
-    onChooseAnotherSource: () -> Unit = {},
-    onCastingChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onBack)
@@ -177,7 +171,6 @@ fun PlayerScreen(
     LaunchedEffect(player, activeUri, activeSelectionId, castUri, castState.mediaUrl, castState.connected) {
         castController.attachLocalPlayback(activeUri, castUri ?: activeUri, activeSelectionId)
     }
-    LaunchedEffect(isCasting) { onCastingChanged(isCasting) }
     LaunchedEffect(player, activeUri, activeSelectionId, isCasting) {
         // Reopening this video or recreating its local engine must not start a second soundtrack.
         if (isCasting) player?.pause()
@@ -1095,8 +1088,7 @@ fun PlayerScreen(
             startVisible = loadingInfo != null && !isCasting,
             modifier = Modifier.fillMaxSize(),
         )
-        // Locked: swallows every touch on the player (controls, gestures, popups). Drawn under the
-        // source-switch panel, which must stay usable if every source fails.
+        // Locked: swallows every touch on the player (controls, gestures, popups).
         if (isLocked && !isInPip) {
             PlayerLockLayer(
                 onUnlock = {
@@ -1104,51 +1096,6 @@ fun PlayerScreen(
                     resetActivityTimer()
                 },
             )
-        }
-        // Drawn above the loading layer, so the switch is visible while a source is still loading.
-        // Automatic source switch: a discreet notice, or the choice when every source failed.
-        AnimatedVisibility(
-            visible = sourceFailover.notice != null && !sourceFailover.allFailed && !isInPip,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 24.dp, start = 24.dp, end = 24.dp),
-        ) {
-            Text(
-                text = sourceFailover.notice.orEmpty(),
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xD9141422))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-            )
-        }
-        if (sourceFailover.allFailed && !isInPip) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xCC000000))
-                    .pointerInput(Unit) { detectTapGestures { } },
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(horizontal = 32.dp),
-                ) {
-                    Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
-                    Text(SourceFailoverMessages.ALL_FAILED, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                    Text(SourceFailoverMessages.ALL_FAILED_HINT, color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ThemedButton(text = "Escolher outra fonte", onClick = onChooseAnotherSource)
-                        ThemedButton(text = "Tentar novamente", onClick = onRetrySources)
-                    }
-                }
-            }
         }
         if (isCasting) {
             CastRemotePlayer(castController, onBack, Modifier.fillMaxSize())

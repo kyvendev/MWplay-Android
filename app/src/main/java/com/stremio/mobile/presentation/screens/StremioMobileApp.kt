@@ -156,9 +156,6 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
                     onUpdateIntroSkipSettings = viewModel::updateIntroSkipSettings,
                     onUpdateServerSettings = viewModel::updateStreamingServerSettings,
-                    onAuthenticateTrakt = viewModel::authenticateTrakt,
-                    onLogoutTrakt = viewModel::logoutTrakt,
-                    onInstallTraktAddon = viewModel::installTraktAddon,
                     onSetAutoStartOnBoot = viewModel::setAutoStartOnBoot,
                     onSetServerInForeground = viewModel::setServerInForeground,
                     onSetMobileDataWarning = viewModel::setMobileDataWarning,
@@ -176,8 +173,6 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     onSetPlayerUiStyle = viewModel::setPlayerUiStyle,
                     onSetGlassEffectsMode = viewModel::setGlassEffectsMode,
                     onSetAutoSwitchOnDeadStream = viewModel::setAutoSwitchOnDeadStream,
-                    isSourceFailoverEnabled = viewModel.sourceFailoverConfig.collectAsStateWithLifecycle().value.enabled,
-                    onSetSourceFailoverEnabled = viewModel::setSourceFailoverEnabled,
                     onSetGlobalGlassAlpha = viewModel::setGlobalGlassAlpha,
                     onSetAdaptiveGlassContrastEnabled = viewModel::setAdaptiveGlassContrastEnabled,
                     onSetGlassHapticsEnabled = viewModel::setGlassHapticsEnabled,
@@ -614,10 +609,6 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     },
                     playbackIntro = viewModel.playbackIntro.collectAsStateWithLifecycle().value,
                     introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
-                    sourceFailover = viewModel.sourceFailover.collectAsStateWithLifecycle().value,
-                    onRetrySources = viewModel::retrySourceFailover,
-                    onChooseAnotherSource = viewModel::chooseAnotherSource,
-                    onCastingChanged = viewModel::onCastingChanged,
                 )
             }
 
@@ -731,9 +722,6 @@ private fun BoardScreen(
     introSkipSettings: com.stremio.mobile.player.intro.IntroSkipSettings,
     onUpdateIntroSkipSettings: (com.stremio.mobile.player.intro.IntroSkipSettings) -> Unit,
     onUpdateServerSettings: (com.stremio.core.models.StreamingServer.Settings) -> Unit,
-    onAuthenticateTrakt: (Context) -> Unit,
-    onLogoutTrakt: () -> Unit,
-    onInstallTraktAddon: () -> Unit,
     onSetAutoStartOnBoot: (Boolean) -> Unit,
     onSetServerInForeground: (Boolean) -> Unit,
     onSetMobileDataWarning: (Boolean) -> Unit,
@@ -751,8 +739,6 @@ private fun BoardScreen(
     onSetPlayerUiStyle: (String) -> Unit,
     onSetGlassEffectsMode: (String) -> Unit,
     onSetAutoSwitchOnDeadStream: (Boolean) -> Unit,
-    isSourceFailoverEnabled: Boolean,
-    onSetSourceFailoverEnabled: (Boolean) -> Unit,
     onSetGlobalGlassAlpha: (Float) -> Unit,
     onSetAdaptiveGlassContrastEnabled: (Boolean) -> Unit,
     onSetGlassHapticsEnabled: (Boolean) -> Unit,
@@ -1062,11 +1048,14 @@ private fun BoardScreen(
                         SettingsSubScreen.General -> {
                             item {
                                 GeneralSettingsScreen(
-                                    isAuthenticated = state.account.isAuthenticated,
-                                    isTraktAuthenticated = state.isTraktAuthenticated,
-                                    onAuthenticateTrakt = onAuthenticateTrakt,
-                                    onLogoutTrakt = onLogoutTrakt,
-                                    onInstallTraktAddon = onInstallTraktAddon,
+                                    settings = state.profileSettings,
+                                    onUpdateSettings = onUpdateProfileSettings,
+                                    isKeepScreenOn = state.isKeepScreenOn,
+                                    onSetKeepScreenOn = onSetKeepScreenOn,
+                                    isAutoUpdateEnabled = state.isAutoUpdateEnabled,
+                                    onSetAutoUpdateEnabled = onSetAutoUpdateEnabled,
+                                    isMobileDataWarning = state.isMobileDataWarning,
+                                    onSetMobileDataWarning = onSetMobileDataWarning,
                                     onBack = { settingsSubScreen = SettingsSubScreen.Main }
                                 )
                             }
@@ -1125,8 +1114,6 @@ private fun BoardScreen(
                                     onSetMinDownloadSpeedBps = onSetMinDownloadSpeedBps,
                                     onSetPreferredQuality = onSetPreferredQuality,
                                     onSetAutoSwitchOnDeadStream = onSetAutoSwitchOnDeadStream,
-                                    isSourceFailoverEnabled = isSourceFailoverEnabled,
-                                    onSetSourceFailoverEnabled = onSetSourceFailoverEnabled,
                                     onBack = { settingsSubScreen = SettingsSubScreen.Main }
                                 )
                             }

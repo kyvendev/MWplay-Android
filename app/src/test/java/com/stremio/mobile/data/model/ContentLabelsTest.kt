@@ -21,6 +21,14 @@ class ContentLabelsTest {
         assertEquals("Séries populares", ContentLabels.shelfTitle("Popular", "series"))
         assertEquals("Filmes em destaque", ContentLabels.shelfTitle("Featured", "movie"))
         assertEquals("Populares", ContentLabels.shelfTitle("Popular", "anime"))
+        // Rows of the same provider are told apart by type.
+        assertEquals("Disney+ – Filmes", ContentLabels.shelfTitle("Disney+", "movie"))
+        assertEquals("Disney+ – Séries", ContentLabels.shelfTitle("Disney+", "series"))
+        assertEquals("Mais vistos – Filmes", ContentLabels.shelfTitle("Top", "movie"))
+        // Names that already say the type, and other types, stay as they are.
+        assertEquals("Séries da Netflix", ContentLabels.shelfTitle("Séries da Netflix", "series"))
+        assertEquals("Netflix Movies", ContentLabels.shelfTitle("Netflix Movies", "movie"))
+        assertEquals("TNT HD (BC)", ContentLabels.shelfTitle("TNT HD (BC)", "tv"))
         assertEquals("Lançamentos", ContentLabels.catalog("New"))
         // Names the app doesn't know stay as the addon sends them.
         assertEquals("TNT HD (BC)", ContentLabels.catalog("TNT HD (BC)"))

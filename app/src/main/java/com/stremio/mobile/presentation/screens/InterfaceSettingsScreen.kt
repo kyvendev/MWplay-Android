@@ -15,6 +15,9 @@ import androidx.compose.ui.unit.sp
 import com.stremio.mobile.core.theme.AppFont
 import com.stremio.mobile.core.theme.MutedText
 
+/** Languages of the menus and catalogs (also offered in the general settings). */
+internal val InterfaceLanguageOptions = listOf("eng" to "Inglês", "spa" to "Espanhol", "fre" to "Francês", "ger" to "Alemão", "ita" to "Italiano", "por" to "Português", "rus" to "Russo", "zho" to "Chinês")
+
 @Composable
 fun InterfaceSettingsScreen(
     settings: com.stremio.core.types.profile.Profile.Settings?, globalUiStyle: String, glassEffectsMode: String,
@@ -29,7 +32,6 @@ fun InterfaceSettingsScreen(
     Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsHeader(title = "Configurações da interface", onBack = onBack)
         if (settings != null) {
-            val languages = listOf("eng" to "Inglês", "spa" to "Espanhol", "fre" to "Francês", "ger" to "Alemão", "ita" to "Italiano", "por" to "Português", "rus" to "Russo", "zho" to "Chinês")
             val uiStyles = listOf("classic" to "Clássico", "modern" to "Moderno (Liquid Glass)")
             val glassEffects = listOf("balanced" to "Equilibrado", "full" to "Desfoque completo", "static" to "Desempenho")
             val intensities = listOf("Light" to "Leve", "Medium" to "Média", "Heavy" to "Forte")
@@ -44,7 +46,7 @@ fun InterfaceSettingsScreen(
             if (glassHapticsEnabled) SettingsDropdownRow(title = "Intensidade da vibração", selectedValue = hapticsIntensity, options = intensities, onSelect = onSetHapticsIntensity)
             SettingsClickRow(title = "Laboratório Liquid Glass", onClick = onNavigateToLiquidGlassLab, description = "Ajuste desfoque, refração, realces e valores personalizados")
             Text(text = "INTERFACE", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
-            SettingsDropdownRow(title = "Idioma da interface", selectedValue = settings.interfaceLanguage, options = languages, onSelect = { onUpdateSettings(settings.copy(interfaceLanguage = it)) }, description = "Escolha o idioma dos menus e catálogos")
+            SettingsDropdownRow(title = "Idioma da interface", selectedValue = settings.interfaceLanguage, options = InterfaceLanguageOptions, onSelect = { onUpdateSettings(settings.copy(interfaceLanguage = it)) }, description = "Escolha o idioma dos menus e catálogos")
             SettingsToggleRow(title = "Ocultar spoilers", checked = settings.hideSpoilers, onCheckedChange = { onUpdateSettings(settings.copy(hideSpoilers = it)) }, description = "Desfoca pôsteres de filmes e episódios ainda não assistidos")
             SettingsToggleRow(title = "Suporte a controle", checked = settings.gamepadSupport, onCheckedChange = { onUpdateSettings(settings.copy(gamepadSupport = it)) }, description = "Ativa navegação por controle remoto e gamepad")
         }
