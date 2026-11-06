@@ -107,6 +107,8 @@ dependencies {
     // On-device translation of synopses to Portuguese (no API key; models downloaded once by ML Kit).
     implementation("com.google.mlkit:translate:17.0.3")
     implementation("com.google.mlkit:language-id:17.0.6")
+    // "Play Next" row on the Android TV / Google TV home screen.
+    implementation("androidx.tvprovider:tvprovider:1.1.0")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")

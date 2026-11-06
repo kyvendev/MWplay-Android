@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -84,6 +85,7 @@ import com.stremio.mobile.core.theme.TvTextBodyLarge
 import com.stremio.mobile.core.theme.TvTextDisplay
 import com.stremio.mobile.core.theme.TvTextLabel
 import com.stremio.mobile.data.model.MetaDetails
+import com.stremio.mobile.presentation.util.TrailerLauncher
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.drawBackdropSafe
 import com.stremio.mobile.presentation.components.rememberGlobalHapticFeedback
@@ -435,6 +437,15 @@ private fun TvDetailLayout(
                     primary = false,
                     modifier = Modifier.focusRequester(listRequester).focusProperties { left = watchRequester },
                 )
+                details.trailerYouTubeId?.let { youTubeId ->
+                    val context = LocalContext.current
+                    TvDetailButton(
+                        label = "Trailer",
+                        imageVector = Icons.Outlined.Movie,
+                        onClick = { TrailerLauncher.open(context, youTubeId) },
+                        primary = false,
+                    )
+                }
             }
             val credits = details.cast.take(4)
             if (credits.isNotEmpty() && !details.isLoading) {

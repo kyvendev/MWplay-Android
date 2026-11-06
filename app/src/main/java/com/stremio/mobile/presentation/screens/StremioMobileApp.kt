@@ -643,6 +643,7 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                         profileSettings = state.profileSettings,
                         getPlayerStreamState = viewModel::getPlayerStreamState,
                         onAudioTrackSelected = viewModel::rememberAudioTrack,
+                        seriesTrackPreference = viewModel.seriesTrackPreference.collectAsStateWithLifecycle().value,
                         onSubtitleTrackSelected = viewModel::rememberSubtitleTrack,
                         onSubtitlesDisabled = viewModel::rememberSubtitlesDisabled,
                         onSubtitleStyleChanged = viewModel::rememberSubtitleStyle,

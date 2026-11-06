@@ -21,6 +21,10 @@ import com.stremio.mobile.data.translation.MlKitTranslator
 import com.stremio.mobile.data.translation.PreferencesTranslationCache
 import com.stremio.mobile.data.translation.SynopsisResult
 import com.stremio.mobile.data.translation.SynopsisTranslationRepository
+import com.stremio.mobile.player.SeriesTrackPreference
+import com.stremio.mobile.tv.WatchNextEntry
+import com.stremio.mobile.tv.WatchNextPublisher
+import com.stremio.mobile.player.SeriesTrackPreferences
 import com.stremio.mobile.player.intro.EpisodeRef
 import com.stremio.mobile.player.intro.IntroSkipSettings
 import com.stremio.mobile.player.intro.IntroTimestampRepository
@@ -57,6 +61,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -310,6 +315,7 @@ class MainViewModel(
         observeStreamingServer()
         restoreCoreSession()
         checkForUpdates(manual = true)
+        publishWatchNext()
 
         startServer() // Always start the streaming server on app startup
 
@@ -1532,6 +1538,7 @@ class MainViewModel(
         introJob?.cancel()
         introJob = null
         _playbackIntro.value = currentEpisodeRef()?.let { PlaybackIntro(it) }
+        _seriesTrackPreference.value = currentSeriesKey()?.let(seriesTracks::get)
     }
 
     /**
@@ -1543,8 +1550,10 @@ class MainViewModel(
         if (pending.lookupDone || introJob != null || !introRepository.settings.value.enabled) return
         val ref = pending.ref
         introJob = viewModelScope.launch {
-            val interval = introRepository.find(ref, durationMs)
-            if (_playbackIntro.value?.ref == ref) _playbackIntro.value = PlaybackIntro(ref, interval, lookupDone = true)
+            val segments = introRepository.find(ref, durationMs)
+            if (_playbackIntro.value?.ref == ref) {
+                _playbackIntro.value = PlaybackIntro(ref, segments.intro, lookupDone = true, recap = segments.recap, credits = segments.credits)
+            }
         }
     }
 
@@ -1660,7 +1669,11 @@ class MainViewModel(
 
         val notificationDurationMs = profileSettings.value?.nextVideoNotificationDuration ?: return
         val remainingMs = durationMs - positionMs
-        showNextVideoPopup.value = remainingMs in 0..notificationDurationMs && dismissedNextVideoId != next.id
+        // When the credits start (TheIntroDB / SkipDB / AniSkip), offer the next episode right away.
+        val creditsStartMs = _playbackIntro.value?.credits?.startMs
+            ?.takeIf { introRepository.settings.value.enabled }
+        val inCredits = creditsStartMs != null && positionMs >= creditsStartMs
+        showNextVideoPopup.value = (remainingMs in 0..notificationDurationMs || inCredits) && dismissedNextVideoId != next.id
     }
 
     fun onPlayerSeek(positionMs: Long, durationMs: Long) {
@@ -1739,15 +1752,25 @@ class MainViewModel(
 
     fun rememberAudioTrack(track: PlayerTrackOption) {
         playbackRepository.rememberAudioTrack(track)
+        currentSeriesKey()?.let { seriesTracks.saveAudio(it, track.languageCode ?: track.language) }
     }
 
     fun rememberSubtitleTrack(track: PlayerTrackOption) {
         playbackRepository.rememberSubtitleTrack(track)
+        currentSeriesKey()?.let { seriesTracks.saveSubtitle(it, track.languageCode ?: track.language ?: return@let) }
     }
 
     fun rememberSubtitlesDisabled() {
         playbackRepository.rememberSubtitlesDisabled()
+        currentSeriesKey()?.let { seriesTracks.saveSubtitle(it, null) }
     }
+
+    // Audio and subtitle language picked on one episode, applied to the next ones of the series.
+    private val seriesTracks by lazy { SeriesTrackPreferences(appContext) }
+    private val _seriesTrackPreference = MutableStateFlow<SeriesTrackPreference?>(null)
+    val seriesTrackPreference: StateFlow<SeriesTrackPreference?> = _seriesTrackPreference
+
+    private fun currentSeriesKey(): String? = currentEpisodeRef()?.let { "${it.type}|${it.itemId}" }
 
     fun rememberSubtitleStyle(style: PlayerSubtitleStyle) {
         playbackRepository.rememberSubtitleStyle(style)
@@ -1764,6 +1787,39 @@ class MainViewModel(
 
     fun acceptIntent(intent: Intent?) {
         latestIntentUri.value = intent?.dataString
+        // A title chosen in the home screen's "Play Next" row: resume it like "Continuar assistindo".
+        val id = intent?.getStringExtra(WatchNextPublisher.EXTRA_OPEN_ID) ?: return
+        val type = intent.getStringExtra(WatchNextPublisher.EXTRA_OPEN_TYPE) ?: return
+        val name = intent.getStringExtra(WatchNextPublisher.EXTRA_OPEN_NAME).orEmpty()
+        intent.removeExtra(WatchNextPublisher.EXTRA_OPEN_ID)
+        viewModelScope.launch {
+            val item = withTimeoutOrNull(10_000L) {
+                continueWatching.first { shelf -> shelf.items.any { it.id == id && it.type == type } }
+            }?.items?.first { it.id == id && it.type == type }
+            if (item != null) openStreams(item)
+            else openDetails(CatalogItem(id = id, type = type, name = name, poster = null, background = null, releaseInfo = null, imdbRating = null))
+        }
+    }
+
+    // region Play Next (TV home screen) ---------------------------------------------------------
+
+    private val watchNext by lazy { WatchNextPublisher(appContext) }
+
+    /** Mirrors "Continuar assistindo" into the home screen's "Play Next" row, a few seconds after it changes. */
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    private fun publishWatchNext() {
+        val isTv = appContext.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+        if (!isTv) return
+        viewModelScope.launch(Dispatchers.IO) {
+            continueWatching.debounce(5_000L).collect {
+                val entries = runCatching {
+                    core.getContinueWatchingPreview().libraryItems.mapIndexed { index, item ->
+                        WatchNextEntry(item.id, item.type, item.name, item.poster, item.state.timeOffset, item.state.duration, index)
+                    }
+                }.getOrNull() ?: return@collect
+                watchNext.sync(entries)
+            }
+        }
     }
 
     fun startServer() {
@@ -2035,6 +2091,9 @@ class MainViewModel(
                                 it.category.equals("director", ignoreCase = true) || it.category.equals("directors", ignoreCase = true)
                             }.map { it.name }.take(4)
                             val trailer = meta.trailerStreams.firstOrNull()?.let { catalogRepository.directUrl(it) }
+                            val trailerYouTubeId = meta.trailerStreams.firstNotNullOfOrNull { stream ->
+                                (stream.source as? com.stremio.core.types.resource.Stream.Source.YouTube)?.value?.ytId?.takeIf { it.isNotBlank() }
+                            }
 
                             val synopsis = synopsisFor(meta.type, meta.id, meta.description, listOf(meta.name) + cast + director)
                             selectedDetails.value = MetaDetails(
@@ -2048,6 +2107,7 @@ class MainViewModel(
                                 runtime = meta.runtime,
                                 year = meta.releaseInfo ?: detailsItem.releaseInfo,
                                 trailer = trailer,
+                                trailerYouTubeId = trailerYouTubeId,
                                 isLoading = false,
                             )
                         }

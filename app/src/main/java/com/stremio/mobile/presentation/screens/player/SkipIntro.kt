@@ -31,7 +31,7 @@ import com.stremio.mobile.presentation.components.tvFocusTarget
  * [showOkHint] adds an "OK" badge while the controls are hidden (OK then skips directly).
  */
 @Composable
-fun SkipIntroButton(onClick: () -> Unit, modifier: Modifier = Modifier, showOkHint: Boolean = false) {
+fun SkipIntroButton(onClick: () -> Unit, modifier: Modifier = Modifier, label: String = "Pular abertura", showOkHint: Boolean = false) {
     val shape = RoundedCornerShape(14.dp)
     Row(
         modifier = modifier
@@ -40,13 +40,13 @@ fun SkipIntroButton(onClick: () -> Unit, modifier: Modifier = Modifier, showOkHi
             .clip(shape)
             .background(Color(0xE6141422))
             .border(1.dp, Color(0x40FFFFFF), shape)
-            .clickable(role = Role.Button, onClickLabel = "Pular abertura", onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(Icons.Outlined.SkipNext, contentDescription = null, tint = AccentPurple, modifier = Modifier.size(22.dp))
-        Text("Pular abertura", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         if (showOkHint && rememberIsTelevision()) {
             Text(
                 "OK",

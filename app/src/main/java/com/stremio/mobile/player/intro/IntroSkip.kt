@@ -2,6 +2,9 @@ package com.stremio.mobile.player.intro
 
 import kotlin.math.abs
 
+/** The parts of an episode the databases time: opening, "previously on" recap and end credits. */
+enum class SegmentKind { INTRO, RECAP, CREDITS }
+
 /** Which public database an opening interval came from. */
 enum class IntroSource(val label: String) { INTRODB("TheIntroDB"), ANISKIP("AniSkip"), SKIPDB("SkipDB") }
 
@@ -81,13 +84,37 @@ object IntroSkipPolicy {
     /** The button disappears this close to the end of the opening. */
     const val END_MARGIN_MS = 1_000L
 
-    /** True when [interval] makes sense for a video of [durationMs]; unknown duration = unreliable. */
-    fun isReliable(interval: IntroInterval, durationMs: Long): Boolean {
+    /** Longest recap accepted. */
+    const val MAX_RECAP_MS = 5 * 60_000L
+
+    /** Credits: from 5 s to 15 min, in the second half, ending at most this much after the video. */
+    const val MAX_CREDITS_MS = 15 * 60_000L
+    const val CREDITS_END_TOLERANCE_MS = 5_000L
+
+    /**
+     * True when [interval] makes sense for a [kind] of segment in a video of [durationMs];
+     * unknown duration = unreliable.
+     */
+    fun isReliable(interval: IntroInterval, durationMs: Long, kind: SegmentKind = SegmentKind.INTRO): Boolean {
         val length = interval.endMs - interval.startMs
-        if (interval.startMs < 0 || length !in MIN_INTRO_MS..MAX_INTRO_MS) return false
-        if (durationMs <= 0 || interval.endMs > durationMs - MIN_TAIL_MS) return false
-        // The opening sits in the first part of an episode, never in its second half.
-        if (interval.startMs > durationMs / 2) return false
+        if (durationMs <= 0 || interval.startMs < 0) return false
+        when (kind) {
+            SegmentKind.INTRO -> {
+                if (length !in MIN_INTRO_MS..MAX_INTRO_MS || interval.endMs > durationMs - MIN_TAIL_MS) return false
+                // The opening sits in the first part of an episode, never in its second half.
+                if (interval.startMs > durationMs / 2) return false
+            }
+            SegmentKind.RECAP -> {
+                if (length !in MIN_INTRO_MS..MAX_RECAP_MS || interval.endMs > durationMs - MIN_TAIL_MS) return false
+                // "Previously on" opens the episode.
+                if (interval.startMs > durationMs / 3) return false
+            }
+            SegmentKind.CREDITS -> {
+                if (length !in MIN_INTRO_MS..MAX_CREDITS_MS) return false
+                if (interval.startMs < durationMs / 2 || interval.startMs >= durationMs) return false
+                if (interval.endMs > durationMs + CREDITS_END_TOLERANCE_MS) return false
+            }
+        }
         interval.episodeLengthMs?.let { measured ->
             // Community timestamps are tied to one release: only use them when it matches.
             if (abs(measured - durationMs) > EPISODE_LENGTH_TOLERANCE_MS) return false
@@ -97,8 +124,8 @@ object IntroSkipPolicy {
     }
 
     /** The reliable candidate whose measured release is closest to the playing video. */
-    fun select(candidates: List<IntroInterval>, durationMs: Long): IntroInterval? =
-        candidates.filter { isReliable(it, durationMs) }
+    fun select(candidates: List<IntroInterval>, durationMs: Long, kind: SegmentKind = SegmentKind.INTRO): IntroInterval? =
+        candidates.filter { isReliable(it, durationMs, kind) }
             .minByOrNull { candidate -> candidate.episodeLengthMs?.let { abs(it - durationMs) } ?: 0L }
 }
 
@@ -127,8 +154,14 @@ class IntroSkipTracker {
         autoSkipUsed = false
     }
 
-    fun decide(positionMs: Long, durationMs: Long, interval: IntroInterval?, settings: IntroSkipSettings): IntroSkipDecision {
-        if (!settings.enabled || interval == null || !IntroSkipPolicy.isReliable(interval, durationMs)) return IntroSkipDecision.None
+    fun decide(
+        positionMs: Long,
+        durationMs: Long,
+        interval: IntroInterval?,
+        settings: IntroSkipSettings,
+        kind: SegmentKind = SegmentKind.INTRO,
+    ): IntroSkipDecision {
+        if (!settings.enabled || interval == null || !IntroSkipPolicy.isReliable(interval, durationMs, kind)) return IntroSkipDecision.None
         val inside = positionMs >= interval.startMs && positionMs < interval.endMs - IntroSkipPolicy.END_MARGIN_MS
         if (!inside) {
             skippedInside = false
@@ -148,8 +181,33 @@ class IntroSkipTracker {
     }
 }
 
+/** What the databases know about one episode; each part is null when unknown or not valid. */
+data class EpisodeSegments(
+    val intro: IntroInterval? = null,
+    val recap: IntroInterval? = null,
+    val credits: IntroInterval? = null,
+) {
+    fun get(kind: SegmentKind): IntroInterval? = when (kind) {
+        SegmentKind.INTRO -> intro
+        SegmentKind.RECAP -> recap
+        SegmentKind.CREDITS -> credits
+    }
+
+    fun with(kind: SegmentKind, interval: IntroInterval?): EpisodeSegments = when (kind) {
+        SegmentKind.INTRO -> copy(intro = interval)
+        SegmentKind.RECAP -> copy(recap = interval)
+        SegmentKind.CREDITS -> copy(credits = interval)
+    }
+}
+
 /**
- * Opening data for the episode on screen. [interval] stays null while the lookup runs (playback
- * is never held for it) and when no source had valid data.
+ * Segment data for the episode on screen. [interval] (the opening), [recap] and [credits] stay
+ * null while the lookup runs (playback is never held for it) and when no source had valid data.
  */
-data class PlaybackIntro(val ref: EpisodeRef, val interval: IntroInterval? = null, val lookupDone: Boolean = false)
+data class PlaybackIntro(
+    val ref: EpisodeRef,
+    val interval: IntroInterval? = null,
+    val lookupDone: Boolean = false,
+    val recap: IntroInterval? = null,
+    val credits: IntroInterval? = null,
+)

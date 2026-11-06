@@ -85,7 +85,7 @@ private fun IntroSkipSettingsSection(settings: IntroSkipSettings, onUpdate: (Int
             title = "Pular abertura",
             checked = settings.enabled,
             onCheckedChange = { onUpdate(settings.copy(enabled = it)) },
-            description = "Em séries e animes, com o tempo da abertura buscado no TheIntroDB, AniSkip e SkipDB",
+            description = "Abertura e recapitulação de séries e animes, com os tempos do TheIntroDB, AniSkip e SkipDB. Quando os créditos começam, o próximo episódio aparece na hora",
         )
         if (settings.enabled) {
             val modes = listOf(false to "Manual (botão)", true to "Automático")
