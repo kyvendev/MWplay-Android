@@ -313,7 +313,6 @@ class MainViewModel(
         observeStreamingServer()
         restoreCoreSession()
         checkForUpdates(manual = true)
-        checkNewEpisodesSoon()
 
         startServer() // Always start the streaming server on app startup
 
@@ -1799,6 +1798,12 @@ class MainViewModel(
     private val newEpisodeNotifier by lazy { NewEpisodeNotifier(appContext) }
     private val _newEpisodeAlerts = MutableStateFlow(true)
     val newEpisodeAlerts: StateFlow<Boolean> = _newEpisodeAlerts
+
+    // Kotlin runs init blocks in declaration order: this one must come after the fields above,
+    // otherwise they are still null when the ViewModel is created (crash on app start).
+    init {
+        checkNewEpisodesSoon()
+    }
 
     fun setNewEpisodeAlerts(enabled: Boolean) {
         newEpisodeNotifier.enabled = enabled
