@@ -3,6 +3,7 @@ package com.stremio.mobile.data.repository
 import com.stremio.mobile.core.StremioCore
 import com.stremio.mobile.data.model.CatalogItem
 import com.stremio.mobile.data.model.CatalogShelf
+import com.stremio.mobile.data.model.TvCatalogPolicy
 import com.stremio.mobile.data.model.ContentLabels
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -65,6 +66,8 @@ class BoardRepository(private val core: StremioCore) {
                 )
             }
         }
+            // Live channels are in MW Play Canais, not on this home screen.
+            .filterNot { TvCatalogPolicy.isTv(it.type) }
     }
 
     fun extractContinueWatching(preview: com.stremio.core.models.ContinueWatchingPreview): CatalogShelf {
