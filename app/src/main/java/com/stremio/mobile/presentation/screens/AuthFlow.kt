@@ -98,7 +98,7 @@ private fun LoginScreen(
 
     AuthFormScaffold(
         title = "Entrar",
-        subtitle = "Entre com o e-mail e a senha fornecidos para acessar o MW Play.",
+        subtitle = "Entre com o e-mail e a senha fornecidos para acessar o MW Play Canais.",
         isLoading = isLoading,
         error = error,
     ) {
@@ -150,7 +150,7 @@ private fun AuthFormScaffold(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 StremioMark(modifier = Modifier.size(58.dp))
-                Text("Play", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Play Canais", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
             }
             Spacer(modifier = Modifier.height(if (isTv) 20.dp else 54.dp))
             Text(title, color = Color.White, fontSize = 36.sp, lineHeight = 42.sp, fontWeight = FontWeight.ExtraBold)

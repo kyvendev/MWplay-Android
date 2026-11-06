@@ -3,6 +3,8 @@ package com.stremio.mobile.update
 internal enum class ReleaseChannel(val tagPrefix: String, val assetPrefix: String) {
     MOBILE("v", "MW-Play-Mobile"),
     TV("tv-v", "MW-Play-TV"),
+    CANAIS_MOBILE("canais-v", "MW-Play-Canais-Mobile"),
+    CANAIS_TV("canais-tv-v", "MW-Play-Canais-TV"),
 }
 
 internal data class ReleaseAsset(val name: String, val url: String)

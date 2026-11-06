@@ -14,10 +14,10 @@ val BottomBarSpace = 96.dp
 val StremioBackground = Color(0xFF06070D)
 val SearchBackground = Color(0xFF161925)
 val CardFallback = Color(0xFF141725)
-val AccentPurple = Color(0xFF8A63FF)
+val AccentPurple = Color(0xFFF0524B) // MW Play Canais coral (name kept for the shared code)
 val MutedText = Color(0xFFB3B6C7)
 val GlassSurface = Color(0xCC1A1D2B)
-val AccentGreen = Color(0xFF4E8CFF)
+val AccentGreen = Color(0xFFFFA63D)
 
 // Layered surfaces: each step is slightly lighter so cards read on large dark panels.
 val SurfaceLow = Color(0xFF0D0F18)
@@ -25,7 +25,7 @@ val SurfaceMid = Color(0xFF151826)
 val SurfaceHigh = Color(0xFF1E2233)
 val HairlineBorder = Color(0x1FFFFFFF)
 val SubtleText = Color(0xFF7F8399)
-val AccentGlow = Color(0xFF6F4BFF)
+val AccentGlow = Color(0xFFFF6A4D)
 
 /** Opaque TV navigation surface; no backdrop blur so weak TV GPUs stay smooth. */
 val TvRailBrush = Brush.horizontalGradient(
@@ -34,7 +34,7 @@ val TvRailBrush = Brush.horizontalGradient(
 
 val StremioBackgroundBrush = Brush.linearGradient(
     colors = listOf(
-        Color(0xFF0E0B1F),
+        Color(0xFF1A0D0E),
         Color(0xFF08090F),
         Color(0xFF06070D),
     ),

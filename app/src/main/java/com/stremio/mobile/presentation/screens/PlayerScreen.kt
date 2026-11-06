@@ -161,6 +161,9 @@ fun PlayerScreen(
     liquidGlassTuning: LiquidGlassTuning = LiquidGlassTuning(),
     loadingInfo: PlaybackLoadingInfo? = null,
     playbackIntro: PlaybackIntro? = null,
+    /** MW Play Canais: previous / next channel; null outside the channel list. */
+    onPreviousChannel: (() -> Unit)? = null,
+    onNextChannel: (() -> Unit)? = null,
     introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
     modifier: Modifier = Modifier,
 ) {
@@ -640,6 +643,7 @@ fun PlayerScreen(
         volumeFraction = volumeFraction,
         seekStepMs = (profileSettings?.seekTimeDuration ?: 10_000L).coerceAtLeast(1_000L),
         canPlayNext = nextVideo != null,
+        channelMode = onNextChannel != null,
     )
     val controlsActions = PlayerControlsActions(
         onBack = onBack,
@@ -650,13 +654,13 @@ fun PlayerScreen(
             resetActivityTimer()
         },
         onSeekTo = { seekTo(it) },
-        onSkipForward = {
+        onSkipForward = onNextChannel?.let { next -> { next(); resetActivityTimer() } } ?: {
             val seekDur = profileSettings?.seekTimeDuration ?: 10000L
             val newPos = (positionMs + seekDur).coerceAtMost(durationMs)
             seekTo(newPos)
             gestureState.showRightSeekIndicator = true
         },
-        onSkipBack = {
+        onSkipBack = onPreviousChannel?.let { previous -> { previous(); resetActivityTimer() } } ?: {
             val seekDur = profileSettings?.seekTimeDuration ?: 10000L
             val newPos = (positionMs - seekDur).coerceAtLeast(0)
             seekTo(newPos)
@@ -760,6 +764,18 @@ fun PlayerScreen(
                         android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> PlayerRemoteKey.FAST_FORWARD
                         android.view.KeyEvent.KEYCODE_MEDIA_NEXT -> PlayerRemoteKey.NEXT
                         else -> PlayerRemoteKey.OTHER
+                    }
+                    // MW Play Canais: the remote's channel keys, or UP / DOWN with the controls hidden,
+                    // switch to the next / previous channel.
+                    val zap = when (nativeEvent.keyCode) {
+                        android.view.KeyEvent.KEYCODE_CHANNEL_UP, android.view.KeyEvent.KEYCODE_DPAD_UP -> onNextChannel
+                        android.view.KeyEvent.KEYCODE_CHANNEL_DOWN, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> onPreviousChannel
+                        else -> null
+                    }
+                    val channelKey = nativeEvent.keyCode == android.view.KeyEvent.KEYCODE_CHANNEL_UP || nativeEvent.keyCode == android.view.KeyEvent.KEYCODE_CHANNEL_DOWN
+                    if (zap != null && (channelKey || !showControls) && !showAudioDialog && !showSubtitleDialog) {
+                        if (event.type == KeyEventType.KeyDown && nativeEvent.repeatCount == 0) zap()
+                        return@onPreviewKeyEvent true
                     }
                     // While "Pular abertura" shows over hidden controls, OK skips (like streaming apps).
                     val skipOffer = (recapDecision as? IntroSkipDecision.ShowButton) ?: (introDecision as? IntroSkipDecision.ShowButton)

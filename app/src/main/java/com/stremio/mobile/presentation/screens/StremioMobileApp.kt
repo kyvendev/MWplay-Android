@@ -86,6 +86,7 @@ import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.GlobalUiTheme
 import com.stremio.mobile.presentation.components.LocalGlassAlpha
 import com.stremio.mobile.core.theme.*
+import com.stremio.mobile.canais.ChannelsHost
 import com.stremio.mobile.data.model.CatalogItem
 import com.stremio.mobile.data.model.ContentLabels
 import com.stremio.mobile.data.model.TvCatalogPolicy
@@ -146,64 +147,8 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     .onPreviewKeyEvent { event -> introVisible && interceptIntroKey(event) { introSkipRequests++ } },
             ) {
             if (state.account.isAuthenticated) {
-                BoardScreen(
-                    state = state,
-                    onRefresh = viewModel::refreshCatalogs,
-                    onOpenSearch = viewModel::openSearch,
-                    onSelectSection = viewModel::selectSection,
-                    onOpenDetails = viewModel::openDetails,
-                    onRemoveFromContinueWatching = viewModel::removeFromContinueWatching,
-                    continueWatchingActionsEnabled = !state.isSearchOpen && state.selectedDetails == null &&
-                        state.selectedAddonDetails == null && !streamsState.isOpen && !isPlayerOpen,
-                    onCloseDetails = viewModel::closeDetails,
-                    onToggleLibrary = viewModel::toggleLibrary,
-                    onOpenStreams = viewModel::openStreams,
-                    onStartServer = viewModel::startServer,
-                    onStopServer = viewModel::stopServer,
-                    onCheckServer = viewModel::checkServerWorking,
-                    onLogout = viewModel::logout,
-                    onCloseApp = { showCloseAppDialog = true },
-                    onCloseDiscoverCatalog = viewModel::closeDiscoverCatalog,
-                    onOpenDiscoverCatalog = viewModel::openDiscoverCatalog,
-                    onShelfVisible = viewModel::onShelfVisible,
-                    onSelectLibraryFilter = viewModel::selectLibraryFilter,
-                    onSelectDiscoverFilter = viewModel::selectDiscoverFilter,
-                    onUpdateProfileSettings = viewModel::updateProfileSettings,
-                    introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
-                    onUpdateIntroSkipSettings = viewModel::updateIntroSkipSettings,
-                    onUpdateServerSettings = viewModel::updateStreamingServerSettings,
-                    onSetAutoStartOnBoot = viewModel::setAutoStartOnBoot,
-                    onSetServerInForeground = viewModel::setServerInForeground,
-                    onSetMobileDataWarning = viewModel::setMobileDataWarning,
-                    onSetKeepScreenOn = viewModel::setKeepScreenOn,
-                    onSetSeedingEnabled = viewModel::setSeedingEnabled,
-                    onSelectAddonsFilter = viewModel::selectAddonsFilter,
-                    onOpenAddonDetails = viewModel::openAddonDetails,
-                    onInstallAddon = viewModel::installAddon,
-                    onUninstallAddon = viewModel::uninstallAddon,
-                    onInstallAddonByUrl = viewModel::installAddonByUrl,
-                    onSetMinSeedsThreshold = viewModel::setMinSeedsThreshold,
-                    onSetMinDownloadSpeedBps = viewModel::setMinDownloadSpeedBps,
-                    onSetPreferredQuality = viewModel::setPreferredQuality,
-                    onSetGlobalUiStyle = viewModel::setGlobalUiStyle,
-                    onSetPlayerUiStyle = viewModel::setPlayerUiStyle,
-                    onSetGlassEffectsMode = viewModel::setGlassEffectsMode,
-                    onSetAutoSwitchOnDeadStream = viewModel::setAutoSwitchOnDeadStream,
-                    onSetGlobalGlassAlpha = viewModel::setGlobalGlassAlpha,
-                    onSetAdaptiveGlassContrastEnabled = viewModel::setAdaptiveGlassContrastEnabled,
-                    onSetGlassHapticsEnabled = viewModel::setGlassHapticsEnabled,
-                    onSetHapticsIntensity = viewModel::setHapticsIntensity,
-                    onSetLiquidGlassTuning = viewModel::setLiquidGlassTuning,
-                    onResetLiquidGlassTuning = viewModel::resetLiquidGlassTuning,
-                    onSetSelectedFont = viewModel::setSelectedFont,
-                    onSetAnalyticsEnabled = viewModel::setAnalyticsEnabled,
-                    onShowAnalyticsDisclosure = viewModel::showAnalyticsDisclosure,
-                    onSetAutoUpdateEnabled = viewModel::setAutoUpdateEnabled,
-                    onCheckForUpdates = { viewModel.checkForUpdates(manual = true) },
-                    onDownloadAndInstallUpdate = viewModel::downloadAndInstallUpdate,
-                    onInstallDownloadedUpdate = viewModel::installDownloadedUpdate,
-                    onIgnoreUpdate = viewModel::ignoreUpdate,
-                )
+                // MW Play Canais: live channels only.
+                ChannelsHost(viewModel = viewModel, state = state, onCloseApp = { showCloseAppDialog = true })
             } else {
                 AuthFlow(
                     isLoading = state.account.isLoading,
@@ -671,6 +616,8 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                         },
                         onRemoteBackHandlerChanged = { playerRemoteBack = it },
                         playbackIntro = viewModel.playbackIntro.collectAsStateWithLifecycle().value,
+                        onPreviousChannel = if (viewModel.canZapChannels()) ({ viewModel.zapChannel(-1) }) else null,
+                        onNextChannel = if (viewModel.canZapChannels()) ({ viewModel.zapChannel(1) }) else null,
                         introSkipSettings = viewModel.introSkipSettings.collectAsStateWithLifecycle().value,
                     )
                 }
@@ -696,7 +643,7 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Text(
-                                    text = "Para melhorar a estabilidade e corrigir erros, este cliente de código aberto coleta relatórios de falha anônimos (via Firebase Crashlytics) e métricas de uso (via PostHog).",
+                                    text = "Para melhorar a estabilidade e corrigir erros, este cliente de código aberto coleta métricas de uso anônimas (via PostHog).",
                                     color = Color.White,
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp

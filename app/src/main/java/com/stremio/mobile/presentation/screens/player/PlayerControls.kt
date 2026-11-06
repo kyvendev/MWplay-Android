@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -70,6 +71,8 @@ data class PlayerControlsState(
     val volumeFraction: Float,
     val seekStepMs: Long = 10_000L,
     val canPlayNext: Boolean = false,
+    /** Live channels: the skip buttons switch to the previous / next channel. */
+    val channelMode: Boolean = false,
 )
 
 class PlayerControlsActions(
@@ -113,7 +116,7 @@ private fun TvPlayerControls(state: PlayerControlsState, actions: PlayerControls
         }
 
             Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
-                TvIconButton(Icons.Outlined.FastRewind, "Voltar ${state.seekStepMs / 1000} segundos", 58, actions.onSkipBack)
+                TvIconButton(if (state.channelMode) Icons.Outlined.SkipPrevious else Icons.Outlined.FastRewind, if (state.channelMode) "Canal anterior" else "Voltar ${state.seekStepMs / 1000} segundos", 58, actions.onSkipBack)
                 IconButton(
                     onClick = actions.onPlayPause,
                     modifier = Modifier
@@ -125,7 +128,7 @@ private fun TvPlayerControls(state: PlayerControlsState, actions: PlayerControls
                 ) {
                     Icon(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, if (state.isPlaying) "Pausar" else "Reproduzir", tint = Color.White, modifier = Modifier.size(44.dp))
                 }
-                TvIconButton(Icons.Outlined.FastForward, "Avançar ${state.seekStepMs / 1000} segundos", 58, actions.onSkipForward)
+                TvIconButton(if (state.channelMode) Icons.Outlined.SkipNext else Icons.Outlined.FastForward, if (state.channelMode) "Próximo canal" else "Avançar ${state.seekStepMs / 1000} segundos", 58, actions.onSkipForward)
             }
 
         Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 38.dp, vertical = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

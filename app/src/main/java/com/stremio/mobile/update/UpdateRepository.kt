@@ -132,7 +132,7 @@ class UpdateRepository(private val context: Context) {
 
     companion object {
         private const val RELEASES_URL = "https://api.github.com/repos/kyvendev/MWplay-Android/releases?per_page=30"
-        private val RELEASE_CHANNEL = ReleaseChannel.TV
+        private val RELEASE_CHANNEL = ReleaseChannel.CANAIS_TV
     }
 }
 

@@ -21,6 +21,8 @@ import com.stremio.mobile.data.translation.MlKitTranslator
 import com.stremio.mobile.data.translation.PreferencesTranslationCache
 import com.stremio.mobile.data.translation.SynopsisResult
 import com.stremio.mobile.data.translation.SynopsisTranslationRepository
+import com.stremio.mobile.canais.ChannelFavorites
+import com.stremio.mobile.canais.ChannelZapping
 import com.stremio.mobile.player.SeriesTrackPreference
 import com.stremio.mobile.tv.WatchNextEntry
 import com.stremio.mobile.tv.WatchNextPublisher
@@ -340,7 +342,7 @@ class MainViewModel(
                     if (!email.isNullOrBlank()) {
                         val hashedEmail = sha256(email)
                         com.posthog.PostHog.identify(hashedEmail)
-                        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId(hashedEmail)
+                        com.stremio.mobile.diagnostics.crashlyticsOrNull()?.setUserId(hashedEmail)
                     }
                 }
             }
@@ -396,9 +398,9 @@ class MainViewModel(
                     event = "Streaming Server State Changed",
                     properties = mapOf("new_state" to stateName)
                 )
-                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setCustomKey("server_state", stateName)
+                com.stremio.mobile.diagnostics.crashlyticsOrNull()?.setCustomKey("server_state", stateName)
                 if (state is StreamingServerState.Failed) {
-                    com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setCustomKey("server_error", formatServerErrorMessage(state.message))
+                    com.stremio.mobile.diagnostics.crashlyticsOrNull()?.setCustomKey("server_error", formatServerErrorMessage(state.message))
                 }
 
                 if (state is StreamingServerState.Ready) {
@@ -668,8 +670,8 @@ class MainViewModel(
             com.posthog.PostHog.optOut()
         }
         
-        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
-            .setCrashlyticsCollectionEnabled(enabled)
+        com.stremio.mobile.diagnostics.crashlyticsOrNull()
+            ?.setCrashlyticsCollectionEnabled(enabled)
     }
 
     fun setAutoUpdateEnabled(enabled: Boolean) {
@@ -1415,6 +1417,60 @@ class MainViewModel(
             cleanDescription = parsed.cleanDescription,
         )
     }
+
+    // region MW Play Canais ----------------------------------------------------------------------
+
+    private val channelFavorites by lazy { ChannelFavorites(appContext) }
+
+    /** Favourite channels, newest first. */
+    val favoriteChannels: StateFlow<List<CatalogItem>> get() = channelFavorites.items
+
+    /** Returns true when [item] is now a favourite. */
+    fun toggleFavoriteChannel(item: CatalogItem): Boolean = channelFavorites.toggle(item)
+
+    private var channelQueue: List<CatalogItem> = emptyList()
+    private val _playingChannel = MutableStateFlow<CatalogItem?>(null)
+
+    /** The channel on screen, for the player's title and the previous/next buttons. */
+    val playingChannel: StateFlow<CatalogItem?> = _playingChannel
+
+    /**
+     * Plays a live channel straight away: its first stream, no stream list. [queue] is the list it
+     * was picked from, used by the previous/next channel buttons.
+     */
+    fun playChannel(item: CatalogItem, queue: List<CatalogItem> = channelQueue) {
+        channelQueue = queue
+        _playingChannel.value = item
+        streamsJob?.cancel()
+        streams.value = StreamsUiState(forItem = item, isOpen = false, isLoading = true, isResolving = true)
+        streamsJob = viewModelScope.launch {
+            val options = withTimeoutOrNull(20_000L) {
+                catalogRepository.getMetaDetailsFlow(type = item.type, id = item.id, videoId = null, guessStreamPath = true)
+                    .map { details -> catalogRepository.extractStreams(details).mapIndexed { index, stream -> buildStreamOption(index, stream) } }
+                    .first { it.isNotEmpty() }
+            }
+            if (options.isNullOrEmpty()) {
+                streams.value = streams.value.copy(
+                    isLoading = false,
+                    isResolving = false,
+                    isOpen = true,
+                    error = "Este canal não está disponível agora. Tente outro canal ou mais tarde.",
+                )
+                return@launch
+            }
+            streams.value = streams.value.copy(streams = options, isLoading = false)
+            playStream(options.first())
+        }
+    }
+
+    /** Previous (-1) or next (+1) channel of the list, while watching. */
+    fun zapChannel(delta: Int) {
+        val next = ChannelZapping.neighbour(channelQueue, _playingChannel.value, delta) ?: return
+        playChannel(next, channelQueue)
+    }
+
+    /** True when the player can switch to another channel. */
+    fun canZapChannels(): Boolean = channelQueue.size > 1 && _playingChannel.value != null
 
     fun closeStreams() {
         streamsJob?.cancel()
@@ -2314,7 +2370,7 @@ class MainViewModel(
         account.value = AccountUiState()
         refreshLibrary()
         com.posthog.PostHog.reset()
-        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setUserId("")
+        com.stremio.mobile.diagnostics.crashlyticsOrNull()?.setUserId("")
     }
 
     fun clearAccountError() {

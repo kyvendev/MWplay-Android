@@ -42,7 +42,7 @@ fun rememberIsTelevision(): Boolean {
 }
 
 /** Focus fill behind text/icon controls; posters cover it with artwork. */
-internal val TvFocusFill = Color(0xFF7550F0)
+internal val TvFocusFill = Color(0xFFD9443F)
 internal val TvFocusRing = Color.White
 
 /**
