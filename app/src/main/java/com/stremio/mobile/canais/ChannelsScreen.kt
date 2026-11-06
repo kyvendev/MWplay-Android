@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -308,8 +309,9 @@ fun ChannelsScreen(
     // TV: start on the first channel so the remote works right away.
     LaunchedEffect(isTv, items.isNotEmpty()) {
         if (isTv && items.isNotEmpty() && !focusedOnce) {
-            focusedOnce = true
-            runCatching { firstCardFocus.requestFocus() }
+            // The grid composes its cards over the next frames: wait for the first one.
+            repeat(3) { withFrameNanos { } }
+            focusedOnce = runCatching { firstCardFocus.requestFocus() }.isSuccess
         }
     }
 }
