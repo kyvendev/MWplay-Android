@@ -26,6 +26,9 @@ fun GeneralSettingsScreen(
     isMobileDataWarning: Boolean = false,
     /** Null where there is no mobile data (TV). */
     onSetMobileDataWarning: ((Boolean) -> Unit)? = null,
+    isNewEpisodeAlertsEnabled: Boolean = false,
+    /** Null where there are no new-episode notifications (TV). */
+    onSetNewEpisodeAlerts: ((Boolean) -> Unit)? = null,
     onBack: () -> Unit,
 ) {
     Column(modifier = Modifier.padding(horizontal = ScreenGutter).widthIn(max = SettingsMaxWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -39,6 +42,10 @@ fun GeneralSettingsScreen(
         SettingsToggleRow(title = "Manter tela ligada", checked = isKeepScreenOn, onCheckedChange = onSetKeepScreenOn, description = "Impede que a tela desligue durante a reprodução")
         onSetMobileDataWarning?.let { onSet ->
             SettingsToggleRow(title = "Aviso de dados móveis", checked = isMobileDataWarning, onCheckedChange = onSet, description = "Avisa antes de reproduzir usando a conexão de dados móveis")
+        }
+        onSetNewEpisodeAlerts?.let { onSet ->
+            GeneralSectionLabel("NOTIFICAÇÕES")
+            SettingsToggleRow(title = "Avisar sobre novos episódios", checked = isNewEpisodeAlertsEnabled, onCheckedChange = onSet, description = "Notifica quando sair episódio novo de uma série da sua biblioteca")
         }
         GeneralSectionLabel("ATUALIZAÇÕES")
         SettingsToggleRow(title = "Verificar atualizações automaticamente", checked = isAutoUpdateEnabled, onCheckedChange = onSetAutoUpdateEnabled, description = "Verifica novas versões ao iniciar, no máximo uma vez por dia")

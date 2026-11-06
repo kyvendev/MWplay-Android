@@ -85,7 +85,11 @@ import com.stremio.mobile.player.PlayerSubtitleStyle
 import com.stremio.mobile.player.PlayerTrackOption
 import com.stremio.mobile.player.intro.IntroSkipDecision
 import com.stremio.mobile.player.intro.IntroSkipSettings
+import com.stremio.mobile.player.SeriesTrackPreference
+import com.stremio.mobile.player.SubtitleDefault
+import com.stremio.mobile.player.TrackDefaults
 import com.stremio.mobile.player.intro.IntroSkipTracker
+import com.stremio.mobile.player.intro.SegmentKind
 import com.stremio.mobile.player.intro.PlaybackIntro
 import com.stremio.mobile.presentation.screens.player.ClassicPlayerControls
 import com.stremio.mobile.presentation.screens.player.ModernPlayerControls
@@ -131,6 +135,8 @@ fun PlayerScreen(
     profileSettings: com.stremio.core.types.profile.Profile.Settings? = null,
     getPlayerStreamState: () -> com.stremio.core.models.Player.StreamState? = { null },
     onAudioTrackSelected: (PlayerTrackOption) -> Unit = {},
+    /** Languages picked on an earlier episode of this series. */
+    seriesTrackPreference: SeriesTrackPreference? = null,
     onSubtitleTrackSelected: (PlayerTrackOption) -> Unit = {},
     onSubtitlesDisabled: () -> Unit = {},
     onSubtitleStyleChanged: (PlayerSubtitleStyle) -> Unit = {},
@@ -339,14 +345,26 @@ fun PlayerScreen(
         else introTracker.decide(positionMs, durationMs, playbackIntro?.interval, introSkipSettings)
     }
 
+    // "Previously on…": same rules as the opening, with its own state.
+    val recapTracker = remember { IntroSkipTracker() }
+    recapTracker.bind(playbackIntro?.ref?.episodeKey)
+    val recapDecision = remember(positionMs, durationMs, playbackIntro, introSkipSettings, introSkipVersion, isCasting) {
+        if (isCasting) IntroSkipDecision.None
+        else recapTracker.decide(positionMs, durationMs, playbackIntro?.recap, introSkipSettings, SegmentKind.RECAP)
+    }
+    // The recap usually comes first; the button follows whichever part is playing.
+    val skipRecapNow = recapDecision !is IntroSkipDecision.None
+
     fun skipIntro(toMs: Long, automatic: Boolean) {
-        if (!introTracker.markSkipped(automatic)) return
+        val tracker = if (skipRecapNow) recapTracker else introTracker
+        if (!tracker.markSkipped(automatic)) return
         introSkipVersion++
         if (automatic) seekToSilently(toMs) else seekTo(toMs)
     }
 
-    LaunchedEffect(introDecision) {
-        (introDecision as? IntroSkipDecision.AutoSkip)?.let { skipIntro(it.skipToMs, automatic = true) }
+    LaunchedEffect(introDecision, recapDecision) {
+        ((recapDecision as? IntroSkipDecision.AutoSkip) ?: (introDecision as? IntroSkipDecision.AutoSkip))
+            ?.let { skipIntro(it.skipToMs, automatic = true) }
     }
 
     LaunchedEffect(player, activeUri) {
@@ -399,11 +417,12 @@ fun PlayerScreen(
 
     LaunchedEffect(player, activeUri, runtimeState.audioTracks, profileSettings?.audioLanguage) {
         if (player == null || audioDefaultApplied || runtimeState.audioTracks.isEmpty()) return@LaunchedEffect
-        val savedTrackId = getPlayerStreamState()?.audioTrack?.id
-        val savedTrack = savedTrackId?.let { id -> runtimeState.audioTracks.firstOrNull { it.id == id } }
-        val defaultTrack = savedTrack ?: runtimeState.audioTracks.firstOrNull { track ->
-            LanguageCatalog.matches(track.languageCode ?: track.language, profileSettings?.audioLanguage)
-        }
+        val defaultTrack = TrackDefaults.audio(
+            tracks = runtimeState.audioTracks,
+            savedTrackId = getPlayerStreamState()?.audioTrack?.id,
+            series = seriesTrackPreference,
+            profileLanguage = profileSettings?.audioLanguage,
+        )
         if (defaultTrack != null) {
             player.selectAudioTrack(defaultTrack.id)
             audioDefaultApplied = true
@@ -412,35 +431,26 @@ fun PlayerScreen(
 
     LaunchedEffect(player, activeUri, runtimeState.subtitleTracks, profileSettings?.subtitlesLanguage, profileSettings?.subtitlesAutoSelect) {
         if (player == null || subtitleDefaultApplied) return@LaunchedEffect
-        val settingsLanguage = profileSettings?.subtitlesLanguage
-        val autoSelect = profileSettings?.subtitlesAutoSelect ?: true
-        if (settingsLanguage == null || !autoSelect) {
-            player.disableSubtitles()
-            subtitleDefaultApplied = true
-            return@LaunchedEffect
-        }
-        if (runtimeState.subtitleTracks.isEmpty()) return@LaunchedEffect
-
         val savedTrack = getPlayerStreamState()?.subtitleTrack
-        val savedById = savedTrack?.id?.let { id ->
-            runtimeState.subtitleTracks.firstOrNull { track ->
-                track.id == id && track.embedded == savedTrack.embedded
+        when (val choice = TrackDefaults.subtitle(
+            tracks = runtimeState.subtitleTracks,
+            savedId = savedTrack?.id,
+            savedEmbedded = savedTrack?.embedded ?: false,
+            savedLanguage = savedTrack?.language,
+            series = seriesTrackPreference,
+            settingsLanguage = profileSettings?.subtitlesLanguage,
+            autoSelect = profileSettings?.subtitlesAutoSelect ?: true,
+            originPriority = ::subtitleOriginPriority,
+        )) {
+            SubtitleDefault.Off -> {
+                player.disableSubtitles()
+                subtitleDefaultApplied = true
             }
-        }
-        val targetLanguage = savedTrack?.language ?: settingsLanguage
-        val byLanguage = runtimeState.subtitleTracks
-            .filter { track -> LanguageCatalog.matches(track.languageCode ?: track.language, targetLanguage) }
-            .sortedWith(
-                compareByDescending<PlayerTrackOption> { it.embedded }
-                    .thenBy { subtitleOriginPriority(it) }
-                    .thenBy { it.label }
-            )
-            .firstOrNull()
-
-        val defaultTrack = savedById ?: byLanguage
-        if (defaultTrack != null) {
-            player.selectSubtitleTrack(defaultTrack.id)
-            subtitleDefaultApplied = true
+            is SubtitleDefault.Select -> {
+                player.selectSubtitleTrack(choice.track.id)
+                subtitleDefaultApplied = true
+            }
+            SubtitleDefault.Wait -> Unit
         }
     }
 
@@ -1051,7 +1061,8 @@ fun PlayerScreen(
             targetValue = if (showControls) 128.dp else 36.dp,
             label = "skipIntroBottom",
         )
-        val skipDecision = introDecision as? IntroSkipDecision.ShowButton
+        val skipDecision = (recapDecision as? IntroSkipDecision.ShowButton) ?: (introDecision as? IntroSkipDecision.ShowButton)
+        val skipLabel = if (recapDecision is IntroSkipDecision.ShowButton) "Pular recapitulação" else "Pular abertura"
         // Kept while the button fades out after the skip.
         var lastSkipToMs by remember { mutableLongStateOf(0L) }
         if (skipDecision != null) lastSkipToMs = skipDecision.skipToMs
@@ -1063,7 +1074,7 @@ fun PlayerScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = skipButtonBottom),
         ) {
-            SkipIntroButton(onClick = { skipIntro(lastSkipToMs, automatic = false) })
+            SkipIntroButton(onClick = { skipIntro(lastSkipToMs, automatic = false) }, label = skipLabel)
         }
 
         // Next Episode Popup — shown near the end of an episode, independent of showControls, no animation

@@ -102,4 +102,26 @@ class IntroSkipTest {
         assertEquals(Triple("kitsu", "12", 5), EpisodeRef.of("series", "kitsu:12", "kitsu:12:5")!!.animeIds)
         assertNull(EpisodeRef.of("series", "kitsu:12", "kitsu:12:5")!!.imdbEpisode)
     }
+
+    @Test
+    fun recapAndCreditsFollowTheirOwnRules() {
+        val recap = IntroInterval(0, 59_400, IntroSource.SKIPDB)
+        assertTrue(IntroSkipPolicy.isReliable(recap, duration, SegmentKind.RECAP))
+        assertFalse("recap late in the episode", IntroSkipPolicy.isReliable(recap.copy(startMs = 600_000, endMs = 660_000), duration, SegmentKind.RECAP))
+        val credits = IntroInterval(1_360_000, 1_440_000, IntroSource.INTRODB)
+        assertTrue(IntroSkipPolicy.isReliable(credits, duration, SegmentKind.CREDITS))
+        assertFalse("credits are not an opening", IntroSkipPolicy.isReliable(credits, duration, SegmentKind.INTRO))
+        assertFalse("credits in the first half", IntroSkipPolicy.isReliable(credits.copy(startMs = 300_000, endMs = 360_000), duration, SegmentKind.CREDITS))
+        assertFalse("credits past the end", IntroSkipPolicy.isReliable(credits.copy(endMs = 1_500_000), duration, SegmentKind.CREDITS))
+    }
+
+    @Test
+    fun recapHasItsOwnButtonState() {
+        val recap = IntroInterval(0, 59_400, IntroSource.SKIPDB)
+        val recapTracker = tracker()
+        assertEquals(IntroSkipDecision.ShowButton(59_400), recapTracker.decide(10_000, duration, recap, manualMode, SegmentKind.RECAP))
+        recapTracker.markSkipped(automatic = false)
+        // Skipping the recap does not use up the opening.
+        assertEquals(IntroSkipDecision.ShowButton(150_000), tracker().decide(70_000, duration, opening, manualMode))
+    }
 }

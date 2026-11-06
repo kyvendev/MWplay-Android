@@ -26,7 +26,7 @@ import com.stremio.mobile.core.theme.AccentPurple
 
 /** Dark pill with a purple skip icon; 48 dp tall so it is easy to tap over the video. */
 @Composable
-fun SkipIntroButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun SkipIntroButton(onClick: () -> Unit, modifier: Modifier = Modifier, label: String = "Pular abertura") {
     val shape = RoundedCornerShape(14.dp)
     Row(
         modifier = modifier
@@ -34,12 +34,12 @@ fun SkipIntroButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             .clip(shape)
             .background(Color(0xE6141422))
             .border(1.dp, Color(0x40FFFFFF), shape)
-            .clickable(role = Role.Button, onClickLabel = "Pular abertura", onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(Icons.Outlined.SkipNext, contentDescription = null, tint = AccentPurple, modifier = Modifier.size(22.dp))
-        Text("Pular abertura", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
     }
 }

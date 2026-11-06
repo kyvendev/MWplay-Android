@@ -159,6 +159,8 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     onSetAutoStartOnBoot = viewModel::setAutoStartOnBoot,
                     onSetServerInForeground = viewModel::setServerInForeground,
                     onSetMobileDataWarning = viewModel::setMobileDataWarning,
+                    newEpisodeAlerts = viewModel.newEpisodeAlerts.collectAsStateWithLifecycle().value,
+                    onSetNewEpisodeAlerts = viewModel::setNewEpisodeAlerts,
                     onSetKeepScreenOn = viewModel::setKeepScreenOn,
                     onSetSeedingEnabled = viewModel::setSeedingEnabled,
                     onSelectAddonsFilter = viewModel::selectAddonsFilter,
@@ -582,6 +584,7 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     profileSettings = state.profileSettings,
                     getPlayerStreamState = viewModel::getPlayerStreamState,
                     onAudioTrackSelected = viewModel::rememberAudioTrack,
+                    seriesTrackPreference = viewModel.seriesTrackPreference.collectAsStateWithLifecycle().value,
                     onSubtitleTrackSelected = viewModel::rememberSubtitleTrack,
                     onSubtitlesDisabled = viewModel::rememberSubtitlesDisabled,
                     onSubtitleStyleChanged = viewModel::rememberSubtitleStyle,
@@ -725,6 +728,8 @@ private fun BoardScreen(
     onSetAutoStartOnBoot: (Boolean) -> Unit,
     onSetServerInForeground: (Boolean) -> Unit,
     onSetMobileDataWarning: (Boolean) -> Unit,
+    newEpisodeAlerts: Boolean,
+    onSetNewEpisodeAlerts: (Boolean) -> Unit,
     onSetKeepScreenOn: (Boolean) -> Unit,
     onSetSeedingEnabled: (Boolean) -> Unit,
     onSelectAddonsFilter: (com.stremio.core.types.addon.ResourceRequest) -> Unit,
@@ -1056,6 +1061,8 @@ private fun BoardScreen(
                                     onSetAutoUpdateEnabled = onSetAutoUpdateEnabled,
                                     isMobileDataWarning = state.isMobileDataWarning,
                                     onSetMobileDataWarning = onSetMobileDataWarning,
+                                    isNewEpisodeAlertsEnabled = newEpisodeAlerts,
+                                    onSetNewEpisodeAlerts = onSetNewEpisodeAlerts,
                                     onBack = { settingsSubScreen = SettingsSubScreen.Main }
                                 )
                             }

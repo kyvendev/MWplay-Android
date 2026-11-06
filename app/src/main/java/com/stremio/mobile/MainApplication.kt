@@ -93,6 +93,7 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
             Timber.e(e, "Failed to set TMPDIR environment variable")
         }
         container = AppContainer(this)
+        com.stremio.mobile.notifications.NewEpisodeNotifier.schedule(this)
 
         // Keep the local streaming server tied to the application process rather
         // than to a particular screen/ViewModel. This makes the status reliable

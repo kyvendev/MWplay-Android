@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
@@ -73,6 +75,7 @@ import com.stremio.mobile.core.theme.SurfaceLow
 import com.stremio.mobile.core.theme.SurfaceMid
 import com.stremio.mobile.core.theme.TouchTarget
 import com.stremio.mobile.data.model.MetaDetails
+import com.stremio.mobile.presentation.util.TrailerLauncher
 import com.stremio.mobile.presentation.components.LocalGlobalUiTheme
 import com.stremio.mobile.presentation.components.drawBackdropSafe
 import com.stremio.mobile.presentation.components.rememberGlobalHapticFeedback
@@ -195,6 +198,21 @@ fun DetailSheet(
                     tint = AccentPurple,
                     surface = true,
                 )
+                details.trailerYouTubeId?.let { youTubeId ->
+                    val context = LocalContext.current
+                    // Round, icon only: three labelled buttons would not fit a small phone.
+                    Icon(
+                        imageVector = Icons.Outlined.Movie,
+                        contentDescription = "Trailer",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x33FFFFFF))
+                            .clickable(onClickLabel = "Ver trailer") { TrailerLauncher.open(context, youTubeId) }
+                            .padding(14.dp),
+                    )
+                }
             }
             if (details.isLoading) {
                 CircularProgressIndicator(color = AccentPurple, strokeWidth = 3.dp, modifier = Modifier.size(24.dp))

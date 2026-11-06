@@ -221,6 +221,23 @@ class StremioCore(context: Context) {
 
     fun getContinueWatchingPreview(): ContinueWatchingPreview = Core.getState(Field.CONTINUE_WATCHING_PREVIEW)
 
+    /**
+     * Asks the addons for new episodes of the series in the library (Stremio's notifications)
+     * and waits until they are stored, at most [timeoutMs].
+     */
+    suspend fun pullNotifications(timeoutMs: Long = 30_000L) = coroutineScope {
+        val done = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeoutOrNull(timeoutMs) {
+                events.first { runtimeEvent ->
+                    val event = runtimeEvent.event as? RuntimeEvent.Event.CoreEvent
+                    event?.value?.type is Event.Type.NotificationsPushedToStorage
+                }
+            }
+        }
+        dispatch(Action(Action.Type.Ctx(ActionCtx(ActionCtx.Args.PullNotifications(pbandk.wkt.Empty())))), Field.CTX)
+        done.await()
+    }
+
     fun continueWatchingPreview(): Flow<ContinueWatchingPreview> = newStateFlow(Field.CONTINUE_WATCHING_PREVIEW)
         .map { getContinueWatchingPreview() }
         .onStart { emit(getContinueWatchingPreview()) }

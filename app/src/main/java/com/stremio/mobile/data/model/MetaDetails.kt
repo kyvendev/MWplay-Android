@@ -9,6 +9,8 @@ data class MetaDetails(
     val runtime: String? = null,
     val year: String? = null,
     val trailer: String? = null,
+    /** YouTube id of the trailer, opened in the YouTube app. */
+    val trailerYouTubeId: String? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
     /** The synopsis is being translated to Portuguese; [description] still holds the original. */

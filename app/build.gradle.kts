@@ -104,6 +104,8 @@ dependencies {
     // On-device translation of synopses to Portuguese (no API key; models downloaded once by ML Kit).
     implementation("com.google.mlkit:translate:17.0.3")
     implementation("com.google.mlkit:language-id:17.0.6")
+    // Background check for new episodes (Mobile).
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
