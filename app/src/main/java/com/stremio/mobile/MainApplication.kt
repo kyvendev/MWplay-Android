@@ -40,7 +40,7 @@ class CrashlyticsTree : Timber.Tree() {
         if (priority == android.util.Log.VERBOSE || priority == android.util.Log.DEBUG) {
             return
         }
-        val crashlytics = FirebaseCrashlytics.getInstance()
+        val crashlytics = com.stremio.mobile.diagnostics.crashlyticsOrNull() ?: return
         val sanitizedMessage = sanitize((tag?.let { "[$it] " } ?: "") + message)
         crashlytics.log(sanitizedMessage)
         if (t != null) {
@@ -105,7 +105,7 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
         }
 
         val analyticsEnabled = container.authRepository.isAnalyticsEnabled()
-        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsEnabled)
+        com.stremio.mobile.diagnostics.crashlyticsOrNull()?.setCrashlyticsCollectionEnabled(analyticsEnabled)
 
         if (BuildConfig.POSTHOG_API_KEY.isNotEmpty()) {
             val posthogConfig = PostHogAndroidConfig(

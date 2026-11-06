@@ -140,8 +140,8 @@ internal object OrbitalTimeline {
     const val HARD_CAP = 12f
 }
 
-private val Violet = Color(0xFF8A63FF)
-private val Lilac = Color(0xFFB9A2FF)
+private val Violet = Color(0xFFF0524B)
+private val Lilac = Color(0xFFFFB38A)
 private val Base = Color(0xFF05040A)
 private const val TAU = (2 * PI).toFloat()
 
@@ -249,7 +249,7 @@ private fun DrawScope.playTriangle(c: Offset, size: Float, a: Float) {
     drawPath(path, Color.White.copy(alpha = a.coerceAtMost(1f)))
 }
 
-/** Official mark (res/drawable/mw_play_mark) + "Play" wordmark, centred on [c]. */
+/** Official mark (res/drawable/mw_play_mark) + "Play Canais" wordmark, centred on [c]. */
 private fun DrawScope.logo(
     c: Offset, u: Float, a: Float, rise: Float, scale: Float,
     mark: Painter, textMeasurer: TextMeasurer, style: TextStyle,
@@ -259,8 +259,12 @@ private fun DrawScope.logo(
     val k = markH / 48f
     val markW = 98 * k               // viewport columns 8..106
     val painterSize = 108 * k
-    val text = textMeasurer.measure("Play", style.copy(fontSize = (118 * u).toSp()))
     val gap = 22 * u
+    // "Play Canais" is longer than "Play": shrink it to keep the logo inside the screen.
+    val full = textMeasurer.measure("Play Canais", style.copy(fontSize = (118 * u).toSp()))
+    val room = size.width * 0.86f - markW - gap
+    val fit = if (full.size.width > room) room / full.size.width else 1f
+    val text = textMeasurer.measure("Play Canais", style.copy(fontSize = (118 * u * fit).toSp()))
     val total = markW + gap + text.size.width
     val left = c.x - total / 2
 

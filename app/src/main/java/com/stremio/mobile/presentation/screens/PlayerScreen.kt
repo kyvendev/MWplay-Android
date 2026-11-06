@@ -161,6 +161,9 @@ fun PlayerScreen(
     liquidGlassTuning: LiquidGlassTuning = LiquidGlassTuning(),
     loadingInfo: PlaybackLoadingInfo? = null,
     playbackIntro: PlaybackIntro? = null,
+    /** MW Play Canais: previous / next channel; null outside the channel list. */
+    onPreviousChannel: (() -> Unit)? = null,
+    onNextChannel: (() -> Unit)? = null,
     introSkipSettings: IntroSkipSettings = IntroSkipSettings(),
     modifier: Modifier = Modifier,
 ) {
@@ -679,6 +682,7 @@ fun PlayerScreen(
         canSelectAudio = runtimeState.audioTracks.isNotEmpty(),
         isMuted = isMuted,
         volumeFraction = volumeFraction,
+        channelMode = onNextChannel != null,
     )
     val controlsActions = PlayerControlsActions(
         onBack = onBack,
@@ -689,13 +693,13 @@ fun PlayerScreen(
             resetActivityTimer()
         },
         onSeekTo = { seekTo(it) },
-        onSkipForward = {
+        onSkipForward = onNextChannel?.let { next -> { next(); resetActivityTimer() } } ?: {
             val seekDur = profileSettings?.seekTimeDuration ?: 10000L
             val newPos = (positionMs + seekDur).coerceAtMost(durationMs)
             seekTo(newPos)
             gestureState.showRightSeekIndicator = true
         },
-        onSkipBack = {
+        onSkipBack = onPreviousChannel?.let { previous -> { previous(); resetActivityTimer() } } ?: {
             val seekDur = profileSettings?.seekTimeDuration ?: 10000L
             val newPos = (positionMs - seekDur).coerceAtLeast(0)
             seekTo(newPos)

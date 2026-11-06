@@ -3,9 +3,6 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
-    id("com.google.firebase.firebase-perf")
 }
 
 fun stringPropertyOrEnv(name: String): String? =
@@ -42,7 +39,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mwplay.app"
+        applicationId = "com.mwplay.canais"
         minSdk = 24
         targetSdk = 37
         versionCode = stringPropertyOrEnv("VERSION_CODE")?.toIntOrNull() ?: 1

@@ -39,6 +39,8 @@ import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.FastRewind
+import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.MoreVert
@@ -105,6 +107,8 @@ data class PlayerControlsState(
     val canSelectAudio: Boolean,
     val isMuted: Boolean,
     val volumeFraction: Float,
+    /** Live channels: the skip buttons switch to the previous / next channel. */
+    val channelMode: Boolean = false,
 )
 
 class PlayerControlsActions(
@@ -219,8 +223,8 @@ fun ClassicPlayerControls(
                             .background(Color(0x33000000))
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.FastRewind,
-                            contentDescription = "Voltar 10 segundos",
+                            imageVector = if (state.channelMode) Icons.Outlined.SkipPrevious else Icons.Outlined.FastRewind,
+                            contentDescription = if (state.channelMode) "Canal anterior" else "Voltar 10 segundos",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -250,8 +254,8 @@ fun ClassicPlayerControls(
                             .background(Color(0x33000000))
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.FastForward,
-                            contentDescription = "Avançar 10 segundos",
+                            imageVector = if (state.channelMode) Icons.Outlined.SkipNext else Icons.Outlined.FastForward,
+                            contentDescription = if (state.channelMode) "Próximo canal" else "Avançar 10 segundos",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -436,8 +440,8 @@ fun ModernPlayerControls(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         SpringGlassIconButton(
-                            imageVector = Icons.Outlined.FastRewind,
-                            contentDescription = "Voltar 10 segundos",
+                            imageVector = if (state.channelMode) Icons.Outlined.SkipPrevious else Icons.Outlined.FastRewind,
+                            contentDescription = if (state.channelMode) "Canal anterior" else "Voltar 10 segundos",
                             backdrop = backdrop,
                             glassEffectsMode = glassEffectsMode,
                             size = 38,
@@ -501,8 +505,8 @@ fun ModernPlayerControls(
                     }
 
                     SpringGlassIconButton(
-                        imageVector = Icons.Outlined.FastForward,
-                        contentDescription = "Avançar 10 segundos",
+                        imageVector = if (state.channelMode) Icons.Outlined.SkipNext else Icons.Outlined.FastForward,
+                        contentDescription = if (state.channelMode) "Próximo canal" else "Avançar 10 segundos",
                         backdrop = backdrop,
                         glassEffectsMode = glassEffectsMode,
                         size = 38,
