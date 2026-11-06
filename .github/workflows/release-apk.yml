@@ -1,13 +1,13 @@
-name: MW Play TV Release APK
+name: MW Play Canais TV Release APK
 
 on:
   push:
     branches:
-      - feat/mw-play-tv
+      - feat/mw-play-canais-tv
     paths:
       - .github/release-request.json
     tags:
-      - "tv-v[0-9]*"
+      - "canais-tv-v[0-9]*"
   workflow_dispatch:
     inputs:
       version_name:
@@ -19,12 +19,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: mw-play-release-tv
+  group: mw-play-release-canais-tv
   cancel-in-progress: false
 
 env:
-  RELEASE_PLATFORM: tv
-  RELEASE_FILE_PREFIX: MW-Play-TV
+  RELEASE_PLATFORM: canais-tv
+  RELEASE_FILE_PREFIX: MW-Play-Canais-TV
 
 jobs:
   prepare:
@@ -51,12 +51,14 @@ jobs:
           properties = dict(re.findall(r'^(VERSION_NAME|VERSION_CODE)=(.+)$', Path('gradle.properties').read_text(), re.MULTILINE))
           version = properties['VERSION_NAME'].strip()
           code = int(properties['VERSION_CODE'])
-          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version) or not 125 <= code <= 2100000000:
-              raise SystemExit('Invalid release version or versionCode; preserve upgrade compatibility with code >= 125')
+          # MW Play Canais is its own app (com.mwplay.canais): its versionCode starts at 1.
+          min_code = 1 if platform.startswith('canais-') else 125
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version) or not min_code <= code <= 2100000000:
+              raise SystemExit(f'Invalid release version or versionCode; preserve upgrade compatibility with code >= {min_code}')
           request = json.loads(Path('.github/release-request.json').read_text())
           if request.get('platform') != platform or request.get('version_name') != version or request.get('version_code') != code:
               raise SystemExit('Release request must match this platform and gradle.properties exactly')
-          tag = ('v' if platform == 'mobile' else 'tv-v') + version
+          tag = {'mobile': 'v', 'tv': 'tv-v', 'canais-mobile': 'canais-v', 'canais-tv': 'canais-tv-v'}[platform] + version
           ref_type, ref_name = os.environ['GITHUB_REF_TYPE'], os.environ['GITHUB_REF_NAME']
           if ref_type == 'branch' and ref_name != branch:
               raise SystemExit(f'Release must originate from {branch}')
@@ -358,7 +360,7 @@ jobs:
               body = Path('.github/release-notes.md').read_text().rstrip()
               notes.write_text(body + f'\n\nSource branch: `feat/mw-play-{platform}`\n\nSource commit: `{sha}`\n')
               gh('release', 'create', tag, '--repo', repo, '--draft', '--verify-tag', '--target', sha,
-                 '--title', f'MW Play {"Mobile" if platform == "mobile" else "TV"} {version}',
+                 '--title', f'MW Play {{"mobile": "Mobile", "tv": "TV", "canais-mobile": "Canais", "canais-tv": "Canais TV"}[platform]} {version}',
                  '--notes-file', str(notes), '--latest=false')
           verify_draft(release_info())
           gh('release', 'upload', tag, '--repo', repo, *map(str, assets), '--clobber')

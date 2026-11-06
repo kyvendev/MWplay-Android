@@ -11,6 +11,7 @@ from pathlib import Path
 REQUIRED_ABIS = {"armeabi-v7a", "arm64-v8a", "x86", "x86_64", "universal"}
 NATIVE_ABIS = REQUIRED_ABIS - {"universal"}
 PACKAGE_NAME = "com.mwplay.app"
+CANAIS_PACKAGE_NAME = "com.mwplay.canais"
 
 
 def command_output(*arguments):
@@ -85,13 +86,15 @@ def validate(apk_dir, previous_apk, version_name, version_code, platform, apksig
     previous_identity = apk_identity(aapt, previous_apk)
     if previous_identity["name"] != PACKAGE_NAME or previous_identity["versionName"] != "1.0.2":
         raise ValueError("Previous APK must be the published MW Play 1.0.2")
-    if version_code <= previous_identity["versionCode"]:
+    canais = platform.startswith("canais-")
+    # MW Play Canais is another app: only the signing key is compared with MW Play.
+    if not canais and version_code <= previous_identity["versionCode"]:
         raise ValueError("Release versionCode must be greater than the previous APK")
     previous_certificate = signing_certificate(apksigner, previous_apk)
     outputs = apk_outputs(apk_dir)
     for abi, apk in sorted(outputs.items()):
         identity = apk_identity(aapt, apk)
-        expected = (PACKAGE_NAME, version_name, version_code, platform == "tv")
+        expected = (CANAIS_PACKAGE_NAME if canais else PACKAGE_NAME, version_name, version_code, platform in ("tv", "canais-tv"))
         actual = (identity["name"], identity["versionName"], identity["versionCode"], identity["leanback"])
         if actual != expected:
             raise ValueError(f"{apk.name}: incorrect app identity, version or platform: {actual}")
@@ -121,7 +124,7 @@ def main():
     parser.add_argument("--previous-apk", required=True, type=Path)
     parser.add_argument("--version-name", required=True)
     parser.add_argument("--version-code", required=True, type=int)
-    parser.add_argument("--platform", required=True, choices=("mobile", "tv"))
+    parser.add_argument("--platform", required=True, choices=("mobile", "tv", "canais-mobile", "canais-tv"))
     parser.add_argument("--apksigner", required=True)
     parser.add_argument("--aapt", required=True)
     parser.add_argument("--report-path", required=True, type=Path)
