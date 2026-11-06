@@ -42,7 +42,7 @@ def main():
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--version-name", required=True)
     parser.add_argument("--build-type", required=True)
-    parser.add_argument("--file-prefix", default=APP_FILE_PREFIX, choices=("MW-Play", "MW-Play-Mobile", "MW-Play-TV"))
+    parser.add_argument("--file-prefix", default=APP_FILE_PREFIX, choices=("MW-Play", "MW-Play-Mobile", "MW-Play-TV", "MW-Play-Canais-Mobile", "MW-Play-Canais-TV"))
     args = parser.parse_args()
     elements = load_elements(args.metadata)
     args.output_dir.mkdir(parents=True, exist_ok=True)
