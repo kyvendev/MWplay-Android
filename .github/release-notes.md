@@ -1,14 +1,19 @@
-MW Play **Mobile 1.4.2**, desenvolvido para celulares e tablets Android.
+**MW Play Canais 1.0.0**, para celulares e tablets Android. É o app de canais ao vivo do MW Play.
 
-## Novidades
+## O que tem
 
-- **Bloqueio de tela no player:** um cadeado na barra de cima do player trava a tela contra toques acidentais. Com a tela bloqueada, nada pausa, avança, volta ou abre menus, e os gestos de volume e brilho também ficam travados, mas o vídeo e o som continuam normalmente. Um toque na tela mostra o cadeado; tocar nele desbloqueia, sem pausar nem avançar o vídeo.
-- **Sinopses em português:** quando a sinopse de um filme, série ou anime vem em inglês ou em outro idioma, o app traduz automaticamente para o português, no próprio aparelho e sem enviar o texto para nenhum servidor. A sinopse original aparece enquanto a tradução fica pronta, e nomes de personagens, atores e títulos são preservados. A tradução fica salva, então a mesma sinopse não é traduzida de novo. Na primeira vez, o app baixa o modelo de tradução (cerca de 30 MB; idiomas além do inglês só no Wi-Fi). Sem conexão, aparece a sinopse original.
+- **Só canais ao vivo:** os canais de TV dos addons da sua conta, com o BestCine em primeiro, numa grade com logo e nome.
+- **Categorias:** "Todos os canais", "Favoritos", "Esportes" e as categorias do próprio addon.
+- **Busca de canais** pelo nome.
+- **Assistir com um toque:** o canal entra no ar na hora, sem lista de fontes.
+- **Favoritos:** segure um canal para favoritar. Eles ficam na categoria "Favoritos".
+- **Trocar de canal no player:** botões "Canal anterior" e "Próximo canal".
+- **Mesma conta do MW Play:** basta entrar com o mesmo e-mail e senha.
 
 ## Instalação
 
-Baixe um APK **MW-Play-Mobile** compatível com seu aparelho. Use o arquivo **universal-release.apk** se não souber a arquitetura. Ele instala por cima da versão 1.4.1 sem perder login nem configurações.
+Baixe um APK **MW-Play-Canais-Mobile** compatível com seu aparelho. Use o arquivo **universal-release.apk** se não souber a arquitetura. Ele se instala ao lado do MW Play, sem substituir o app.
 
 Os APKs são assinados com a chave original do projeto. O arquivo SHA256SUMS acompanha os downloads.
 
-A versão para Android TV é distribuída separadamente como **MW Play TV 1.4.2**.
+A versão para Android TV é distribuída separadamente como **MW Play Canais TV 1.0.0**.
