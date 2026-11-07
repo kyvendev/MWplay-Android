@@ -162,6 +162,10 @@ object TvCatalogPolicy {
 
     fun isTv(type: String?): Boolean = type.equals(TV_TYPE, ignoreCase = true)
 
+    /** True when any of [texts] (addon name, addon URL, catalog name) names a preferred provider (Best Cine). */
+    fun isPreferredProvider(vararg texts: String?): Boolean =
+        texts.filterNotNull().any { text -> preferredProviders.any { it.containsMatchIn(text) } }
+
     /**
      * The catalog to open first: one whose name, addon URL or addon name matches a preferred
      * provider, otherwise the first one.

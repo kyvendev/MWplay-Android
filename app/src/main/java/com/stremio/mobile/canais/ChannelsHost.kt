@@ -46,6 +46,7 @@ import com.stremio.mobile.BuildConfig
 import com.stremio.mobile.core.theme.AccentPurple
 
 import com.stremio.mobile.core.theme.MutedText
+import com.stremio.mobile.data.model.TvCatalogPolicy
 import com.stremio.mobile.core.theme.SurfaceHigh
 import com.stremio.mobile.presentation.state.MainSection
 import com.stremio.mobile.presentation.state.MainUiState
@@ -57,6 +58,11 @@ import com.stremio.mobile.update.UpdateState
 fun ChannelsHost(viewModel: MainViewModel, state: MainUiState, onCloseApp: (() -> Unit)? = null) {
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     val favorites by viewModel.favoriteChannels.collectAsStateWithLifecycle()
+    // The installed addons' names tell which channel catalogs are Best Cine's.
+    LaunchedEffect(Unit) { viewModel.loadInstalledAddons() }
+    val bestCineUrls = remember(state.addons.items) {
+        state.addons.items.filter { TvCatalogPolicy.isPreferredProvider(it.name, it.transportUrl) }.map { it.transportUrl }.toSet()
+    }
     if (settingsOpen) {
         BackHandler { settingsOpen = false }
         ChannelsSettings(
@@ -78,6 +84,8 @@ fun ChannelsHost(viewModel: MainViewModel, state: MainUiState, onCloseApp: (() -
             onToggleFavorite = viewModel::toggleFavoriteChannel,
             onOpenSettings = { settingsOpen = true },
             onCloseApp = onCloseApp,
+            isChannelSource = { base -> base in bestCineUrls || TvCatalogPolicy.isPreferredProvider(base) },
+            channelSourcesLoading = state.addons.isLoading && bestCineUrls.isEmpty(),
         )
     }
 }

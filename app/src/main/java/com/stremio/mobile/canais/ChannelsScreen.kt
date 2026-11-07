@@ -136,6 +136,10 @@ fun ChannelsScreen(
     onToggleFavorite: (CatalogItem) -> Boolean,
     onOpenSettings: () -> Unit,
     onCloseApp: (() -> Unit)? = null,
+    /** MW Play Canais lists only the channels of these addons (Best Cine), by addon URL. */
+    isChannelSource: (String) -> Boolean = { true },
+    /** The installed addons are still loading, so [isChannelSource] may not know Best Cine yet. */
+    channelSourcesLoading: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val isTv = isTvDevice()
@@ -152,14 +156,24 @@ fun ChannelsScreen(
     }
 
     val tvFilters = filters?.takeIf { TvCatalogPolicy.isTv(it.selected?.request?.path?.type) }
-    val row = tvFilters?.let { channelCategoryRow(it, sportsByMetadata) }
-    val catalogs = tvFilters?.selectable?.catalogs.orEmpty()
-    // No addon offers TV catalogs at all.
+    // Only Best Cine's channel catalogs ("Canais", "Canais | Esportes"…); other addons' are left out.
+    val catalogs = tvFilters?.selectable?.catalogs.orEmpty().filter { isChannelSource(it.request.base) }
+    val row = tvFilters?.let { channelCategoryRow(it, catalogs, sportsByMetadata) }
+    val selectedIsSource = tvFilters?.selected?.request?.base?.let(isChannelSource) == true
+    // No addon offers TV catalogs at all, or none of them is Best Cine.
     val noTvSource = filters != null && filters.selectable.types.isNotEmpty() && filters.selectable.types.none { TvCatalogPolicy.isTv(it.type) }
+    val noChannelSource = tvFilters != null && catalogs.isEmpty() && !channelSourcesLoading
+    // Another addon's TV catalog is open: switch to Best Cine's.
+    LaunchedEffect(tvFilters?.selected?.request, catalogs) {
+        if (tvFilters != null && !selectedIsSource) {
+            (catalogs.firstOrNull { !SportsChannelPolicy.isSportsCatalog(it.name) } ?: catalogs.firstOrNull())
+                ?.let { onSelectRequest(it.request) }
+        }
+    }
     // While the TV catalog is being selected, the model may still hold another one.
-    val loading = catalog.isLoading || (tvFilters == null && !noTvSource)
+    val loading = catalog.isLoading || (tvFilters == null && !noTvSource) || (tvFilters != null && !selectedIsSource && !noChannelSource)
     val items = ChannelList.visible(
-        catalog = if (tvFilters != null) catalog.items else emptyList(),
+        catalog = if (tvFilters != null && selectedIsSource) catalog.items else emptyList(),
         favorites = favorites,
         showFavorites = showFavorites,
         sportsOpen = row?.sportsOpen == true,
@@ -270,9 +284,9 @@ fun ChannelsScreen(
         }
 
         when {
-            !showFavorites && noTvSource ->
+            !showFavorites && (noTvSource || noChannelSource) ->
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    ChannelsMessage("Nenhum canal disponível. Instale na sua conta um addon com canais de TV (como o BestCine).")
+                    ChannelsMessage("Os canais vêm do addon BestCine. Instale o BestCine na sua conta para ver os canais.")
                 }
             !showFavorites && loading ->
                 items(12) { ChannelCardPlaceholder(isTv) }
@@ -316,14 +330,18 @@ fun ChannelsScreen(
     }
 }
 
-private fun channelCategoryRow(filters: CatalogWithFilters, sportsByMetadata: Boolean): TvCategories.Row<ResourceRequest> {
+private fun channelCategoryRow(
+    filters: CatalogWithFilters,
+    catalogs: List<com.stremio.core.models.CatalogWithFilters.SelectableCatalog>,
+    sportsByMetadata: Boolean,
+): TvCategories.Row<ResourceRequest> {
     val genre = filters.selectable.extra.firstOrNull { it.name.equals("genre", ignoreCase = true) }
     return TvCategories.build(
         genres = genre?.options.orEmpty().map { TvCategories.Option(it.value, it.selected, it.request) },
         sportsByMetadata = sportsByMetadata,
         label = ContentLabels::genre,
-        allRequest = filters.selectable.catalogs.firstOrNull { it.selected }?.request,
-        catalogs = filters.selectable.catalogs.map { TvCategories.Option(it.name, it.selected, it.request) },
+        allRequest = catalogs.firstOrNull { it.selected }?.request,
+        catalogs = catalogs.map { TvCategories.Option(it.name, it.selected, it.request) },
     )
 }
 
