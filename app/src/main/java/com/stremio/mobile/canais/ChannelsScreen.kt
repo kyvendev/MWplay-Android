@@ -110,6 +110,21 @@ internal object ChannelList {
     fun isShownCategory(value: String?): Boolean =
         value == null || channelGroup.containsMatchIn(value) || SportsChannelPolicy.isSportsCategory(value)
 
+    /**
+     * The tags' categories. The source's sports group ("Canais | Esportes") is what the Esportes
+     * tag opens, so it is not a tag of its own; other loose sports genres then step aside.
+     */
+    fun categoryOptions(
+        options: List<com.stremio.core.models.CatalogWithFilters.SelectableExtraOption>,
+    ): List<com.stremio.core.models.CatalogWithFilters.SelectableExtraOption> {
+        val shown = options.filter { isShownCategory(it.value) }
+        val sportsGroup = shown.firstOrNull { SportsChannelPolicy.isSportsCatalog(it.value) } ?: return shown
+        return shown
+            .filter { it === sportsGroup || !SportsChannelPolicy.isSportsCategory(it.value) }
+            // Named as a sports category, so it becomes the Esportes tag instead of "Canais | Esportes".
+            .map { if (it === sportsGroup) it.copy(value = "Esportes") else it }
+    }
+
     fun visible(
         catalog: List<CatalogItem>,
         favorites: List<CatalogItem>,
@@ -353,8 +368,7 @@ private fun channelCategoryRow(
 ): TvCategories.Row<ResourceRequest> {
     val genre = filters.selectable.extra.firstOrNull { it.name.equals("genre", ignoreCase = true) }
     return TvCategories.build(
-        genres = genre?.options.orEmpty()
-            .filter { ChannelList.isShownCategory(it.value) }
+        genres = ChannelList.categoryOptions(genre?.options.orEmpty())
             .map { TvCategories.Option(it.value, it.selected, it.request) },
         sportsByMetadata = sportsByMetadata,
         label = ContentLabels::genre,

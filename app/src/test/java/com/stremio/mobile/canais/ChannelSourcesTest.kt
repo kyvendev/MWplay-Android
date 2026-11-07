@@ -6,6 +6,8 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import com.stremio.core.types.addon.ExtraValue
 import androidx.compose.ui.test.assertIsDisplayed
 import com.stremio.core.models.CatalogWithFilters
 import com.stremio.core.types.addon.ResourcePath
@@ -82,6 +84,34 @@ class ChannelSourcesTest {
         show(ChannelsFixtures.filters(animeSelected = true))
         composeRule.onAllNodesWithText("Anime").assertCountEquals(0)
         composeRule.runOnIdle { assertEquals(listOf(ChannelsFixtures.all), requested) }
+    }
+
+    @Test
+    fun theSportsGroupIsTheEsportesTagNotATagOfItsOwn() {
+        val all = ChannelsFixtures.all
+        val group = all.copy(path = all.path.copy(extra = listOf(ExtraValue("genre", "Canais | Esportes"))))
+        val loose = all.copy(path = all.path.copy(extra = listOf(ExtraValue("genre", "Esportes"))))
+        val base = ChannelsFixtures.filters()
+        val genre = base.selectable.extra.single()
+        show(
+            base.copy(
+                selectable = base.selectable.copy(
+                    catalogs = base.selectable.catalogs.take(1),
+                    extra = listOf(
+                        genre.copy(
+                            options = genre.options + listOf(
+                                CatalogWithFilters.SelectableExtraOption("Esportes", false, loose),
+                                CatalogWithFilters.SelectableExtraOption("Canais | Esportes", false, group),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        composeRule.onAllNodesWithText("Canais | Esportes").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Esportes").assertCountEquals(1)
+        composeRule.onNodeWithText("Esportes").performClick()
+        composeRule.runOnIdle { assertEquals(listOf(group), requested) }
     }
 
     @Test
