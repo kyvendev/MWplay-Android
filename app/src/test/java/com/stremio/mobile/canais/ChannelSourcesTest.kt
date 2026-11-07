@@ -70,6 +70,21 @@ class ChannelSourcesTest {
     }
 
     @Test
+    fun onlyChannelGroupsAreTags() {
+        show(ChannelsFixtures.filters())
+        composeRule.onNodeWithText("Canais | Notícias").assertExists()
+        composeRule.onAllNodesWithText("Anime").assertCountEquals(0)
+        composeRule.runOnIdle { assertTrue(requested.isEmpty()) }
+    }
+
+    @Test
+    fun aHiddenCategoryOpenGoesBackToEveryChannel() {
+        show(ChannelsFixtures.filters(animeSelected = true))
+        composeRule.onAllNodesWithText("Anime").assertCountEquals(0)
+        composeRule.runOnIdle { assertEquals(listOf(ChannelsFixtures.all), requested) }
+    }
+
+    @Test
     fun withoutBestCineTheScreenSaysSo() {
         show(filters(otherSelected = true, withBestCine = false))
         composeRule.onNodeWithText("Os canais vêm do addon BestCine. Instale o BestCine na sua conta para ver os canais.").assertExists()

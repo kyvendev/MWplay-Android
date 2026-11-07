@@ -100,6 +100,16 @@ internal sealed interface ChannelFilter {
  * same and it can be tested without a device.
  */
 internal object ChannelList {
+    private val channelGroup = Regex("""^\s*canais\s*\|""", RegexOption.IGNORE_CASE)
+
+    /**
+     * The source's categories shown as tags: only its channel groups ("Canais | Globo",
+     * "Canais | 24h"…). Loose genres such as "Anime" or "Filmes" are left out; their channels
+     * stay in "Todos os canais". Sports categories are kept for the Esportes tag.
+     */
+    fun isShownCategory(value: String?): Boolean =
+        value == null || channelGroup.containsMatchIn(value) || SportsChannelPolicy.isSportsCategory(value)
+
     fun visible(
         catalog: List<CatalogItem>,
         favorites: List<CatalogItem>,
@@ -169,6 +179,12 @@ fun ChannelsScreen(
             (catalogs.firstOrNull { !SportsChannelPolicy.isSportsCatalog(it.name) } ?: catalogs.firstOrNull())
                 ?.let { onSelectRequest(it.request) }
         }
+    }
+    // A category that is no longer a tag (e.g. "Anime") is open: back to every channel.
+    val genreOptions = tvFilters?.selectable?.extra?.firstOrNull { it.name.equals("genre", ignoreCase = true) }?.options.orEmpty()
+    val hiddenGenreOpen = genreOptions.any { it.selected && !ChannelList.isShownCategory(it.value) }
+    LaunchedEffect(hiddenGenreOpen, tvFilters?.selected?.request) {
+        if (hiddenGenreOpen) genreOptions.firstOrNull { it.value == null }?.let { onSelectRequest(it.request) }
     }
     // While the TV catalog is being selected, the model may still hold another one.
     val loading = catalog.isLoading || (tvFilters == null && !noTvSource) || (tvFilters != null && !selectedIsSource && !noChannelSource)
@@ -337,7 +353,9 @@ private fun channelCategoryRow(
 ): TvCategories.Row<ResourceRequest> {
     val genre = filters.selectable.extra.firstOrNull { it.name.equals("genre", ignoreCase = true) }
     return TvCategories.build(
-        genres = genre?.options.orEmpty().map { TvCategories.Option(it.value, it.selected, it.request) },
+        genres = genre?.options.orEmpty()
+            .filter { ChannelList.isShownCategory(it.value) }
+            .map { TvCategories.Option(it.value, it.selected, it.request) },
         sportsByMetadata = sportsByMetadata,
         label = ContentLabels::genre,
         allRequest = catalogs.firstOrNull { it.selected }?.request,
