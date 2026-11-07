@@ -1,6 +1,5 @@
-## MW Play Mobile 1.5.1
+## MW Play Mobile 1.5.2
 
-### Correção
-- Corrige o fechamento do app logo ao abrir ("exceção de ponto nulo") que acontecia na versão anterior no celular.
-
-Se o app estiver fechando ao abrir, baixe o APK desta versão e instale por cima; seus dados e sua conta são mantidos.
+### Correções
+- O app não fecha mais quando o servidor de torrent não consegue iniciar (por exemplo, com outro app usando a porta 11470).
+- Funciona junto com o MW Play Canais instalado no mesmo aparelho.
