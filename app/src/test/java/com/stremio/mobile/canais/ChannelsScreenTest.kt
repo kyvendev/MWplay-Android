@@ -76,7 +76,7 @@ class ChannelsScreenTest {
     fun categoriesLoadTheSourceCatalogs() {
         show()
         composeRule.onNodeWithText("Esportes").performClick()
-        composeRule.onNodeWithText("Notícias").performClick()
+        composeRule.onNodeWithText("Canais | Notícias").performClick()
         composeRule.runOnIdle { assertEquals(listOf(ChannelsFixtures.sports, ChannelsFixtures.news), selected) }
     }
 
