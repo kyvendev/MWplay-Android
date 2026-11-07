@@ -100,6 +100,9 @@ class MainApplication : Application(), SingletonImageLoader.Factory {
         // on phone and Android TV and prevents compatible local streams from
         // losing the server when the UI is recreated.
         applicationScope.launch {
+            // Torrent data left by the last session (the app may have been closed while playing).
+            runCatching { com.stremio.mobile.server.StreamCache.clear(this@MainApplication) }
+                .onSuccess { if (it > 0) Timber.i("Stream cache cleared at startup: %d bytes", it) }
             runCatching { container.serverController.start() }
                 .onFailure { Timber.e(it, "Failed to start streaming server at application startup") }
         }

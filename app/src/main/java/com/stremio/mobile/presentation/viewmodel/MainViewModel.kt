@@ -1594,6 +1594,36 @@ class MainViewModel(
         viewModelScope.launch {
             stopServerIfIdle()
         }
+        clearStreamCacheWhenIdle()
+    }
+
+    private var streamCacheJob: Job? = null
+
+    /**
+     * Once nothing has played for a little while (not just switching episode or source), the
+     * server lets go of its torrents and their downloaded data is deleted from the device.
+     */
+    private fun clearStreamCacheWhenIdle() {
+        streamCacheJob?.cancel()
+        streamCacheJob = viewModelScope.launch {
+            delay(20_000L) // longer than switching to the next episode or another source
+            if (playerOpen.value) return@launch
+            withContext(Dispatchers.IO) {
+                val server = serverController.state.value
+                if (server is StreamingServerState.Ready) {
+                    runCatching {
+                        val connection = java.net.URL("${server.baseUrl}/removeAll").openConnection() as java.net.HttpURLConnection
+                        connection.connectTimeout = 3_000
+                        connection.readTimeout = 5_000
+                        try { connection.responseCode } finally { connection.disconnect() }
+                    }.onFailure { Timber.w(it, "Stream cache: removeAll failed") }
+                }
+                if (playerOpen.value) return@withContext
+                runCatching { com.stremio.mobile.server.StreamCache.clear(appContext) }
+                    .onSuccess { Timber.i("Stream cache cleared after playback: %d bytes", it) }
+                    .onFailure { Timber.w(it, "Stream cache: clear failed") }
+            }
+        }
     }
 
     /** Polls live torrent health for a torrent stream and surfaces a fallback when it's dead/too slow. */
