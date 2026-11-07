@@ -6,7 +6,6 @@ import com.stremio.mobile.core.StremioCore
 import com.stremio.mobile.player.PlaybackManager
 import com.stremio.mobile.server.StubStreamingServerController
 import com.stremio.mobile.server.StreamingServerController
-import com.stremio.mobile.server.JniStreamingServerController
 
 import com.stremio.mobile.data.repository.AddonRepository
 import com.stremio.mobile.data.repository.AuthRepository
@@ -34,11 +33,9 @@ class AppContainer(context: Context) {
     val updateRepository = UpdateRepository(context.applicationContext)
     val apkInstaller = ApkInstaller(context.applicationContext)
 
-    val serverController: StreamingServerController = try {
-        JniStreamingServerController(context, useForegroundService = { authRepository.isServerInForeground() })
-    } catch (e: UnsatisfiedLinkError) {
-        Timber.e(e, "Failed to load stream_server JNI, falling back to Stub")
-        StubStreamingServerController()
-    }
+    // MW Play Canais plays live channels straight from their HTTP(S)/HLS links and never needs
+    // the local torrent server. Starting it here would take port 11470 from MW Play when both
+    // apps are installed ("A porta 11470 já está em uso"), so it stays off in this app.
+    val serverController: StreamingServerController = StubStreamingServerController()
 
 }
