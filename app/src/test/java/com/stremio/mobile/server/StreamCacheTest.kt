@@ -23,11 +23,17 @@ class StreamCacheTest {
         file(root, "libtorrent-downloads/Movie (2024)/movie.mkv", 1_000)
         file(root, "libtorrent-downloads/abc.parts", 200)
         file(root, "disk-cache/piece-1", 300)
+        // Android's disk-backed engine: the movie, its parts file and the cached .torrent.
+        file(root, "torrent-cache/Big Buck Bunny/Big Buck Bunny.mp4", 2_000)
+        file(root, "torrent-cache/.dd8255ec.parts", 100)
+        file(root, "torrent-cache/.metadata/dd8255ec.torrent", 400)
         val logs = file(root, "logs/server.log", 50)
 
         val freed = StreamCache.clear(root)
 
-        assertEquals(1_500L, freed)
+        assertEquals(4_000L, freed)
+        assertTrue(File(root, "torrent-cache").isDirectory)
+        assertEquals(0, File(root, "torrent-cache").listFiles()!!.size)
         assertTrue(File(root, "libtorrent-downloads").isDirectory)
         assertTrue(File(root, "disk-cache").isDirectory)
         assertEquals(0, File(root, "libtorrent-downloads").listFiles()!!.size)

@@ -10,7 +10,7 @@ import java.io.File
  */
 object StreamCache {
     /** Folders of the server's cache root (see JniStreamingServerController) that hold downloaded data. */
-    private val DATA_DIRS = listOf("libtorrent-downloads", "rqbit-downloads", "disk-cache")
+    private val DATA_DIRS = listOf("torrent-cache", "libtorrent-downloads", "rqbit-downloads", "disk-cache")
 
     fun root(context: Context): File = File(context.cacheDir, "stream-server")
 
