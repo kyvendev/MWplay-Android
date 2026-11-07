@@ -1,6 +1,9 @@
-## MW Play Canais 1.0.1
+## MW Play Canais 1.0.2
 
-### Correção
-- Corrige o fechamento do app logo ao abrir ("exceção de ponto nulo") que acontecia na versão anterior no celular.
+### Novidades
+- Só os canais do addon BestCine.
+- Categorias organizadas: só os grupos "Canais | …"; os canais das demais continuam em "Todos os canais".
+- "Esportes" abre os canais de esporte do BestCine, sem categoria repetida.
 
-Se o app estiver fechando ao abrir, baixe o APK desta versão e instale por cima; seus dados e sua conta são mantidos.
+### Correções
+- Não ocupa mais o servidor de torrent, então o MW Play funciona normalmente no mesmo aparelho.
