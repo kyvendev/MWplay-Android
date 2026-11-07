@@ -59,12 +59,6 @@ class JniStreamingServerController(
             }
             try {
                 val url = withContext(Dispatchers.IO) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && useForeground) {
-                        context.startForegroundService(serviceIntent)
-                    } else {
-                        context.startService(serviceIntent)
-                    }
-
                     val configDir = File(context.filesDir, "stream-server").absolutePath
                     val cacheDir = File(context.cacheDir, "stream-server").absolutePath
                     startServerNative(context.applicationContext, configDir, cacheDir, 11470)
@@ -72,6 +66,18 @@ class JniStreamingServerController(
 
                 if (url != null && waitForServerReady(url)) {
                     Timber.tag(TAG).i("Streaming server ready at %s", url)
+                    // Only once the server is up: a foreground service stopped before it reaches
+                    // startForeground() crashes the app (ForegroundServiceDidNotStartInTimeException),
+                    // which happened when port 11470 was already taken and the start failed at once.
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && useForeground) {
+                                context.startForegroundService(serviceIntent)
+                            } else {
+                                context.startService(serviceIntent)
+                            }
+                        }.onFailure { Timber.tag(TAG).w(it, "Server is up but its service could not start") }
+                    }
                     mutableState.value = StreamingServerState.Ready(url)
                 } else {
                     val message = if (url == null) {
