@@ -889,15 +889,17 @@ private fun BoardScreen(
     BackHandler(
         enabled = (state.selectedSection == MainSection.Settings && settingsSubScreen != SettingsSubScreen.Main) ||
                 (state.selectedSection == MainSection.Discover && state.discoverCatalogRequest != null) ||
-                state.selectedSection == MainSection.Tv
+                state.selectedSection == MainSection.Tv ||
+                // TV: Back on Biblioteca, Ajustes or Descobrir goes to Início instead of leaving the app.
+                (isTv && state.selectedSection != MainSection.Home)
     ) {
         if (state.selectedSection == MainSection.Settings && settingsSubScreen != SettingsSubScreen.Main) {
             settingsSubScreen = SettingsSubScreen.Main
-        } else if (state.selectedSection == MainSection.Tv ||
-            (state.selectedSection == MainSection.Discover && state.discoverCatalogRequest != null)
-        ) {
+        } else if (state.selectedSection == MainSection.Tv || state.selectedSection == MainSection.Discover) {
             // Back from Discover or TV returns to Início, as before.
             onCloseDiscoverCatalog()
+        } else {
+            onSelectSection(MainSection.Home)
         }
     }
 
