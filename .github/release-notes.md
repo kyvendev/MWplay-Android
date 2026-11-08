@@ -1,4 +1,8 @@
-## MW Play TV 1.5.3
+## MW Play TV 1.5.4
 
-### Novidade
-- Limpeza automática do cache: o que o torrent baixa enquanto você assiste é apagado ao fechar o player (depois de 20 segundos sem voltar a assistir) e ao abrir o app. Ideal para aparelhos com pouco armazenamento.
+### Melhorias
+- Próximo episódio: quando o aviso "Next" aparecer no player, basta apertar **OK** no controle para começar o próximo episódio.
+
+### Correções
+- O teclado não aparece mais por cima da animação de abertura no primeiro acesso.
+- Menos trabalho em segundo plano durante a reprodução: a fileira "Play Next" da tela inicial da TV só é atualizada ao fechar o player, o que deve evitar engasgos de áudio em TVs mais simples.
