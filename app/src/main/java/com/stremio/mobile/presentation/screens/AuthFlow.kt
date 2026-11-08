@@ -1,6 +1,9 @@
 package com.stremio.mobile.presentation.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,13 +67,21 @@ fun AuthFlow(
     /** False while the opening animation covers the screen: focusing the e-mail would open the keyboard over it. */
     autoFocus: Boolean = true,
 ) {
-    LoginScreen(
-        isLoading = isLoading,
-        error = error,
-        onClearError = onClearError,
-        onSubmit = onLogin,
-        autoFocus = autoFocus,
-    )
+    // On TV the system gives the first field the focus by itself, which opens the keyboard: while
+    // the opening animation covers the screen, the focus may not enter the login form at all.
+    Box(
+        modifier = Modifier
+            .focusProperties { onEnter = { if (!autoFocus) cancelFocusChange() } }
+            .focusGroup(),
+    ) {
+        LoginScreen(
+            isLoading = isLoading,
+            error = error,
+            onClearError = onClearError,
+            onSubmit = onLogin,
+            autoFocus = autoFocus,
+        )
+    }
 }
 
 @Composable
