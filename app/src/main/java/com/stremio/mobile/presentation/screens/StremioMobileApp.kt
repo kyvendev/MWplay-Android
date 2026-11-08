@@ -213,6 +213,7 @@ fun StremioMobileApp(viewModel: MainViewModel, showIntro: Boolean = false) {
                     onFacebookLoginError = viewModel::setAccountError,
                     onSignup = viewModel::signup,
                     onClearError = viewModel::clearAccountError,
+                    autoFocus = !introVisible,
                 )
             }
 

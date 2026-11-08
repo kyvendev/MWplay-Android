@@ -61,12 +61,15 @@ fun AuthFlow(
     onFacebookLoginError: (String) -> Unit,
     onSignup: (String, String, Boolean) -> Unit,
     onClearError: () -> Unit,
+    /** False while the opening animation covers the screen: focusing the e-mail would open the keyboard over it. */
+    autoFocus: Boolean = true,
 ) {
     LoginScreen(
         isLoading = isLoading,
         error = error,
         onClearError = onClearError,
         onSubmit = onLogin,
+        autoFocus = autoFocus,
     )
 }
 
@@ -76,6 +79,7 @@ private fun LoginScreen(
     error: String?,
     onClearError: () -> Unit,
     onSubmit: (String, String) -> Unit,
+    autoFocus: Boolean = true,
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -92,8 +96,8 @@ private fun LoginScreen(
         }
     }
 
-    LaunchedEffect(isTv) {
-        if (isTv) runCatching { emailRequester.requestFocus() }
+    LaunchedEffect(isTv, autoFocus) {
+        if (isTv && autoFocus) runCatching { emailRequester.requestFocus() }
     }
 
     AuthFormScaffold(

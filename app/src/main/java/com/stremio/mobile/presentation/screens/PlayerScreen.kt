@@ -48,6 +48,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -216,6 +217,8 @@ fun PlayerScreen(
     val videoSurfaceFocus = remember { FocusRequester() }
     val errorRetryFocus = remember { FocusRequester() }
     var consumedWakeKey by remember { mutableIntStateOf(-1) }
+    // The next-episode card's close button has the focus: OK dismisses the card instead of playing next.
+    var nextCardCloseFocused by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     var singleTapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     // Timestamp of the last gesture-driven (silent) seek. Used to ignore the pause→buffer→resume
@@ -771,6 +774,16 @@ fun PlayerScreen(
                         skipIntro(skipOffer.skipToMs, automatic = false)
                         return@onPreviewKeyEvent true
                     }
+                    // While the next-episode card shows, OK plays the next episode (controls open or not),
+                    // unless the card's close button has the focus.
+                    if (showNextVideoPopup && nextVideo != null && !nextCardCloseFocused && remoteKey == PlayerRemoteKey.ACTIVATE &&
+                        event.type == KeyEventType.KeyDown && nativeEvent.repeatCount == 0 &&
+                        !showAudioDialog && !showSubtitleDialog
+                    ) {
+                        consumedWakeKey = nativeEvent.keyCode
+                        onPlayNext()
+                        return@onPreviewKeyEvent true
+                    }
                     when (playerRemoteAction(
                         key = remoteKey,
                         controlsVisible = showControls,
@@ -1125,6 +1138,7 @@ fun PlayerScreen(
                     video = nextVideo,
                     onPlayNext = onPlayNext,
                     onDismiss = onDismissNextVideoPopup,
+                    onCloseFocusChanged = { nextCardCloseFocused = it },
                 )
             }
         }
@@ -1240,6 +1254,7 @@ fun NextEpisodePopup(
     video: com.stremio.core.types.resource.Video,
     onPlayNext: () -> Unit,
     onDismiss: () -> Unit,
+    onCloseFocusChanged: (Boolean) -> Unit = {},
 ) {
     Row(
         modifier = Modifier
@@ -1290,7 +1305,9 @@ fun NextEpisodePopup(
             imageVector = Icons.Outlined.Close,
             contentDescription = "Dispensar",
             onClick = onDismiss,
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier
+                .size(48.dp)
+                .onFocusChanged { onCloseFocusChanged(it.hasFocus) },
         )
         ThemedIconButton(
             imageVector = Icons.Filled.PlayArrow,

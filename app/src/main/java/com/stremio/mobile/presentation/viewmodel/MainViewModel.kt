@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -1841,7 +1842,13 @@ class MainViewModel(
         val isTv = appContext.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
         if (!isTv) return
         viewModelScope.launch(Dispatchers.IO) {
-            continueWatching.debounce(5_000L).collect {
+            // Not while something plays: the position is saved every 5 s, and rewriting the row
+            // that often makes the launcher reload it in the background, which can starve the
+            // audio on low-end TVs. The row is brought up to date once the player closes.
+            combine(continueWatching, playerOpen) { _, open -> open }
+                .filter { open -> !open }
+                .debounce(5_000L)
+                .collect {
                 val entries = runCatching {
                     core.getContinueWatchingPreview().libraryItems.mapIndexed { index, item ->
                         WatchNextEntry(item.id, item.type, item.name, item.poster, item.state.timeOffset, item.state.duration, index)
